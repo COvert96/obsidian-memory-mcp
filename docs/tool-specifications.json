@@ -1,0 +1,338 @@
+{
+  "schema_version": "2026-05-23",
+  "error_response_schema": {
+    "type": "object",
+    "required": ["code", "message", "details"],
+    "properties": {
+      "code": { "type": "string", "pattern": "^ERR_[A-Z0-9_]+$" },
+      "message": { "type": "string" },
+      "details": { "type": "object" }
+    }
+  },
+  "tools": [
+    {
+      "name": "read_note",
+      "request_schema": "src/obsidian_memory_mcp/schemas/read_note.json#/request",
+      "response_schema": "src/obsidian_memory_mcp/schemas/read_note.json#/response",
+      "example_request": {
+        "project": "occlave",
+        "note_path": "wiki/concepts/compliance-as-code.md"
+      },
+      "example_response": {
+        "project": "occlave",
+        "file_path": "wiki/concepts/compliance-as-code.md",
+        "content": "---\ntype: concept\n---\n# Compliance as Code\n...",
+        "frontmatter": { "type": "concept" },
+        "file_size_bytes": 412
+      },
+      "error_scenarios": [
+        {
+          "code": "ERR_MISSING_FILE",
+          "when": "The requested note_path does not exist under the project vault root.",
+          "example_response": {
+            "code": "ERR_MISSING_FILE",
+            "message": "File 'wiki/concepts/missing.md' does not exist in the project vault.",
+            "details": { "file_path": "wiki/concepts/missing.md" }
+          }
+        },
+        {
+          "code": "ERR_INTERNAL",
+          "when": "Unexpected filesystem read failure (for example OS I/O error).",
+          "example_response": {
+            "code": "ERR_INTERNAL",
+            "message": "The server encountered an unexpected internal error.",
+            "details": {
+              "operation": "read_note",
+              "cause": "I/O error while opening target file"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "read_section",
+      "request_schema": "src/obsidian_memory_mcp/schemas/read_section.json#/request",
+      "response_schema": "src/obsidian_memory_mcp/schemas/read_section.json#/response",
+      "example_request": {
+        "project": "occlave",
+        "note_path": "wiki/concepts/compliance-as-code.md",
+        "heading_name": "Definition"
+      },
+      "example_response": {
+        "project": "occlave",
+        "file_path": "wiki/concepts/compliance-as-code.md",
+        "heading": "Definition",
+        "heading_level": 2,
+        "content": "## Definition\nCompliance controls encoded as executable rules.",
+        "context_lines": 2
+      },
+      "error_scenarios": [
+        {
+          "code": "ERR_SECTION_NOT_FOUND",
+          "when": "The requested heading_name is not present in the note.",
+          "example_response": {
+            "code": "ERR_SECTION_NOT_FOUND",
+            "message": "Heading 'Controls' was not found in 'wiki/concepts/compliance-as-code.md'.",
+            "details": {
+              "file_path": "wiki/concepts/compliance-as-code.md",
+              "heading_name": "Controls"
+            }
+          }
+        },
+        {
+          "code": "ERR_INTERNAL",
+          "when": "Unexpected markdown parsing failure while extracting heading boundaries.",
+          "example_response": {
+            "code": "ERR_INTERNAL",
+            "message": "The server encountered an unexpected internal error.",
+            "details": {
+              "operation": "read_section",
+              "cause": "section parser failed"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "search_notes",
+      "request_schema": "src/obsidian_memory_mcp/schemas/search_notes.json#/request",
+      "response_schema": "src/obsidian_memory_mcp/schemas/search_notes.json#/response",
+      "example_request": {
+        "project": "occlave",
+        "query": "continuous compliance",
+        "limit": 5,
+        "tags": ["compliance"],
+        "paths": ["wiki/concepts/**"]
+      },
+      "example_response": {
+        "project": "occlave",
+        "query": "continuous compliance",
+        "results": [
+          {
+            "file_path": "wiki/concepts/continuous-compliance.md",
+            "heading": "Definition",
+            "heading_level": 2,
+            "preview": "...continuous compliance keeps evidence current...",
+            "rank": 1.25,
+            "tags": ["compliance"]
+          }
+        ],
+        "returned_count": 1
+      },
+      "error_scenarios": [
+        {
+          "code": "ERR_INVALID_REQUEST",
+          "when": "The query field is missing or empty.",
+          "example_response": {
+            "code": "ERR_INVALID_REQUEST",
+            "message": "search_notes request payload is invalid at 'query': '' should be non-empty",
+            "details": {
+              "field_path": "query",
+              "validator": "minLength"
+            }
+          }
+        },
+        {
+          "code": "ERR_INTERNAL",
+          "when": "Unexpected database connectivity failure while reading SQLite FTS index.",
+          "example_response": {
+            "code": "ERR_INTERNAL",
+            "message": "The server encountered an unexpected internal error.",
+            "details": {
+              "operation": "search_notes",
+              "cause": "database connection failed",
+              "recovery": "retry with backoff and verify index_db_location"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "get_context_pack",
+      "request_schema": "src/obsidian_memory_mcp/schemas/get_context_pack.json#/request",
+      "response_schema": "src/obsidian_memory_mcp/schemas/get_context_pack.json#/response",
+      "example_request": {
+        "project": "occlave",
+        "pack_name": "prd",
+        "strict_budget": true
+      },
+      "example_response": {
+        "project": "occlave",
+        "pack_name": "prd",
+        "content": "<!-- From: docs/prd/master.md -->\n# Product Roadmap\n...",
+        "token_count": 732,
+        "files_included": ["docs/prd/master.md"],
+        "missing_files": [],
+        "warnings": []
+      },
+      "error_scenarios": [
+        {
+          "code": "ERR_CONTEXT_EXCEEDS_BUDGET",
+          "when": "strict_budget=true and pack token_count exceeds configured cap.",
+          "example_response": {
+            "code": "ERR_CONTEXT_EXCEEDS_BUDGET",
+            "message": "The requested context pack exceeds the configured token budget.",
+            "details": {
+              "token_count": 2049,
+              "budget": 1800,
+              "overflow": 249,
+              "suggested_pack_names": ["prd-core", "engineering"]
+            }
+          }
+        },
+        {
+          "code": "ERR_INTERNAL",
+          "when": "Unexpected config or index lookup failure while resolving context pack members.",
+          "example_response": {
+            "code": "ERR_INTERNAL",
+            "message": "The server encountered an unexpected internal error.",
+            "details": {
+              "operation": "get_context_pack",
+              "cause": "pack metadata lookup failed"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "propose_memory_update",
+      "request_schema": "src/obsidian_memory_mcp/schemas/propose_memory_update.json#/request",
+      "response_schema": "src/obsidian_memory_mcp/schemas/propose_memory_update.json#/response",
+      "example_request": {
+        "project": "occlave",
+        "file_path": "Memory/company-summary.md",
+        "operation": "update",
+        "content": "# Company Summary\nUpdated content."
+      },
+      "example_response": {
+        "project": "occlave",
+        "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
+        "file_path": "Memory/company-summary.md",
+        "operation": "update",
+        "old_hash": "3c7b5f1d2a7e4cb68f4b33d20c342f87df8af3f8f0dcbcb3552f7c8f35ea1887",
+        "new_hash": "bef4b0b23bc6e4fcbf64cfd9d3405fceea27191c0b37db114d4e62ebccb8eaf7",
+        "ttl_seconds": 3600
+      },
+      "error_scenarios": [
+        {
+          "code": "ERR_GUARDRAIL_VIOLATION",
+          "when": "The target path is outside approved writable patterns.",
+          "example_response": {
+            "code": "ERR_GUARDRAIL_VIOLATION",
+            "message": "The requested file operation violates configured guardrails.",
+            "details": { "file_path": "../../outside.md" }
+          }
+        },
+        {
+          "code": "ERR_INTERNAL",
+          "when": "Unexpected proposal-store write failure.",
+          "example_response": {
+            "code": "ERR_INTERNAL",
+            "message": "The server encountered an unexpected internal error.",
+            "details": {
+              "operation": "propose_memory_update",
+              "cause": "failed to insert proposal row"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "list_proposals",
+      "request_schema": "src/obsidian_memory_mcp/schemas/list_proposals.json#/request",
+      "response_schema": "src/obsidian_memory_mcp/schemas/list_proposals.json#/response",
+      "example_request": {
+        "project": "occlave",
+        "status": "pending",
+        "limit": 10
+      },
+      "example_response": {
+        "project": "occlave",
+        "proposals": [
+          {
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "file_path": "Memory/company-summary.md",
+            "operation": "update",
+            "status": "pending",
+            "created_at": "2026-05-23T10:00:00Z",
+            "expires_at": "2026-05-23T11:00:00Z",
+            "preview": "# Company Summary\\nUpdated content."
+          }
+        ],
+        "returned_count": 1
+      },
+      "error_scenarios": [
+        {
+          "code": "ERR_INVALID_REQUEST",
+          "when": "status filter value is not in allowed enum.",
+          "example_response": {
+            "code": "ERR_INVALID_REQUEST",
+            "message": "list_proposals request payload is invalid at 'status': 'queued' is not one of ['all', 'pending', 'approved', 'rejected', 'applied']",
+            "details": {
+              "field_path": "status",
+              "validator": "enum"
+            }
+          }
+        },
+        {
+          "code": "ERR_INTERNAL",
+          "when": "Unexpected database connectivity failure while reading proposal records.",
+          "example_response": {
+            "code": "ERR_INTERNAL",
+            "message": "The server encountered an unexpected internal error.",
+            "details": {
+              "operation": "list_proposals",
+              "cause": "database connection failed",
+              "recovery": "retry with backoff and verify index_db_location"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "approve_proposal",
+      "request_schema": "src/obsidian_memory_mcp/schemas/approve_proposal.json#/request",
+      "response_schema": "src/obsidian_memory_mcp/schemas/approve_proposal.json#/response",
+      "example_request": {
+        "project": "occlave",
+        "proposal_id": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "example_response": {
+        "project": "occlave",
+        "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
+        "file_path": "Memory/company-summary.md",
+        "operation": "update",
+        "status": "applied",
+        "written_at": "2026-05-23T10:15:00Z",
+        "file_size_bytes": 128
+      },
+      "error_scenarios": [
+        {
+          "code": "ERR_STALE_PROPOSAL",
+          "when": "Proposal has expired or old_hash no longer matches current file.",
+          "example_response": {
+            "code": "ERR_STALE_PROPOSAL",
+            "message": "File changed since proposal created; review new state before reapproving",
+            "details": {
+              "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
+              "file_path": "Memory/company-summary.md"
+            }
+          }
+        },
+        {
+          "code": "ERR_INTERNAL",
+          "when": "Unexpected database connectivity failure while updating proposal status to applied.",
+          "example_response": {
+            "code": "ERR_INTERNAL",
+            "message": "The server encountered an unexpected internal error.",
+            "details": {
+              "operation": "approve_proposal",
+              "cause": "database connection failed",
+              "recovery": "retry with backoff and verify index_db_location"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
