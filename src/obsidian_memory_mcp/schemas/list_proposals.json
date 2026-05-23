@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "tool": "list_proposals",
+  "request": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["project"],
+    "properties": {
+      "project": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+      },
+      "status": { "type": "string", "enum": ["all", "pending", "approved", "rejected", "applied"] },
+      "file_path": { "type": "string", "minLength": 1, "maxLength": 4096 },
+      "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 10 }
+    }
+  },
+  "response": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["project", "proposals", "returned_count"],
+    "properties": {
+      "project": { "type": "string", "minLength": 1 },
+      "returned_count": { "type": "integer", "minimum": 0 },
+      "proposals": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "file_path", "operation", "status", "created_at", "expires_at", "preview"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            },
+            "file_path": { "type": "string", "minLength": 1 },
+            "operation": { "type": "string", "enum": ["create", "update", "delete"] },
+            "status": { "type": "string", "enum": ["pending", "approved", "rejected", "applied"] },
+            "created_at": { "type": "string", "format": "date-time" },
+            "expires_at": { "type": "string", "format": "date-time" },
+            "preview": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

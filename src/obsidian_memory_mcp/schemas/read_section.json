@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "tool": "read_section",
+  "request": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["project", "note_path", "heading_name"],
+    "properties": {
+      "project": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+      },
+      "note_path": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "heading_name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512
+      }
+    }
+  },
+  "response": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["project", "file_path", "heading", "heading_level", "content", "context_lines"],
+    "properties": {
+      "project": { "type": "string", "minLength": 1 },
+      "file_path": { "type": "string", "minLength": 1 },
+      "heading": { "type": "string", "minLength": 1 },
+      "heading_level": { "type": "integer", "minimum": 1, "maximum": 6 },
+      "content": { "type": "string" },
+      "context_lines": { "type": "integer", "minimum": 0, "maximum": 10 }
+    }
+  }
+}

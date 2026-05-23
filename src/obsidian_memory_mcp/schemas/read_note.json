@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "tool": "read_note",
+  "request": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["project", "note_path"],
+    "properties": {
+      "project": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+      },
+      "note_path": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      }
+    }
+  },
+  "response": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["project", "file_path", "content", "frontmatter", "file_size_bytes"],
+    "properties": {
+      "project": { "type": "string", "minLength": 1 },
+      "file_path": { "type": "string", "minLength": 1 },
+      "content": { "type": "string" },
+      "frontmatter": { "type": "object" },
+      "file_size_bytes": { "type": "integer", "minimum": 0 }
+    }
+  }
+}
