@@ -4,4 +4,4 @@ When implementing code, always follow a TDD approach.
 
 ## Command Line
 - `uv` is the build backend and package manager.
-- Always use `uv run` over `.venv/Scripts/python.exe`.
+- Always use `uv run` over `.venv/Scripts/python.exe` or `python`.
