@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import yaml
-
+from obsidian_memory_mcp.config.model import (
+    DEFAULT_MAX_PROPOSAL_TTL_HOURS,
+    DEFAULT_TAGS_SEPARATOR,
+    AccessConstraints,
+    AccessPolicy,
+    ContextPackConfig,
+    ProjectConfig,
+)
 from obsidian_memory_mcp.errors import ErrorCode, ErrorResponse, ToolExecutionError, build_error
-from obsidian_memory_mcp.paths import normalize_vault_path
-
-
-CONFIG_FILE_NAME = "memory-mcp.yaml"
-DEFAULT_TAGS_SEPARATOR = ","
-DEFAULT_MAX_PROPOSAL_TTL_HOURS = 24
 
 
 @dataclass(frozen=True)
@@ -39,77 +38,6 @@ class ConfigValidationException(ToolExecutionError):
     ):
         super().__init__(error)
         self.validation_errors = validation_errors or []
-
-
-@dataclass(frozen=True)
-class ContextPackConfig:
-    name: str
-    paths: tuple[str, ...]
-    include_context_packs: tuple[str, ...] = ()
-    token_budget: int | None = None
-
-
-@dataclass(frozen=True)
-class WritePolicy:
-    allow: tuple[str, ...] = ()
-    deny: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
-class WriteConstraints:
-    read: WritePolicy = field(default_factory=WritePolicy)
-    write: WritePolicy = field(default_factory=WritePolicy)
-
-
-@dataclass(frozen=True)
-class ProjectConfig:
-    vault_path: Path
-    index_db_location: Path
-    context_packs: tuple[ContextPackConfig, ...]
-    write_constraints: WriteConstraints
-    tags_separator: str = DEFAULT_TAGS_SEPARATOR
-    max_proposal_ttl_hours: int = DEFAULT_MAX_PROPOSAL_TTL_HOURS
-
-
-class ConfigLoader:
-    def __init__(self, vault_root: str | Path, validator: "ConfigValidator | None" = None):
-        self._vault_root = Path(vault_root)
-        self._validator = validator or ConfigValidator()
-        self._cached_config: ProjectConfig | None = None
-
-    def load(self) -> ProjectConfig:
-        if self._cached_config is not None:
-            return self._cached_config
-
-        config_path = self._vault_root / CONFIG_FILE_NAME
-        if not config_path.exists():
-            raise ConfigValidationException(
-                build_error(
-                    ErrorCode.ERR_INVALID_PROJECT,
-                    message=f"Config file not found at '{config_path}'.",
-                    details={
-                        "field": CONFIG_FILE_NAME,
-                        "suggestion": f"Create {CONFIG_FILE_NAME} in the vault root and retry.",
-                    },
-                )
-            )
-
-        try:
-            loaded_data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-        except yaml.YAMLError as error:
-            raise ConfigValidationException(
-                build_error(
-                    ErrorCode.ERR_INVALID_PROJECT,
-                    message=f"Config file '{config_path}' contains malformed YAML: {error}.",
-                    details={
-                        "field": CONFIG_FILE_NAME,
-                        "suggestion": "Fix the YAML syntax, then run 'mcp-memory config validate' again.",
-                    },
-                )
-            ) from error
-
-        self._cached_config = self._validator.validate(loaded_data)
-        return self._cached_config
 
 
 class ConfigValidator:
@@ -151,7 +79,8 @@ class ConfigValidator:
             ),
         )
 
-    def _missing_required_field_errors(self, data: dict[str, Any]) -> list[ConfigValidationError]:
+    @staticmethod
+    def _missing_required_field_errors(data: dict[str, Any]) -> list[ConfigValidationError]:
         return [
             ConfigValidationError(
                 field=field_name,
@@ -249,7 +178,7 @@ class ConfigValidator:
             return
 
         names: set[str] = set()
-        includes_by_name: dict[str, tuple[str, ...]] = {}
+        includes_by_name: dict[str, tuple[int, tuple[str, ...]]] = {}
         for index, context_pack in enumerate(context_packs):
             if not isinstance(context_pack, dict):
                 errors.append(
@@ -258,6 +187,7 @@ class ConfigValidator:
                 continue
 
             name = context_pack.get("name")
+            name_is_unique = False
             if not isinstance(name, str) or not name:
                 errors.append(
                     _type_error(f"context_packs[{index}].name", "a non-empty string", name)
@@ -273,6 +203,7 @@ class ConfigValidator:
                 )
             else:
                 names.add(name)
+                name_is_unique = True
 
             self._validate_string_list(
                 context_pack,
@@ -294,32 +225,36 @@ class ConfigValidator:
                 errors,
             )
 
-            if isinstance(name, str) and name:
+            if name_is_unique:
                 includes = context_pack.get("include_context_packs", [])
                 if isinstance(includes, list) and all(isinstance(item, str) for item in includes):
-                    includes_by_name[name] = tuple(includes)
+                    includes_by_name[name] = (index, tuple(includes))
 
         self._validate_context_pack_references(includes_by_name, names, errors)
 
     def _validate_context_pack_references(
         self,
-        includes_by_name: dict[str, tuple[str, ...]],
+        includes_by_name: dict[str, tuple[int, tuple[str, ...]]],
         names: set[str],
         errors: list[ConfigValidationError],
     ) -> None:
-        for index, (pack_name, includes) in enumerate(includes_by_name.items()):
+        for _pack_name, (original_index, includes) in includes_by_name.items():
             unknown = sorted(set(includes).difference(names))
             if unknown:
                 errors.append(
                     ConfigValidationError(
-                        field=f"context_packs[{index}].include_context_packs",
+                        field=f"context_packs[{original_index}].include_context_packs",
                         expected="names of defined context packs; unknown context pack references are invalid",
                         actual=unknown,
                         suggestion="Define the referenced context pack or remove the reference.",
                     )
                 )
 
-        cycle = _find_context_pack_cycle(includes_by_name)
+        include_graph = {
+            name: includes
+            for name, (_original_index, includes) in includes_by_name.items()
+        }
+        cycle = _find_context_pack_cycle(include_graph)
         if cycle:
             errors.append(
                 ConfigValidationError(
@@ -369,8 +304,8 @@ class ConfigValidator:
             errors,
         )
 
+    @staticmethod
     def _validate_string_list(
-        self,
         container: dict[str, Any],
         key: str,
         field_path: str,
@@ -405,8 +340,8 @@ class ConfigValidator:
                 )
             )
 
+    @staticmethod
     def _validate_optional_positive_int(
-        self,
         container: dict[str, Any],
         key: str,
         field_path: str,
@@ -417,128 +352,6 @@ class ConfigValidator:
         value = container[key]
         if not isinstance(value, int) or value <= 0:
             errors.append(_type_error(field_path, "a positive integer", value))
-
-
-class GuardrailEvaluator:
-    def __init__(self, config: ProjectConfig):
-        self._config = config
-        self._read_policy = _CompiledPolicy(config.write_constraints.read)
-        self._write_policy = _CompiledPolicy(config.write_constraints.write)
-        self._normalized_paths: dict[str, Path] = {}
-
-    def check_read(self, requested_path: str | Path) -> Path:
-        return self._check("read", requested_path, self._read_policy)
-
-    def check_write(self, requested_path: str | Path) -> Path:
-        return self._check("write", requested_path, self._write_policy)
-
-    def _check(
-        self,
-        operation: str,
-        requested_path: str | Path,
-        policy: "_CompiledPolicy",
-    ) -> Path:
-        resolved_path = self._normalize_requested_path(requested_path)
-        relative_path = resolved_path.relative_to(self._config.vault_path).as_posix()
-        decision = policy.evaluate(relative_path)
-        if decision.allowed:
-            return resolved_path
-
-        raise ToolExecutionError(
-            build_error(
-                ErrorCode.ERR_GUARDRAIL_VIOLATION,
-                message=(
-                    f"Path '{relative_path}' violates {operation} {decision.reason} "
-                    f"constraint '{decision.pattern}'."
-                ),
-                details={
-                    "operation": operation,
-                    "path": relative_path,
-                    "constraint": decision.pattern,
-                    "suggestion": f"Update write_constraints.{operation}.allow or choose an allowed path.",
-                },
-            )
-        )
-
-    def _normalize_requested_path(self, requested_path: str | Path) -> Path:
-        cache_key = str(requested_path)
-        if cache_key not in self._normalized_paths:
-            self._normalized_paths[cache_key] = normalize_vault_path(
-                self._config.vault_path,
-                requested_path,
-            )
-        return self._normalized_paths[cache_key]
-
-
-def load_project_config(vault_root: str | Path) -> ProjectConfig:
-    return ConfigLoader(vault_root).load()
-
-
-@dataclass(frozen=True)
-class _GuardrailDecision:
-    allowed: bool
-    reason: str
-    pattern: str
-
-
-@dataclass(frozen=True)
-class _CompiledRule:
-    raw_pattern: str
-    regex: re.Pattern[str]
-
-    def matches(self, relative_path: str) -> bool:
-        return bool(self.regex.fullmatch(relative_path))
-
-
-class _CompiledPolicy:
-    def __init__(self, policy: WritePolicy):
-        self._allow = tuple(_compile_rule(pattern) for pattern in policy.allow)
-        self._deny = tuple(_compile_rule(pattern) for pattern in policy.deny)
-
-    def evaluate(self, relative_path: str) -> _GuardrailDecision:
-        for rule in self._deny:
-            if rule.matches(relative_path):
-                return _GuardrailDecision(False, "deny", rule.raw_pattern)
-
-        for rule in self._allow:
-            if rule.matches(relative_path):
-                return _GuardrailDecision(True, "allow", rule.raw_pattern)
-
-        return _GuardrailDecision(False, "allow", "<default deny>")
-
-
-def _compile_rule(pattern: str) -> _CompiledRule:
-    normalized = pattern.replace("\\", "/").lstrip("/")
-    if normalized.endswith("/"):
-        directory = re.escape(normalized.rstrip("/"))
-        return _CompiledRule(pattern, re.compile(rf"{directory}(/.*)?"))
-
-    if not any(character in normalized for character in "*?[]"):
-        return _CompiledRule(pattern, re.compile(re.escape(normalized)))
-
-    return _CompiledRule(pattern, re.compile(_glob_to_regex(normalized)))
-
-
-def _glob_to_regex(pattern: str) -> str:
-    pieces: list[str] = ["^"]
-    index = 0
-    while index < len(pattern):
-        character = pattern[index]
-        if character == "*":
-            if index + 1 < len(pattern) and pattern[index + 1] == "*":
-                pieces.append(".*")
-                index += 2
-            else:
-                pieces.append("[^/]*")
-                index += 1
-        elif character == "?":
-            pieces.append("[^/]")
-            index += 1
-        else:
-            pieces.append(re.escape(character))
-            index += 1
-    pieces.append("$")
-    return "".join(pieces)
 
 
 def _type_error(field: str, expected: str, actual: Any) -> ConfigValidationError:
@@ -569,15 +382,15 @@ def _parse_context_packs(data: list[dict[str, Any]]) -> tuple[ContextPackConfig,
     )
 
 
-def _parse_write_constraints(data: dict[str, Any]) -> WriteConstraints:
-    return WriteConstraints(
-        read=_parse_write_policy(data.get("read", {})),
-        write=_parse_write_policy(data.get("write", {})),
+def _parse_write_constraints(data: dict[str, Any]) -> AccessConstraints:
+    return AccessConstraints(
+        read=_parse_access_policy(data.get("read", {})),
+        write=_parse_access_policy(data.get("write", {})),
     )
 
 
-def _parse_write_policy(data: dict[str, Any]) -> WritePolicy:
-    return WritePolicy(
+def _parse_access_policy(data: dict[str, Any]) -> AccessPolicy:
+    return AccessPolicy(
         allow=tuple(data.get("allow", ())),
         deny=tuple(data.get("deny", ())),
     )

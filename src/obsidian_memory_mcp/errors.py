@@ -143,8 +143,17 @@ def build_error(
     details: dict[str, Any] | None = None,
 ) -> ErrorResponse:
     definition = ERROR_CATALOG[code]
+    resolved_details = details or {}
+    resolved_message = message or definition.message_template.format_map(
+        _MessageDetails(resolved_details)
+    )
     return ErrorResponse(
         code=code,
-        message=message or definition.message_template,
-        details=details or {},
+        message=resolved_message,
+        details=resolved_details,
     )
+
+
+class _MessageDetails(dict[str, Any]):
+    def __missing__(self, key: str) -> str:
+        return "{" + key + "}"

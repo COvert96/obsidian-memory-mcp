@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import json
 from functools import lru_cache, wraps
 from importlib.resources import files
@@ -25,10 +26,13 @@ def load_tool_schema(tool_name: str) -> dict[str, Any]:
     except FileNotFoundError as error:
         raise ValidationError(
             build_error(
-                ErrorCode.ERR_INVALID_REQUEST,
-                message=f"No JSON Schema is registered for tool '{tool_name}'.",
+                ErrorCode.ERR_INTERNAL,
+                message=(
+                    f"No JSON Schema is registered for tool '{tool_name}'. "
+                    "This is a server configuration error."
+                ),
                 details={
-                    "field_path": tool_name,
+                    "tool_name": tool_name,
                     "validator": "schema_registry",
                     "suggestion": "Register both request and response schemas before using the tool.",
                 },
@@ -77,6 +81,16 @@ def validate_tool_payload(tool_name: str, payload: dict[str, Any], *, schema_kin
 
 def validate_tool_handler(tool_name: str):
     def decorator(function):
+        if inspect.iscoroutinefunction(function):
+            @wraps(function)
+            async def async_wrapper(payload: dict[str, Any], *args: Any, **kwargs: Any):
+                validate_tool_payload(tool_name, payload, schema_kind="request")
+                response = await function(payload, *args, **kwargs)
+                validate_tool_payload(tool_name, response, schema_kind="response")
+                return response
+
+            return async_wrapper
+
         @wraps(function)
         def wrapper(payload: dict[str, Any], *args: Any, **kwargs: Any):
             validate_tool_payload(tool_name, payload, schema_kind="request")
@@ -90,13 +104,16 @@ def validate_tool_handler(tool_name: str):
 
 
 def _sort_validation_errors(error: Any) -> tuple[int, str, str]:
-    return (len(list(error.path)), _field_path_for(error), error.validator)
+    return (len(error.path), _field_path_for(error), error.validator)
 
 
 def _field_path_for(error: Any) -> str:
     if error.validator == "required":
-        missing_field = str(error.message).split("'")[1]
-        return missing_field
+        required_fields = set(error.validator_value)
+        present_fields = set(error.instance.keys()) if isinstance(error.instance, dict) else set()
+        missing_fields = required_fields - present_fields
+        if missing_fields:
+            return sorted(missing_fields)[0]
     if error.path:
         return ".".join(str(part) for part in error.path)
     return "payload"
