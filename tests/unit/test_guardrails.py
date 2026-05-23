@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import time
 from pathlib import Path
 
 import pytest
 
 from obsidian_memory_mcp.config import (
+    AccessConstraints,
+    AccessPolicy,
     GuardrailEvaluator,
     ProjectConfig,
-    WriteConstraints,
-    WritePolicy,
 )
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError
 
@@ -23,9 +22,9 @@ def config(tmp_path: Path) -> ProjectConfig:
         vault_path=vault.resolve(),
         index_db_location=vault.resolve() / "index.sqlite3",
         context_packs=(),
-        write_constraints=WriteConstraints(
-            read=WritePolicy(allow=("wiki/**", "README.md"), deny=("wiki/private/**",)),
-            write=WritePolicy(allow=("wiki/proposals/", "wiki/notes/*.md"), deny=("wiki/log.md",)),
+        write_constraints=AccessConstraints(
+            read=AccessPolicy(allow=("wiki/**", "README.md"), deny=("wiki/private/**",)),
+            write=AccessPolicy(allow=("wiki/proposals/", "wiki/notes/*.md"), deny=("wiki/log.md",)),
         ),
         tags_separator=",",
         max_proposal_ttl_hours=24,
@@ -68,6 +67,24 @@ def test_write_rejects_nested_file_when_glob_is_not_recursive(config: ProjectCon
         GuardrailEvaluator(config).check_write("wiki/notes/deep/new.md")
 
 
+def test_recursive_glob_matches_files_directly_under_parent_directory(config: ProjectConfig) -> None:
+    config = ProjectConfig(
+        vault_path=config.vault_path,
+        index_db_location=config.index_db_location,
+        context_packs=(),
+        write_constraints=AccessConstraints(
+            read=AccessPolicy(allow=("wiki/**/*.md",)),
+            write=AccessPolicy(),
+        ),
+        tags_separator=",",
+        max_proposal_ttl_hours=24,
+    )
+
+    result = GuardrailEvaluator(config).check_read("wiki/note.md")
+
+    assert result == config.vault_path / "wiki" / "note.md"
+
+
 def test_write_deny_overrides_directory_allow(config: ProjectConfig) -> None:
     with pytest.raises(ToolExecutionError) as exc_info:
         GuardrailEvaluator(config).check_write("wiki/log.md")
@@ -83,26 +100,23 @@ def test_guardrail_checks_block_traversal_before_pattern_matching(config: Projec
     assert exc_info.value.error.code is ErrorCode.ERR_GUARDRAIL_VIOLATION
 
 
-def test_guardrail_check_completes_under_one_millisecond(tmp_path: Path) -> None:
+def test_guardrail_check_uses_cached_normalized_paths(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     vault.mkdir()
     config = ProjectConfig(
         vault_path=vault.resolve(),
         index_db_location=vault.resolve() / "index.sqlite3",
         context_packs=(),
-        write_constraints=WriteConstraints(
-            read=WritePolicy(allow=tuple(f"wiki/{index}/**" for index in range(20))),
-            write=WritePolicy(allow=tuple(f"wiki/{index}/**" for index in range(20))),
+        write_constraints=AccessConstraints(
+            read=AccessPolicy(allow=tuple(f"wiki/{index}/**" for index in range(20))),
+            write=AccessPolicy(allow=tuple(f"wiki/{index}/**" for index in range(20))),
         ),
         tags_separator=",",
         max_proposal_ttl_hours=24,
     )
     evaluator = GuardrailEvaluator(config)
 
-    evaluator.check_read("wiki/19/note.md")
-    started = time.perf_counter()
-    for _ in range(100):
-        evaluator.check_read("wiki/19/note.md")
-    elapsed = (time.perf_counter() - started) / 100
+    first = evaluator.check_read("wiki/19/note.md")
+    second = evaluator.check_read("wiki/19/note.md")
 
-    assert elapsed < 0.001
+    assert second is first

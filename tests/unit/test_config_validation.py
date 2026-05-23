@@ -208,6 +208,19 @@ def test_validator_rejects_unknown_context_pack_references(tmp_path: Path) -> No
     assert "unknown context pack" in errors[0].message
 
 
+def test_validator_reports_original_index_for_unknown_context_pack_references(tmp_path: Path) -> None:
+    data = valid_config(tmp_path)
+    data["context_packs"] = [
+        {"name": "first", "paths": ["first.md"]},
+        {"name": "second", "paths": ["second.md"]},
+        {"name": "third", "paths": ["third.md"], "include_context_packs": ["missing"]},
+    ]
+
+    errors = ConfigValidator().collect_errors(data)
+
+    assert errors[0].field == "context_packs[2].include_context_packs"
+
+
 def test_validator_rejects_circular_context_pack_references(tmp_path: Path) -> None:
     data = valid_config(tmp_path)
     data["context_packs"] = [
@@ -274,3 +287,26 @@ write_constraints:
     config = load_project_config(tmp_path)
 
     assert config.context_packs[0].name == "default"
+
+
+def test_load_project_config_reuses_cached_loader(tmp_path: Path) -> None:
+    write_config(
+        tmp_path,
+        """
+vault_path: "{vault}"
+index_db_location: memory-index.sqlite3
+context_packs:
+  - name: default
+    paths: ["README.md"]
+write_constraints:
+  read:
+    allow: ["README.md"]
+  write:
+    allow: ["wiki/proposals/"]
+""".format(vault=tmp_path.as_posix()),
+    )
+
+    first = load_project_config(tmp_path)
+    write_config(tmp_path, "not: the same config anymore\n")
+
+    assert load_project_config(tmp_path) is first
