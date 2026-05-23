@@ -1,30 +1,30 @@
 from __future__ import annotations
 
 import argparse
-import math
-import re
+from functools import lru_cache
 from pathlib import Path
 
+import tiktoken
 
-TOKEN_FRAGMENT_PATTERN = re.compile(r"[A-Za-z0-9_/-]+|[^\w\s]", re.UNICODE)
+DEFAULT_TOKEN_MODEL = "gpt-4"
 
 
 def estimate_tokens(text: str) -> int:
-    """Estimate tokens deterministically for markdown-heavy text.
+    """Estimate token count with the GPT-4 tokenizer via tiktoken.
 
-    The heuristic counts word-like fragments in four-character chunks and counts
-    punctuation and markdown markers as one token each. Newlines are normalized so
-    Windows and POSIX line endings produce identical counts.
+    Line endings are normalized so LF and CRLF inputs produce identical counts.
     """
 
     normalized = text.replace("\r\n", "\n").replace("\r", "\n")
-    token_count = 0
-    for fragment in TOKEN_FRAGMENT_PATTERN.findall(normalized):
-        if fragment.isalnum() or any(character.isalnum() for character in fragment):
-            token_count += math.ceil(len(fragment) / 4)
-        else:
-            token_count += 1
-    return token_count
+    return len(_encoder().encode(normalized, disallowed_special=()))
+
+
+@lru_cache(maxsize=1)
+def _encoder() -> tiktoken.Encoding:
+    try:
+        return tiktoken.encoding_for_model(DEFAULT_TOKEN_MODEL)
+    except KeyError:
+        return tiktoken.get_encoding("cl100k_base")
 
 
 def _build_argument_parser() -> argparse.ArgumentParser:

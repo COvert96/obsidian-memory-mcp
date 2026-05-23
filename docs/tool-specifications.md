@@ -2,6 +2,11 @@
 
 This document defines the Phase 0 contracts for the seven Obsidian Memory MCP tools. The canonical request and response schemas live in `src/obsidian_memory_mcp/schemas/*.json` and are validated at runtime before tool execution.
 
+Machine-readable specification artifacts:
+
+- `docs/tool-specifications.json`: top-level JSON contract specification for all tools.
+- `docs/mcp-inspector-examples.json`: MCP inspector-ready JSON-RPC requests with expected success/error payloads.
+
 ## Validation Model
 
 - All tool requests are validated against JSON Schema Draft 2020-12 before any tool logic runs.
@@ -24,11 +29,11 @@ This document defines the Phase 0 contracts for the seven Obsidian Memory MCP to
 
 ## Token Estimation
 
-`estimate_tokens(text: str) -> int` uses a deterministic markdown-aware heuristic:
+`estimate_tokens(text: str) -> int` uses the `tiktoken` GPT-4 tokenizer directly:
 
-- Word-like fragments are counted in four-character chunks.
-- Markdown punctuation and symbols count as one token each.
+- `tiktoken.encoding_for_model("gpt-4")` is used for counting.
 - Line endings are normalized before counting so `CRLF` and `LF` produce identical counts.
+- This removes heuristic drift and aligns the estimate with actual model tokenization behavior.
 
 Developer utility:
 
@@ -49,6 +54,20 @@ uv run obsidian-memory-tokens --text "# Heading`n- bullet"
 | `ERR_STALE_PROPOSAL` | 409 | Proposal expired or file hash no longer matches | Recreate the proposal against current file contents |
 | `ERR_CONTEXT_EXCEEDS_BUDGET` | 422 | Context pack exceeds the token budget with strict enforcement | Use a smaller pack or disable strict mode |
 | `ERR_INTERNAL` | 500 | Unexpected runtime failure | Retry if transient, otherwise inspect logs |
+
+## Tool Error Scenarios Table
+
+The following table consolidates tool name, possible error codes, trigger conditions, and a concrete example response in one place.
+
+| Tool | Possible error codes | When it occurs | Example response |
+| --- | --- | --- | --- |
+| `read_note` | `ERR_INVALID_REQUEST`, `ERR_INVALID_PROJECT`, `ERR_MISSING_FILE`, `ERR_GUARDRAIL_VIOLATION`, `ERR_INTERNAL` | Expected: missing file path. Unexpected: filesystem read failure. | `{"code":"ERR_MISSING_FILE","message":"File 'wiki/concepts/missing.md' does not exist in the project vault.","details":{"file_path":"wiki/concepts/missing.md"}}` |
+| `read_section` | `ERR_INVALID_REQUEST`, `ERR_INVALID_PROJECT`, `ERR_MISSING_FILE`, `ERR_SECTION_NOT_FOUND`, `ERR_GUARDRAIL_VIOLATION`, `ERR_INTERNAL` | Expected: heading not found. Unexpected: parser failure while extracting section boundaries. | `{"code":"ERR_SECTION_NOT_FOUND","message":"Heading 'Controls' was not found in 'wiki/concepts/compliance-as-code.md'.","details":{"file_path":"wiki/concepts/compliance-as-code.md","heading_name":"Controls"}}` |
+| `search_notes` | `ERR_INVALID_REQUEST`, `ERR_INVALID_PROJECT`, `ERR_INTERNAL` | Expected: query missing/invalid. Unexpected: SQLite index database connection failure. | `{"code":"ERR_INTERNAL","message":"The server encountered an unexpected internal error.","details":{"operation":"search_notes","cause":"database connection failed"}}` |
+| `get_context_pack` | `ERR_INVALID_REQUEST`, `ERR_INVALID_PROJECT`, `ERR_CONTEXT_EXCEEDS_BUDGET`, `ERR_INTERNAL` | Expected: strict budget exceeded. Unexpected: context pack metadata lookup failure. | `{"code":"ERR_CONTEXT_EXCEEDS_BUDGET","message":"The requested context pack exceeds the configured token budget.","details":{"token_count":2049,"budget":1800,"overflow":249}}` |
+| `propose_memory_update` | `ERR_INVALID_REQUEST`, `ERR_INVALID_PROJECT`, `ERR_GUARDRAIL_VIOLATION`, `ERR_INTERNAL` | Expected: attempted write outside guardrails. Unexpected: proposal store insert failure. | `{"code":"ERR_GUARDRAIL_VIOLATION","message":"The requested file operation violates configured guardrails.","details":{"file_path":"../../outside.md"}}` |
+| `list_proposals` | `ERR_INVALID_REQUEST`, `ERR_INVALID_PROJECT`, `ERR_INTERNAL` | Expected: invalid status filter. Unexpected: proposal database connection failure. | `{"code":"ERR_INTERNAL","message":"The server encountered an unexpected internal error.","details":{"operation":"list_proposals","cause":"database connection failed"}}` |
+| `approve_proposal` | `ERR_INVALID_REQUEST`, `ERR_INVALID_PROJECT`, `ERR_STALE_PROPOSAL`, `ERR_MISSING_FILE`, `ERR_GUARDRAIL_VIOLATION`, `ERR_INTERNAL` | Expected: stale proposal hash mismatch. Unexpected: database update failure when applying proposal. | `{"code":"ERR_STALE_PROPOSAL","message":"File changed since proposal created; review new state before reapproving","details":{"proposal_id":"550e8400-e29b-41d4-a716-446655440000","file_path":"Memory/company-summary.md"}}` |
 
 ## Tool Matrix
 
@@ -360,3 +379,11 @@ Example error response:
   }
 }
 ```
+
+## MCP Inspector Execution
+
+Executable MCP inspector-compatible JSON-RPC request examples are stored in `docs/mcp-inspector-examples.json`.
+
+- Format: `{"jsonrpc":"2.0","id":"...","method":"tools/call","params":{"name":"<tool>","arguments":{...}}}`
+- Validation: `tests/unit/test_contract_docs.py` validates every example request against the tool request schema and every success payload against the tool response schema.
+- Coverage: includes expected failures and unexpected failures, including database connection error examples for retrieval and proposal tooling.
