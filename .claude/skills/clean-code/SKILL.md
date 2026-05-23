@@ -143,6 +143,7 @@ def test_calculate_discount_applies_for_premium_customers():
 - **F.I.R.S.T.**: Fast, Independent, Repeatable, Self-validating, Timely
 - Test observable behavior, not implementation internals
 - One logical assertion per test (or closely related group)
+- Name test files for behavior or subsystem (e.g., `test_contract_docs.py`), not for planning artifacts like phases, PRDs, or roadmap milestones
 
 ---
 

@@ -18,53 +18,53 @@ Establish the foundational architecture and contracts for the Obsidian Memory MC
 **Description:** As a developer, I need formal tool specifications so that implementation teams can build tools consistently.
 
 **Acceptance Criteria:**
-- [ ] Specification document lists all 7 tools: `read_note`, `read_section`, `search_notes`, `get_context_pack`, `propose_memory_update`, `list_proposals`, `approve_proposal`
-- [ ] Each tool specifies: input parameters (with type, required/optional), output response structure, error cases
-- [ ] Request/response schemas are JSON Schema compatible
-- [ ] Example payloads provided for each tool (happy path + error case)
-- [ ] Specification is valid YAML or JSON
-- [ ] All tools can be invoked with the documented payloads
+- [x] Specification document lists all 7 tools: `read_note`, `read_section`, `search_notes`, `get_context_pack`, `propose_memory_update`, `list_proposals`, `approve_proposal`
+- [x] Each tool specifies: input parameters (with type, required/optional), output response structure, error cases
+- [x] Request/response schemas are JSON Schema compatible
+- [x] Example payloads provided for each tool (happy path + error case)
+- [x] Specification is valid YAML or JSON
+- [x] All tools can be invoked with the documented payloads
 
 ### US-002: Establish error model and codes
 **Description:** As a developer, I need standardized error responses so client code can handle failures predictably.
 
 **Acceptance Criteria:**
-- [ ] Error code enumeration defined: `ERR_INVALID_PROJECT`, `ERR_MISSING_FILE`, `ERR_SECTION_NOT_FOUND`, `ERR_GUARDRAIL_VIOLATION`, `ERR_STALE_PROPOSAL`, plus any others identified
-- [ ] Each error code has: short code, HTTP status, human-readable message template, recovery suggestion
-- [ ] All 7 tools documented for which error codes they may return
-- [ ] Error response schema: `{ "code": "ERR_...", "message": "...", "details": {...} }`
-- [ ] Documentation shows how to handle each error type
+- [x] Error code enumeration defined: `ERR_INVALID_PROJECT`, `ERR_MISSING_FILE`, `ERR_SECTION_NOT_FOUND`, `ERR_GUARDRAIL_VIOLATION`, `ERR_STALE_PROPOSAL`, plus any others identified
+- [x] Each error code has: short code, HTTP status, human-readable message template, recovery suggestion
+- [x] All 7 tools documented for which error codes they may return
+- [x] Error response schema: `{ "code": "ERR_...", "message": "...", "details": {...} }`
+- [x] Documentation shows how to handle each error type
 
 ### US-003: Design token estimation method for context budgets
 **Description:** As a developer, I need a deterministic token counter so I can enforce the hard 1800-token cap for `get_context_pack`.
 
 **Acceptance Criteria:**
-- [ ] Decide on token estimation approach (e.g., fixed ratio like 1 token ≈ 4 characters, or BPE approximation)
-- [ ] Estimate method is deterministic (same input always produces same count)
-- [ ] Implement token counter function in codebase with clear docstring
-- [ ] Provide utility for developers to test token count of strings/files
-- [ ] Add test fixtures showing expected counts for known strings (5, 100, 1000 tokens)
-- [ ] Confirm approach will not cause significant drift vs actual LLM tokenization
+- [x] Decide on token estimation approach (e.g., fixed ratio like 1 token ≈ 4 characters, or BPE approximation)
+- [x] Estimate method is deterministic (same input always produces same count)
+- [x] Implement token counter function in codebase with clear docstring
+- [x] Provide utility for developers to test token count of strings/files
+- [x] Add test fixtures showing expected counts for known strings (5, 100, 1000 tokens)
+- [x] Confirm approach will not cause significant drift vs actual LLM tokenization
 
 ### US-004: Create schema validation test suite
 **Description:** As a developer, I need automated validation of request/response payloads so malformed data fails fast and consistently.
 
 **Acceptance Criteria:**
-- [ ] JSON Schema files created for each tool request and response
-- [ ] Test suite validates malformed inputs are rejected with clear error messages
-- [ ] Test suite validates valid inputs pass validation
-- [ ] Tests cover: missing required fields, wrong types, out-of-range values, invalid identifiers
-- [ ] Validation error messages are developer-friendly (show expected schema, not just "validation failed")
-- [ ] CI/CD integration: tests run on every commit
+- [x] JSON Schema files created for each tool request and response
+- [x] Test suite validates malformed inputs are rejected with clear error messages
+- [x] Test suite validates valid inputs pass validation
+- [x] Tests cover: missing required fields, wrong types, out-of-range values, invalid identifiers
+- [x] Validation error messages are developer-friendly (show expected schema, not just "validation failed")
+- [x] CI/CD integration: tests run on every commit
 
 ### US-005: Document error scenarios for each tool
 **Description:** As a developer, I need clear examples of when and how each tool fails so I can write robust client code.
 
 **Acceptance Criteria:**
-- [ ] Documentation table: tool name → possible error codes → when it occurs → example response
-- [ ] Covers both expected errors (missing file) and unexpected errors (DB connection failure)
-- [ ] Include recovery suggestions (e.g., "retry with backoff", "check vault config", "contact operator")
-- [ ] Examples are executable in MCP inspector
+- [x] Documentation table: tool name → possible error codes → when it occurs → example response
+- [x] Covers both expected errors (missing file) and unexpected errors (DB connection failure)
+- [x] Include recovery suggestions (e.g., "retry with backoff", "check vault config", "contact operator")
+- [x] Examples are executable in MCP inspector
 
 ## Functional Requirements
 
@@ -85,8 +85,8 @@ Establish the foundational architecture and contracts for the Obsidian Memory MC
 
 ## Technical Considerations
 
-- **JSON Schema Approach:** Use `jsonschema` Python library for validation. Store schemas in YAML files in `src/obsidian_memory_mcp/schemas/`
-- **Token Counter:** Use heuristic approach (1 token ≈ 4 characters for ASCII, adjust for special characters). Target ±5% accuracy vs GPT-3.5 tokenizer
+- **JSON Schema Approach:** Use `jsonschema` Python library for validation. Store schemas as JSON files in `src/obsidian_memory_mcp/schemas/`
+- **Token Counter:** Use `tiktoken` (`encoding_for_model("gpt-4")`) directly for deterministic token counting and low drift against model tokenization
 - **Error Model:** Flat enum of error codes (no nested error types). Codes are string constants (e.g., `ERROR_INVALID_PROJECT = "ERR_INVALID_PROJECT"`)
 - **Validation Location:** Implement as decorator on tool entry points so all tools validate before execution
 - **Dependencies:** `jsonschema`, `pydantic` (optional, for typed validation), no new database dependencies

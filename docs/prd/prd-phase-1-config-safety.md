@@ -18,78 +18,78 @@ Implement per-project configuration discovery, validation, and enforcement. Each
 **Description:** As a developer, I need to discover and load project config from vault root so each project can configure itself independently.
 
 **Acceptance Criteria:**
-- [ ] Config file location: `{vault_root}/memory-mcp.yaml` (single config per vault)
-- [ ] Config loader reads YAML file and parses into typed config object
-- [ ] Returns error with actionable message if config file not found
-- [ ] Returns error if YAML is malformed (invalid syntax)
-- [ ] Config object supports accessing required and optional fields
-- [ ] Loader caches config in memory after first load (reload on next request is acceptable for MVP)
+- [x] Config file location: `{vault_root}/memory-mcp.yaml` (single config per vault)
+- [x] Config loader reads YAML file and parses into typed config object
+- [x] Returns error with actionable message if config file not found
+- [x] Returns error if YAML is malformed (invalid syntax)
+- [x] Config object supports accessing required and optional fields
+- [x] Loader caches config in memory after first load (reload on next request is acceptable for MVP)
 
 ### US-002: Define config schema and required fields
 **Description:** As a developer, I need to know what fields are required and optional so I can validate user configs correctly.
 
 **Acceptance Criteria:**
-- [ ] Config schema documented with all required fields:
+- [x] Config schema documented with all required fields:
   - `vault_path`: absolute path to vault root (required)
   - `index_db_location`: path to SQLite index database (required)
   - `context_packs`: array of context pack definitions (required)
   - `write_constraints`: object defining allowed/forbidden paths (required)
-- [ ] Optional fields defined (e.g., `tags_separator`, `max_proposal_ttl_hours`)
-- [ ] Schema example config created at `docs/config-example.yaml`
-- [ ] Validation catches missing required fields with clear error message
-- [ ] Type checking on all fields (string, array, object, etc.)
+- [x] Optional fields defined (e.g., `tags_separator`, `max_proposal_ttl_hours`)
+- [x] Schema example config created at `docs/config-example.yaml`
+- [x] Validation catches missing required fields with clear error message
+- [x] Type checking on all fields (string, array, object, etc.)
 
 ### US-003: Validate config fields and provide clear errors
 **Description:** As a developer, I need validation errors to tell me exactly what is wrong and how to fix it.
 
 **Acceptance Criteria:**
-- [ ] Validation function returns list of all validation errors (not just first one)
-- [ ] Error messages include: field name, expected type/format, actual value, suggestion
-- [ ] Example error: "Field 'vault_path' must be an absolute path. Got 'relative/path'. Use '/full/path' instead."
-- [ ] Validation handles: missing required fields, wrong types, invalid path formats, circular references in context packs
-- [ ] Validation rejects absolute paths that don't exist on disk (if they're meant to point to directories)
-- [ ] Tests cover 10+ validation scenarios
+- [x] Validation function returns list of all validation errors (not just first one)
+- [x] Error messages include: field name, expected type/format, actual value, suggestion
+- [x] Example error: "Field 'vault_path' must be an absolute path. Got 'relative/path'. Use '/full/path' instead."
+- [x] Validation handles: missing required fields, wrong types, invalid path formats, circular references in context packs
+- [x] Validation rejects absolute paths that don't exist on disk (if they're meant to point to directories)
+- [x] Tests cover 10+ validation scenarios
 
 ### US-004: Enforce vault boundary for path traversal prevention
 **Description:** As a developer, I need path normalization and boundary checking so malicious or accidental `../` sequences don't escape the vault.
 
 **Acceptance Criteria:**
-- [ ] Path resolver function: `normalize_vault_path(vault_root: str, requested_path: str) -> str`
-- [ ] Function rejects paths containing `..`, absolute paths outside vault, symlinks to outside vault
-- [ ] Returns error: `ERR_GUARDRAIL_VIOLATION` if path escapes vault
-- [ ] Resolves `.` and handles trailing slashes correctly
-- [ ] Test suite verifies 15+ attempted traversals are blocked:
+- [x] Path resolver function: `normalize_vault_path(vault_root: str | Path, requested_path: str | Path) -> Path`
+- [x] Function rejects paths containing `..`, absolute paths outside vault, symlinks to outside vault
+- [x] Returns error: `ERR_GUARDRAIL_VIOLATION` if path escapes vault
+- [x] Resolves `.` and handles trailing slashes correctly
+- [x] Test suite verifies 15+ attempted traversals are blocked:
   - `../../etc/passwd`
   - `/etc/passwd` (absolute path outside vault)
   - Symlink to parent directory
   - `vault_root/../sibling_vault`
   - etc.
-- [ ] Legitimate paths within vault pass through correctly
+- [x] Legitimate paths within vault pass through correctly
 
 ### US-005: Create guardrail evaluator for write constraints
 **Description:** As an operator, I need to configure which paths tools can read/write so I can protect sensitive vault files.
 
 **Acceptance Criteria:**
-- [ ] Guardrail evaluator checks whether a path is allowed for read/write
-- [ ] Config supports patterns: explicit paths (`wiki/index.md`), glob patterns (`wiki/**/*.md`), directory patterns (`wiki/`)
-- [ ] Default-deny: paths not explicitly allowed are rejected
-- [ ] Supports separate allow lists for read vs write
-- [ ] Example config shows: allow read from entire wiki, allow write to `wiki/proposals/`, deny write to `wiki/log.md`
-- [ ] Error returned: `ERR_GUARDRAIL_VIOLATION` with clear message about which constraint was violated
-- [ ] Performance: guardrail check completes in <1ms
+- [x] Guardrail evaluator checks whether a path is allowed for read/write
+- [x] Config supports patterns: explicit paths (`wiki/index.md`), glob patterns (`wiki/**/*.md`), directory patterns (`wiki/`)
+- [x] Default-deny: paths not explicitly allowed are rejected
+- [x] Supports separate allow lists for read vs write
+- [x] Example config shows: allow read from entire wiki, allow write to `wiki/proposals/`, deny write to `wiki/log.md`
+- [x] Error returned: `ERR_GUARDRAIL_VIOLATION` with clear message about which constraint was violated
+- [x] Performance: guardrail check completes in <1ms
 
 ### US-006: Document vault setup workflow
 **Description:** As an operator, I need step-by-step instructions so I can set up a new vault correctly.
 
 **Acceptance Criteria:**
-- [ ] Vault setup guide in `docs/vault-setup.md` covering:
+- [x] Vault setup guide in `docs/vault-setup.md` covering:
   - Creating vault directory structure
   - Generating memory-mcp.yaml config
   - Validating config with CLI tool
   - Understanding guardrails and write constraints
-- [ ] Includes example config for common scenarios (read-heavy wiki, writable memory vault)
-- [ ] Links to error reference for common mistakes
-- [ ] Walkthrough is doable in <10 minutes for operator with basic file system knowledge
+- [x] Includes example config for common scenarios (read-heavy wiki, writable memory vault)
+- [x] Links to error reference for common mistakes
+- [x] Walkthrough is doable in <10 minutes for operator with basic file system knowledge
 
 ## Functional Requirements
 

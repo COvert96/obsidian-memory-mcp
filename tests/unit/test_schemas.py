@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+import tiktoken
 
 from obsidian_memory_mcp.contracts import TOOL_CONTRACTS
 from obsidian_memory_mcp.errors import ErrorCode, ERROR_CATALOG, TOOL_ERROR_CODES, build_error
@@ -75,6 +76,33 @@ def test_validation_rejects_wrong_types_and_out_of_range_values() -> None:
     assert error.details["suggestion"]
 
 
+@pytest.mark.parametrize("tool_name", sorted(EXPECTED_TOOL_NAMES))
+def test_validation_rejects_invalid_project_identifiers(tool_name: str) -> None:
+    payload = dict(TOOL_CONTRACTS[tool_name].example_request)
+    payload["project"] = "bad project id"
+
+    with pytest.raises(ValidationError) as exc_info:
+        validate_tool_payload(tool_name, payload, schema_kind="request")
+
+    error = exc_info.value.error
+    assert error.code is ErrorCode.ERR_INVALID_REQUEST
+    assert error.details["field_path"] == "project"
+    assert error.details["validator"] == "pattern"
+
+
+def test_validation_rejects_invalid_proposal_identifier() -> None:
+    payload = dict(TOOL_CONTRACTS["approve_proposal"].example_request)
+    payload["proposal_id"] = "not-a-uuid"
+
+    with pytest.raises(ValidationError) as exc_info:
+        validate_tool_payload("approve_proposal", payload, schema_kind="request")
+
+    error = exc_info.value.error
+    assert error.code is ErrorCode.ERR_INVALID_REQUEST
+    assert error.details["field_path"] == "proposal_id"
+    assert error.details["validator"] == "pattern"
+
+
 def test_validation_decorator_short_circuits_invalid_requests() -> None:
     calls: list[dict[str, object]] = []
 
@@ -143,9 +171,9 @@ def test_error_template_placeholders_are_formatted_from_details() -> None:
 
 
 def test_known_token_examples_are_deterministic() -> None:
-    five_tokens = "aaaa " * 5
-    one_hundred_tokens = "aaaa " * 100
-    one_thousand_tokens = "aaaa " * 1000
+    five_tokens = " ".join(["x"] * 5)
+    one_hundred_tokens = " ".join(["x"] * 100)
+    one_thousand_tokens = " ".join(["x"] * 1000)
 
     assert estimate_tokens(five_tokens) == 5
     assert estimate_tokens(one_hundred_tokens) == 100
@@ -153,6 +181,14 @@ def test_known_token_examples_are_deterministic() -> None:
     assert estimate_tokens("# Heading\n\n- bullet\n[[Link]]") == estimate_tokens(
         "# Heading\r\n\r\n- bullet\r\n[[Link]]"
     )
+
+
+def test_estimate_tokens_matches_tiktoken_gpt4_encoder() -> None:
+    encoder = tiktoken.encoding_for_model("gpt-4")
+    text = "# Title\n\n- alpha\n- beta\n\n[[Link]]"
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+
+    assert estimate_tokens(text) == len(encoder.encode(normalized, disallowed_special=()))
 
 
 def test_empty_string_returns_zero_tokens() -> None:
