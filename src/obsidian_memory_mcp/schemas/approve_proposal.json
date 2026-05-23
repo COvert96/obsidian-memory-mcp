@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "tool": "approve_proposal",
+  "request": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["project", "proposal_id"],
+    "properties": {
+      "project": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+      },
+      "proposal_id": {
+        "type": "string",
+        "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+      }
+    }
+  },
+  "response": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["project", "proposal_id", "file_path", "operation", "status", "written_at", "file_size_bytes"],
+    "properties": {
+      "project": { "type": "string", "minLength": 1 },
+      "proposal_id": {
+        "type": "string",
+        "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+      },
+      "file_path": { "type": "string", "minLength": 1 },
+      "operation": { "type": "string", "enum": ["create", "update", "delete"] },
+      "status": { "type": "string", "const": "applied" },
+      "written_at": { "type": "string", "format": "date-time" },
+      "file_size_bytes": { "type": "integer", "minimum": 0 }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "tool": "get_context_pack",
+  "request": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["project", "pack_name"],
+    "properties": {
+      "project": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"
+      },
+      "pack_name": { "type": "string", "minLength": 1, "maxLength": 128 },
+      "strict_budget": { "type": "boolean", "default": true }
+    }
+  },
+  "response": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["project", "pack_name", "content", "token_count", "files_included", "missing_files", "warnings"],
+    "properties": {
+      "project": { "type": "string", "minLength": 1 },
+      "pack_name": { "type": "string", "minLength": 1 },
+      "content": { "type": "string" },
+      "token_count": { "type": "integer", "minimum": 0 },
+      "files_included": {
+        "type": "array",
+        "items": { "type": "string", "minLength": 1 },
+        "uniqueItems": true
+      },
+      "missing_files": {
+        "type": "array",
+        "items": { "type": "string", "minLength": 1 },
+        "uniqueItems": true
+      },
+      "warnings": {
+        "type": "array",
+        "items": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
