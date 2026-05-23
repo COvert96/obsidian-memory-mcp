@@ -10,9 +10,11 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
 	"jsonschema>=4.25.1",
+	"pyyaml>=6.0.3",
 ]
 
 [project.scripts]
+mcp-memory = "obsidian_memory_mcp.cli:main"
 obsidian-memory-tokens = "obsidian_memory_mcp.tokens:main"
 
 [dependency-groups]

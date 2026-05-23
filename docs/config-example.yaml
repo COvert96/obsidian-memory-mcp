@@ -1,0 +1,38 @@
+# Example memory-mcp.yaml for an Obsidian vault.
+#
+# Place this file at the vault root:
+#   {vault_root}/memory-mcp.yaml
+
+vault_path: "path/to/example-vault"
+index_db_location: "memory-index.sqlite3"
+
+context_packs:
+  - name: "prd"
+    paths:
+      - "docs/prd/**/*.md"
+      - "README.md"
+    include_context_packs:
+      - "foundation"
+    token_budget: 1800
+
+  - name: "foundation"
+    paths:
+      - "docs/tool-specifications.md"
+
+write_constraints:
+  read:
+    allow:
+      - "wiki/**"
+      - "docs/**/*.md"
+      - "README.md"
+    deny:
+      - "wiki/private/**"
+
+  write:
+    allow:
+      - "wiki/proposals/"
+    deny:
+      - "wiki/log.md"
+
+tags_separator: ","
+max_proposal_ttl_hours: 24
