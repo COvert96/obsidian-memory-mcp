@@ -2,7 +2,18 @@
 
 ## Introduction
 
-This document provides a high-level overview of the Obsidian Memory MCP MVP implementation, organized into 6 sequential phases. Each phase builds on previous phases and delivers measurable functionality. This master document should be read before diving into individual phase PRDs.
+This document provides a high-level overview of the Obsidian Memory MCP MVP implementation, organized into sequential phases. Each phase builds on previous phases and delivers measurable functionality. This master document should be read before diving into individual phase PRDs.
+
+## Architecture Alignment Update (2026-05-23)
+
+This roadmap is aligned to `docs/system-architecture.md` with the following locked decisions:
+
+1. Phase sequence is now: **0 -> 1 -> 2A -> 2 -> 3 -> 4 -> 5 -> 6**.
+2. `Phase 2A` is a dedicated MCP SDK bootstrap phase (FastMCP server + `read_note` + serve command + project registry).
+3. Runtime tool validation shifts to FastMCP/Pydantic type-hint schemas; JSON schemas/contracts remain documentation and verification artifacts.
+4. Project resolution uses a **server registry file** (`project -> vault_root`) for multi-project runtime.
+5. Default context-pack budget is **8000 tokens** (per-pack override still supported).
+6. Server lifecycle for MVP is long-running stdio.
 
 ## Vision
 
@@ -50,6 +61,8 @@ Build a reusable, multi-project Obsidian memory Model Context Protocol (MCP) ser
 
 ## Phase Timeline and Dependencies
 
+**Superseding order:** execute phases as `0 -> 1 -> 2A -> 2 -> 3 -> 4 -> 5 -> 6`.
+
 ```
 Phase 0: Foundation & Contracts (2-4 hrs)
   ├─ Tool specifications
@@ -63,8 +76,14 @@ Phase 1: Config & Safety (4-6 hrs)
   ├─ Vault boundaries
   └─ Guardrails
   
-Phase 2: Indexing (6-8 hrs)
+Phase 2A: MCP SDK Bootstrap (2-4 hrs)
   ├─ (depends on Phase 0-1)
+  ├─ FastMCP server bootstrap
+  ├─ `mcp-memory serve`
+  └─ `read_note` proof-of-runtime + project registry
+
+Phase 2: Indexing (6-8 hrs)
+  ├─ (depends on Phase 0-1 and Phase 2A)
   ├─ Markdown parser
   ├─ SQLite schema + FTS5
   └─ CLI index commands
@@ -112,7 +131,7 @@ Phase 6: Release & QA (4-6 hrs)
 - Vault path isolation and guardrails (no directory traversal)
 - Markdown parsing with YAML frontmatter, headings, sections
 - SQLite FTS5 indexing for fast search
-- Deterministic token estimation (1800-token hard cap for context packs)
+- Deterministic token estimation (default 8000-token context-pack budget, strict enforcement configurable per pack)
 - Explicit approval workflow for all writes (no auto-write)
 - Audit trail of all proposed/approved/applied updates
 - CLI commands for indexing, proposal management, status checking
@@ -149,7 +168,7 @@ Phase 6: Release & QA (4-6 hrs)
 3. **CLI-based indexing:** No automatic watching; operator controls when index updates
 4. **Per-vault config:** Enable multi-project deployments with isolated constraints
 5. **No semantic search MVP:** Add later if relevance insufficient; FTS is baseline
-6. **Hard 1800-token cap:** Prevent context pack exceeding typical LLM limits
+6. **Default 8000-token budget:** Better fit for modern context windows while keeping strict budget controls
 7. **Vault file immutability (read-only):** Indexing reads files, doesn't modify them; only proposals/approval modify
 
 ## Implementation Effort Estimate
@@ -158,12 +177,13 @@ Phase 6: Release & QA (4-6 hrs)
 |-------|----------|--------|
 | Phase 0 | 1 week | 2-4 hours |
 | Phase 1 | 1 week | 4-6 hours |
+| Phase 2A | 0.5 week | 2-4 hours |
 | Phase 2 | 1.5 weeks | 6-8 hours |
 | Phase 3 | 1.5 weeks | 6-8 hours |
 | Phase 4 | 1 week | 4-6 hours |
 | Phase 5 | 1.5 weeks | 6-8 hours |
 | Phase 6 | 1.5 weeks | 4-6 hours |
-| **Total** | **9 weeks** | **32-50 hours** |
+| **Total** | **9.5 weeks** | **34-54 hours** |
 
 (Estimates assume 1 developer, with some parallelism possible in Phases 3-5)
 
@@ -182,6 +202,13 @@ Phase 6: Release & QA (4-6 hrs)
 - Vault setup guide
 - Config validation CLI command
 - Phase-specific integration tests
+
+### Phase 2A — MCP SDK Bootstrap
+- FastMCP server bootstrap (`server.py`)
+- Project registry mapping (`project -> vault_root`)
+- `mcp-memory serve` CLI command
+- First runtime tool (`read_note`) with mapped MCP errors
+- Runtime smoke tests (initialize, list tools, call tool)
 
 ### Phase 2 — Markdown Indexing
 - Markdown parser (frontmatter, headings, sections)
@@ -221,14 +248,14 @@ Phase 6: Release & QA (4-6 hrs)
 ## How to Use This PRD
 
 1. **For Planning:** Read this document for overall vision and timeline
-2. **For Implementation:** Read the individual phase PRDs in order (Phase 0 → Phase 6)
+2. **For Implementation:** Read the individual phase PRDs in order (Phase 0 → Phase 1 → Phase 2A → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6)
 3. **For Dependencies:** Check "Dependencies" section in each phase PRD before starting
 4. **For Success Criteria:** Each phase PRD lists acceptance criteria and success metrics
 
 ## Open Questions for Stakeholders
 
 1. Should the MVP support more than 5000 files, or optimize for that?
-2. Is 1800-token hard cap per context pack appropriate, or should it be configurable?
+2. Is the default 8000-token context-pack budget still appropriate for MVP workflows?
 3. Should proposal approval require authentication/signing?
 4. Should we add search result ranking/relevance scoring in MVP, or validate FTS sufficiency first?
 5. What's the priority order if resources are limited (e.g., retrieval tools before context packs)?
@@ -246,6 +273,7 @@ Phase 6: Release & QA (4-6 hrs)
 
 - [Phase 0 PRD: Foundation and Contracts](prd-phase-0-foundation.md)
 - [Phase 1 PRD: Project Config and Safety](prd-phase-1-config-safety.md)
+- [Phase 2A PRD: MCP SDK Bootstrap](prd-phase-2a-mcp-sdk-bootstrap.md)
 - [Phase 2 PRD: Markdown Indexing](prd-phase-2-indexing.md)
 - [Phase 3 PRD: Retrieval Tools](prd-phase-3-retrieval.md)
 - [Phase 4 PRD: Context Packs](prd-phase-4-context-packs.md)

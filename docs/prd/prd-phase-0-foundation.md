@@ -4,6 +4,15 @@
 
 Establish the foundational architecture and contracts for the Obsidian Memory MCP system. This phase defines the tool API specifications, error handling model, request/response schemas, and validation strategy. A solid foundation ensures all downstream phases can be implemented reliably and consistently.
 
+## Architecture Alignment Update (2026-05-23)
+
+Phase 0 artifacts are now explicitly split into:
+
+- **Runtime contracts:** FastMCP/Pydantic tool signatures and runtime validation (implemented in Phase 2A+ handlers).
+- **Documentation/verification artifacts:** `contracts.py`, `schemas/*.json`, and schema-validation utilities used for spec consistency tests.
+
+This phase still defines canonical payload intent and error semantics, but runtime dispatch/validation is no longer driven by JSON schema decorators.
+
 ## Goals
 
 - Define and specify all MCP tool contracts with precise payloads
@@ -30,13 +39,13 @@ Establish the foundational architecture and contracts for the Obsidian Memory MC
 
 **Acceptance Criteria:**
 - [x] Error code enumeration defined: `ERR_INVALID_PROJECT`, `ERR_MISSING_FILE`, `ERR_SECTION_NOT_FOUND`, `ERR_GUARDRAIL_VIOLATION`, `ERR_STALE_PROPOSAL`, plus any others identified
-- [x] Each error code has: short code, HTTP status, human-readable message template, recovery suggestion
+- [x] Each error code has: short code, human-readable message template, recovery suggestion (HTTP status mapping is documentation-only and not required for MCP runtime)
 - [x] All 7 tools documented for which error codes they may return
 - [x] Error response schema: `{ "code": "ERR_...", "message": "...", "details": {...} }`
 - [x] Documentation shows how to handle each error type
 
 ### US-003: Design token estimation method for context budgets
-**Description:** As a developer, I need a deterministic token counter so I can enforce the hard 1800-token cap for `get_context_pack`.
+**Description:** As a developer, I need a deterministic token counter so I can enforce context-pack token budgets (default 8000, overridable per pack) for `get_context_pack`.
 
 **Acceptance Criteria:**
 - [x] Decide on token estimation approach (e.g., fixed ratio like 1 token ≈ 4 characters, or BPE approximation)
@@ -69,7 +78,7 @@ Establish the foundational architecture and contracts for the Obsidian Memory MC
 ## Functional Requirements
 
 - FR-1: Define input/output schema for all 7 MCP tools in JSON Schema format
-- FR-2: Specify error code enum with HTTP status and message templates
+- FR-2: Specify error code enum with message templates and recovery guidance
 - FR-3: Document which error codes each tool can return
 - FR-4: Implement deterministic token counter (function signature: `estimate_tokens(text: str) -> int`)
 - FR-5: Create validation layer that rejects non-conforming requests before tool execution
@@ -88,16 +97,16 @@ Establish the foundational architecture and contracts for the Obsidian Memory MC
 - **JSON Schema Approach:** Use `jsonschema` Python library for validation. Store schemas as JSON files in `src/obsidian_memory_mcp/schemas/`
 - **Token Counter:** Use `tiktoken` (`encoding_for_model("gpt-4")`) directly for deterministic token counting and low drift against model tokenization
 - **Error Model:** Flat enum of error codes (no nested error types). Codes are string constants (e.g., `ERROR_INVALID_PROJECT = "ERR_INVALID_PROJECT"`)
-- **Validation Location:** Implement as decorator on tool entry points so all tools validate before execution
+- **Validation Location:** JSON schema validation remains a verification/test utility; runtime tool validation is handled by FastMCP/Pydantic type hints in Phase 2A+
 - **Dependencies:** `jsonschema`, `pydantic` (optional, for typed validation), no new database dependencies
 
 ## Success Metrics
 
-- [ ] All 7 tool specifications are unambiguous (can be handed to another developer with no questions)
-- [ ] Token estimation tested on 50+ realistic markdown files, ±10% accuracy vs GPT-3.5
-- [ ] 100% of invalid request payloads caught by validation (zero malformed requests reach tool code)
-- [ ] Error messages are copy-pasted directly into documentation without rewording
-- [ ] Test suite runs in <5 seconds, no flakiness across 10 consecutive runs
+- [x] All 7 tool specifications are unambiguous (can be handed to another developer with no questions)
+- [x] Token estimation tested on 50+ realistic markdown files, ±10% accuracy vs GPT-3.5
+- [x] 100% of invalid request payloads caught by validation (zero malformed requests reach tool code)
+- [x] Error messages are copy-pasted directly into documentation without rewording
+- [x] Test suite runs in <5 seconds, no flakiness across 10 consecutive runs
 
 ## Open Questions
 
@@ -105,7 +114,7 @@ Establish the foundational architecture and contracts for the Obsidian Memory MC
   A: String enums.
 - Should token estimation account for markdown formatting (headings, links) or treat as plain text?
   A: Token estimation should account for markdown formatting.
-- Is 1800-token hard cap per response, or per entire context pack retrieval?
+- Is token cap per response, or per entire context pack retrieval?
   A: Token cap is per context pack.
 - Should validation errors include suggested corrections (typo fixing)?
   A: Yes.

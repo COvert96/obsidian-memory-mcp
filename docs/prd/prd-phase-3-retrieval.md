@@ -4,6 +4,12 @@
 
 Implement the core retrieval capabilities: `read_note` (get entire file), `read_section` (get specific section), and `search_notes` (full-text search with filtering). These are MCP tools that return vault content with proper metadata and rankings.
 
+## Architecture Alignment Update (2026-05-23)
+
+- Tool entrypoints must be implemented as **FastMCP handlers** (thin adapters) in `server.py` or mounted handler modules.
+- Runtime request validation is derived from FastMCP/Pydantic type hints, not JSON-schema decorators.
+- All retrieval tools must resolve `project` via the shared server registry (`project -> vault_root`) introduced in Phase 2A.
+
 ## Goals
 
 - Implement `read_note` tool to return complete markdown files
@@ -140,13 +146,14 @@ Implement the core retrieval capabilities: `read_note` (get entire file), `read_
 
 - Phase 0 must be complete (tool contracts, error codes)
 - Phase 1 must be complete (config loading, guardrails)
+- Phase 2A must be complete (FastMCP server bootstrap, project registry mapping, serve command)
 - Phase 2 must be complete (indexing, parser, FTS schema)
 - No dependency on Phase 4-5 (retrieval is independent)
 
 ## Deliverables
 
 - `src/obsidian_memory_mcp/retrieval.py` with ReadNoteService, ReadSectionService, SearchService
-- `src/obsidian_memory_mcp/tools.py` with MCP tool entry points for all three tools
+- `src/obsidian_memory_mcp/server.py` (or mounted FastMCP handler module) with tool entry points for all three tools
 - `tests/unit/test_read_note.py` with file reading and guardrail tests
 - `tests/unit/test_read_section.py` with section extraction tests
 - `tests/unit/test_search_notes.py` with FTS and filtering tests

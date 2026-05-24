@@ -2,13 +2,19 @@
 
 ## Introduction
 
-Implement context packs: curated collections of files that can be loaded together with enforced token budgets. Context packs allow operators to pre-define reusable, coherent context bundles (e.g., "API documentation", "compliance policy", "architecture decisions") that tools can load in one operation while staying within a 1800-token hard cap.
+Implement context packs: curated collections of files that can be loaded together with enforced token budgets. Context packs allow operators to pre-define reusable, coherent context bundles (e.g., "API documentation", "compliance policy", "architecture decisions") that tools can load in one operation while staying within a strict token cap (default 8000 tokens).
+
+## Architecture Alignment Update (2026-05-23)
+
+- `get_context_pack` must be exposed through a FastMCP thin handler adapter.
+- Project resolution must use the shared server registry from Phase 2A.
+- Default budget target for examples/specs is now **8000 tokens**, while per-pack overrides remain supported.
 
 ## Goals
 
 - Define context pack structure in config with file/section lists
 - Load and concatenate pack content deterministically
-- Enforce hard 1800-token limit per pack
+- Enforce hard token limits per pack (default 8000 tokens)
 - Report missing/stale files with clear warnings
 - Enable efficient bulk context retrieval for LLM use
 
@@ -41,13 +47,13 @@ Implement context packs: curated collections of files that can be loaded togethe
 - [ ] Performance: load pack in <500ms even for large packs
 
 ### US-003: Implement hard token cap enforcement
-**Description:** As a developer, I need to enforce the 1800-token hard cap so packs don't exceed LLM context limits.
+**Description:** As a developer, I need to enforce the default 8000-token hard cap so packs don't exceed configured limits.
 
 **Acceptance Criteria:**
 - [ ] Token estimator from Phase 0 used to count tokens
-- [ ] If `token_count > 1800`, error returned: `ERR_CONTEXT_EXCEEDS_BUDGET`
+- [ ] If `token_count > 8000` (or configured pack budget), error returned: `ERR_CONTEXT_EXCEEDS_BUDGET`
 - [ ] Error includes: current token count, budget, how much must be removed, suggested smaller packs
-- [ ] Option to load pack with soft truncation (warnings logged, content truncated to 1800 tokens)
+- [ ] Option to load pack with soft truncation (warnings logged, content truncated to the configured budget)
 - [ ] Truncation preserves file/section boundaries (doesn't cut mid-sentence)
 - [ ] Warning logged if pack is >90% of budget (1620 tokens)
 
@@ -57,8 +63,8 @@ Implement context packs: curated collections of files that can be loaded togethe
 **Acceptance Criteria:**
 - [ ] Tool parameter: `pack_name` (required), `strict_budget` (optional, default true)
 - [ ] Returns: `{ content: str, token_count: int, pack_name: str, files_included: [str], missing_files: [str], warnings: [str] }`
-- [ ] With `strict_budget=true`: returns error if pack exceeds 1800 tokens
-- [ ] With `strict_budget=false`: truncates silently and returns with token_count <= 1800
+- [ ] With `strict_budget=true`: returns error if pack exceeds configured budget (default 8000 tokens)
+- [ ] With `strict_budget=false`: truncates silently and returns with `token_count <= configured budget`
 - [ ] Missing files reported in response (not silent failure)
 - [ ] Stale files detected: if `indexed_at` too old (e.g., >24 hours), warning issued
 - [ ] Returns error `ERR_INVALID_PROJECT` if pack name not found in config
@@ -90,7 +96,7 @@ Implement context packs: curated collections of files that can be loaded togethe
 - FR-1: Context pack configuration stored in `context_packs` array in config file
 - FR-2: Pack loader concatenates files/sections in deterministic order
 - FR-3: Token counter (from Phase 0) used for all token estimates
-- FR-4: Hard cap: packs returning >1800 tokens fail with clear error
+- FR-4: Hard cap: packs returning above configured budget (default 8000) fail with clear error
 - FR-5: Missing/stale file detection with warnings in response
 - FR-6: `get_context_pack` MCP tool implements pack loading
 - FR-7: Token count always accurate and deterministic (same pack, same count every time)
@@ -110,13 +116,13 @@ Implement context packs: curated collections of files that can be loaded togethe
 - **File Ordering:** Maintain config file order for determinism; no alphabetical sorting
 - **Concatenation Format:** Simple markdown with comment headers; no special formatting
 - **Stale Detection:** Compare file `mtime` with index `indexed_at` timestamp
-- **Truncation:** If soft cap enabled, truncate at last complete section boundary before 1800 tokens
+- **Truncation:** If soft cap enabled, truncate at last complete section boundary before configured budget
 - **Error Reporting:** Return all issues in response (don't stop at first error)
 
 ## Success Metrics
 
 - [ ] Token count accurate within ±5% of actual LLM tokenization on 10 test packs
-- [ ] Hard cap enforced: 100% of packs stay <=1800 tokens with strict_budget=true
+- [ ] Hard cap enforced: 100% of packs stay <= configured budget with strict_budget=true
 - [ ] Missing file detection catches all missing files (100% accuracy)
 - [ ] Pack load time <500ms on 5000-file vault with packs referencing 100+ files
 - [ ] Operator can validate a pack and see all issues in <1 second
@@ -139,13 +145,14 @@ Implement context packs: curated collections of files that can be loaded togethe
 
 - Phase 0 must be complete (token estimator, error codes)
 - Phase 1 must be complete (config loading)
+- Phase 2A must be complete (FastMCP server bootstrap and project registry)
 - Phase 2 must be complete (indexing, file access, stale detection)
 - Phase 3 helpful but not required (retrieve tools are independent)
 
 ## Deliverables
 
 - `src/obsidian_memory_mcp/context_packs.py` with ContextPackLoader and pack validation
-- `src/obsidian_memory_mcp/tools.py` — add MCP tool entry point for `get_context_pack`
+- `src/obsidian_memory_mcp/server.py` (or mounted FastMCP handler module) — add MCP tool entry point for `get_context_pack`
 - Updated `src/obsidian_memory_mcp/config.py` to support context_packs config schema
 - `tests/unit/test_context_packs.py` with loader and token budget tests
 - `tests/unit/test_context_pack_truncation.py` with truncation and boundary tests

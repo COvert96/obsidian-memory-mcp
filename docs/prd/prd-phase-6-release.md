@@ -4,6 +4,15 @@
 
 Complete the MVP with comprehensive testing, benchmarking, documentation, and packaging. This phase ensures the system is production-ready, well-documented, and measurable against quality gates (relevance, performance, safety).
 
+## Architecture Alignment Update (2026-05-23)
+
+Release readiness now explicitly includes Phase 2A runtime checks:
+
+- MCP initialize handshake succeeds for `mcp-memory serve`.
+- Tool discovery/listing is validated from live FastMCP server runtime.
+- Cross-platform server smoke coverage includes Windows, macOS, and Linux.
+- Compatibility checks compare documented contracts with generated FastMCP/Pydantic tool schemas.
+
 ## Goals
 
 - Create benchmark question sets for search relevance validation
@@ -110,7 +119,7 @@ Complete the MVP with comprehensive testing, benchmarking, documentation, and pa
   - Support contact
 - [ ] pyproject.toml updated with:
   - Package metadata (name, version, description, author)
-  - Dependencies (jsonschema, sqlite, pyyaml, etc.)
+  - Dependencies (`mcp`, `pyyaml`, `tiktoken`, and verification/testing deps such as `jsonschema`)
   - Entry points (CLI commands)
   - Test/dev dependencies
 - [ ] README.md updated with:
@@ -144,9 +153,10 @@ Complete the MVP with comprehensive testing, benchmarking, documentation, and pa
 - [ ] Acceptance tests cover success criteria from all previous phases:
   - Phase 0: tool contracts match specs, schemas validated
   - Phase 1: config loading, vault boundaries, guardrails enforced
+  - Phase 2A: MCP initialize handshake works, tools are discoverable, `read_note` runtime call passes, serve smoke tests pass on Windows/macOS/Linux
   - Phase 2: indexing completes, hash-based dedup works, FTS index built
   - Phase 3: read/search tools work, <100ms latency, >=80% relevance
-  - Phase 4: context packs load, token cap enforced, hard limit not exceeded
+  - Phase 4: context packs load, token cap enforced (default 8000 unless overridden), hard limit not exceeded
   - Phase 5: proposals don't write immediately, approval workflow required, audit trail complete
 - [ ] Each test verifies one acceptance criterion
 - [ ] Tests use fixture vault and realistic data
@@ -229,7 +239,7 @@ Complete the MVP with comprehensive testing, benchmarking, documentation, and pa
 
 ## Dependencies
 
-- All Phases 0-5 must be complete
+- All Phases 0-5 and Phase 2A must be complete
 - No external dependencies beyond Phases 0-5
 
 ## Deliverables

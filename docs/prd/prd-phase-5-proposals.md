@@ -4,6 +4,12 @@
 
 Implement a safety-first write workflow: `propose_memory_update` creates a proposal without writing to disk, `list_proposals` shows pending proposals, and `approve_proposal` applies approved proposals. This guards against accidental/malicious overwrites and ensures all memory updates are explicit and traceable.
 
+## Architecture Alignment Update (2026-05-23)
+
+- Proposal tools must be exposed via FastMCP thin handlers.
+- Tool handlers must resolve `project` via the shared server registry (`project -> vault_root`) from Phase 2A.
+- MVP remains manual-approval only (no auto-approve policy in this phase).
+
 ## Goals
 
 - Implement propose-only memory updates (no disk writes during proposal creation)
@@ -163,13 +169,14 @@ Implement a safety-first write workflow: `propose_memory_update` creates a propo
 
 - Phase 0 must be complete (error codes, validation approach)
 - Phase 1 must be complete (config loading, guardrails, write constraints)
+- Phase 2A must be complete (FastMCP server bootstrap and project registry)
 - Phase 2 helpful for indexing proposals alongside notes (optional)
 - Phase 3-4 independent (can implement in parallel)
 
 ## Deliverables
 
 - `src/obsidian_memory_mcp/proposals.py` with ProposalManager, ProposalValidator, AuditLog
-- `src/obsidian_memory_mcp/tools.py` — add MCP tools: `propose_memory_update`, `list_proposals`, `approve_proposal`
+- `src/obsidian_memory_mcp/server.py` (or mounted FastMCP handler module) — add MCP tools: `propose_memory_update`, `list_proposals`, `approve_proposal`
 - `src/obsidian_memory_mcp/cli.py` — add proposal CLI commands (list, show, approve, reject, cleanup, audit)
 - `tests/unit/test_proposals.py` with proposal creation, validation, expiry tests
 - `tests/unit/test_approval_workflow.py` with hash conflict, concurrent edit tests
