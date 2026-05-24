@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from obsidian_memory_mcp.contracts import TOOL_CONTRACTS, TOOL_ERROR_CODES, ToolContract
+from obsidian_memory_mcp.contracts import TOOL_CONTRACTS, TOOL_ERROR_CODES
 from obsidian_memory_mcp.errors import ERROR_CATALOG, ErrorCode, build_error
 
 

@@ -104,14 +104,14 @@ Description: As a developer, I need deterministic parsed note structures so inde
 
 Acceptance Criteria:
 
-- [ ] Parser extracts frontmatter, headings, sections, blocks, wikilinks, markdown tags, and frontmatter tags.
-- [ ] Headings inside fenced code blocks are ignored as structural headings.
-- [ ] Malformed YAML does not fail file parsing; parser returns `frontmatter_parse_error`.
-- [ ] Repeated headings are disambiguated deterministically with ordinal suffixes.
-- [ ] Section keys are deterministic: `<vault_path>#<heading_slug>#<ordinal>`.
-- [ ] Block keys are deterministic: `<section_key>::block-<ordinal>`.
-- [ ] Section keys and block keys are deterministic index identifiers, not durable long-term knowledge IDs.
-- [ ] Parser output object includes:
+- [x] Parser extracts frontmatter, headings, sections, blocks, wikilinks, markdown tags, and frontmatter tags.
+- [x] Headings inside fenced code blocks are ignored as structural headings.
+- [x] Malformed YAML does not fail file parsing; parser returns `frontmatter_parse_error`.
+- [x] Repeated headings are disambiguated deterministically with ordinal suffixes.
+- [x] Section keys are deterministic: `<vault_path>#<heading_slug>#<ordinal>`.
+- [x] Block keys are deterministic: `<section_key>::block-<ordinal>`.
+- [x] Section keys and block keys are deterministic index identifiers, not durable long-term knowledge IDs.
+- [x] Parser output object includes:
   - `vault_path`
   - `frontmatter`
   - `frontmatter_parse_error`
@@ -123,8 +123,8 @@ Acceptance Criteria:
   - `raw_content_hash`
   - `normalized_content_hash`
   - `parser_version`
-- [ ] Unit tests cover at least 30 parser scenarios.
-- [ ] Parse performance target: 1,000 files (avg 5KB) in under 5 seconds on modern SSD-backed dev machine.
+- [x] Unit tests cover at least 30 parser scenarios.
+- [x] Parse performance target: 1,000 files (avg 5KB) in under 5 seconds on modern SSD-backed dev machine.
 
 ### US-001A: Deterministic block segmentation rules
 
@@ -132,17 +132,17 @@ Description: As a developer, I need a precise blocking algorithm so retrieval be
 
 Acceptance Criteria:
 
-- [ ] Blocks are deterministic retrieval units generated from section content.
-- [ ] Target block size is 300-700 estimated tokens.
-- [ ] Hard max block size is 1,000 estimated tokens.
-- [ ] Fenced code blocks remain atomic unless they exceed hard max.
-- [ ] Markdown tables remain atomic unless they exceed hard max.
-- [ ] Prose splits on paragraph boundaries first.
-- [ ] No overlap between adjacent blocks in Phase 2.
-- [ ] Each block inherits `vault_path`, `section_path`, heading, and tags.
-- [ ] Empty or whitespace-only blocks are not indexed.
-- [ ] Tiny sections may collapse into a single block when under minimum size.
-- [ ] Oversized sections split deterministically according to the above boundaries.
+- [x] Blocks are deterministic retrieval units generated from section content.
+- [x] Target block size is 300-700 estimated tokens.
+- [x] Hard max block size is 1,000 estimated tokens.
+- [x] Fenced code blocks remain atomic unless they exceed hard max.
+- [x] Markdown tables remain atomic unless they exceed hard max.
+- [x] Prose splits on paragraph boundaries first.
+- [x] No overlap between adjacent blocks in Phase 2.
+- [x] Each block inherits `vault_path`, `section_path`, heading, and tags.
+- [x] Empty or whitespace-only blocks are not indexed.
+- [x] Tiny sections may collapse into a single block when under minimum size.
+- [x] Oversized sections split deterministically according to the above boundaries.
 
 ### US-002: Persist index schema with FTS5
 
@@ -150,19 +150,19 @@ Description: As a developer, I need a queryable schema with run metadata and dia
 
 Acceptance Criteria:
 
-- [ ] Schema includes: `index_runs`, `files`, `sections`, `blocks`, `wikilinks`, `index_errors`, `blocks_fts`.
-- [ ] Unique constraints exist on:
+- [x] Schema includes: `index_runs`, `files`, `sections`, `blocks`, `wikilinks`, `index_errors`, `blocks_fts`.
+- [x] Unique constraints exist on:
   - `files.vault_path`
   - `sections.section_key`
   - `blocks.block_key`
-- [ ] Required secondary indexes exist for file freshness, section/block joins, wikilink target lookups, and run error lookup.
-- [ ] `PRAGMA user_version` is set and validated by schema bootstrap.
-- [ ] FTS5 table indexes retrieval blocks (not files/sections as retrieval unit):
+- [x] Required secondary indexes exist for file freshness, section/block joins, wikilink target lookups, and run error lookup.
+- [x] `PRAGMA user_version` is set and validated by schema bootstrap.
+- [x] FTS5 table indexes retrieval blocks (not files/sections as retrieval unit):
   - `block_key`, `vault_path`, `section_path`, `heading`, `content`, `tags`
-- [ ] Phase 2 uses explicit FTS synchronization in indexer transactions (no SQLite triggers).
-- [ ] FTS row delete/insert behavior occurs in the same transaction as `blocks` changes.
-- [ ] Tests verify no orphaned FTS rows after block update/delete and deleted-file tombstoning.
-- [ ] Schema creation is idempotent.
+- [x] Phase 2 uses explicit FTS synchronization in indexer transactions (no SQLite triggers).
+- [x] FTS row delete/insert behavior occurs in the same transaction as `blocks` changes.
+- [x] Tests verify no orphaned FTS rows after block update/delete and deleted-file tombstoning.
+- [x] Schema creation is idempotent.
 
 ### US-003: Run full and incremental indexing
 
@@ -170,21 +170,21 @@ Description: As an operator, I need fast incremental indexing and safe full rebu
 
 Acceptance Criteria:
 
-- [ ] Eligible `.md` files are discovered within allowed vault roots and include/exclude policies.
-- [ ] Default exclusions include: `.git/`, `.obsidian/`, `.trash/`, `.mcp/`, and index DB path.
-- [ ] Incremental freshness uses stat-first logic:
+- [x] Eligible `.md` files are discovered within allowed vault roots and include/exclude policies.
+- [x] Default exclusions include: `.git/`, `.obsidian/`, `.trash/`, `.mcp/`, and index DB path.
+- [x] Incremental freshness uses stat-first logic:
   - compare `vault_path`, `size_bytes`, `mtime_ns`, `parser_version`
   - if unchanged, skip without reading file body
   - if changed/unknown, read file and compute `file_hash`
   - if `file_hash` is unchanged after metadata drift, update metadata and skip parse
-- [ ] Parser version change marks old rows stale and triggers reindex behavior.
-- [ ] Changed file reindex deletes and recreates dependent rows (`sections`, `blocks`, `wikilinks`, `blocks_fts`) atomically for that file.
-- [ ] Deleted files are detected each run.
-- [ ] Deleted-file default behavior is tombstone (`deleted_at`), not hard delete.
-- [ ] Tombstoned files keep a `files` row but remove searchable/derived rows (`sections`, `blocks`, `wikilinks`, `blocks_fts`).
-- [ ] If a tombstoned path reappears, indexer treats it as changed/new: clears `deleted_at`, clears `last_error_id` on success, and rebuilds dependent rows.
-- [ ] Full reindex rebuilds derived tables while preserving schema version metadata.
-- [ ] Index run summary returns:
+- [x] Parser version change marks old rows stale and triggers reindex behavior.
+- [x] Changed file reindex deletes and recreates dependent rows (`sections`, `blocks`, `wikilinks`, `blocks_fts`) atomically for that file.
+- [x] Deleted files are detected each run.
+- [x] Deleted-file default behavior is tombstone (`deleted_at`), not hard delete.
+- [x] Tombstoned files keep a `files` row but remove searchable/derived rows (`sections`, `blocks`, `wikilinks`, `blocks_fts`).
+- [x] If a tombstoned path reappears, indexer treats it as changed/new: clears `deleted_at`, clears `last_error_id` on success, and rebuilds dependent rows.
+- [x] Full reindex rebuilds derived tables while preserving schema version metadata.
+- [x] Index run summary returns:
   - `index_run_id`
   - `mode`
   - `files_seen`
@@ -196,15 +196,15 @@ Acceptance Criteria:
   - `blocks_indexed`
   - `errors`
   - `duration_ms`
-- [ ] Run status is one of: `success`, `success_with_errors`, `failed`.
-- [ ] Non-fatal file errors do not abort whole run.
-- [ ] A malformed-YAML file with indexed body content counts as:
+- [x] Run status is one of: `success`, `success_with_errors`, `failed`.
+- [x] Non-fatal file errors do not abort whole run.
+- [x] A malformed-YAML file with indexed body content counts as:
   - `files_processed += 1`
   - `errors += 1`
   - `files_failed` unchanged
   - run status `success_with_errors`
-- [ ] Fatal DB/schema errors abort run and mark run `failed`.
-- [ ] Performance targets:
+- [x] Fatal DB/schema errors abort run and mark run `failed`.
+- [x] Performance targets:
   - full index 5,000 files (avg 5KB) in under 30 seconds
   - incremental with 1 changed file in under 500ms (excluding process startup)
 
@@ -214,21 +214,21 @@ Description: As an operator, I need reliable commands and exit codes for local a
 
 Acceptance Criteria:
 
-- [ ] Commands exist:
+- [x] Commands exist:
   - `mcp-memory index {vault_path}`
   - `mcp-memory index --full {vault_path}`
   - `mcp-memory index status {vault_path}`
   - `mcp-memory index errors {vault_path}`
   - `mcp-memory debug search {vault_path} "{query}"`
-- [ ] Repair path is explicit: `mcp-memory index --full --yes {vault_path}` is the supported index repair operation in Phase 2.
-- [ ] Full reindex requires confirmation unless `--yes` is passed.
-- [ ] Commands validate config and guardrails before indexing.
-- [ ] Exit codes:
+- [x] Repair path is explicit: `mcp-memory index --full --yes {vault_path}` is the supported index repair operation in Phase 2.
+- [x] Full reindex requires confirmation unless `--yes` is passed.
+- [x] Commands validate config and guardrails before indexing.
+- [x] Exit codes:
   - `0`: success
   - `1`: fatal failure
   - `2`: success with indexing errors
   - `3`: invalid config/guardrail violation
-- [ ] Help text exists for all index and debug search commands.
+- [x] Help text exists for all index and debug search commands.
 
 ### US-005: Report index health and drift
 
@@ -236,7 +236,7 @@ Description: As an operator, I need to know if index data is fresh and trustwort
 
 Acceptance Criteria:
 
-- [ ] Status output includes:
+- [x] Status output includes:
   - vault path
   - index DB path
   - schema version
@@ -251,14 +251,14 @@ Acceptance Criteria:
   - total sections
   - total blocks
   - total wikilinks
-- [ ] Drift detection includes:
+- [x] Drift detection includes:
   - modified files since last index
   - deleted files since last index
   - files present in vault but not indexed
   - files indexed with old parser version
-- [ ] Warn when >10% eligible files currently have indexing errors.
-- [ ] Warn when parser version drift exists.
-- [ ] Status call completes in under 1 second for 5,000-file vault without reparsing file bodies.
+- [x] Warn when >10% eligible files currently have indexing errors.
+- [x] Warn when parser version drift exists.
+- [x] Status call completes in under 1 second for 5,000-file vault without reparsing file bodies.
 
 ### US-006: Inspect FTS behavior for diagnostics
 
@@ -266,8 +266,8 @@ Description: As a developer, I need transparent search diagnostics to tune retri
 
 Acceptance Criteria:
 
-- [ ] Debug search reads from `blocks_fts` joined to canonical metadata tables.
-- [ ] Output includes:
+- [x] Debug search reads from `blocks_fts` joined to canonical metadata tables.
+- [x] Output includes:
   - query
   - matched `block_key`
   - `vault_path`
@@ -277,12 +277,12 @@ Acceptance Criteria:
   - snippet
   - token count estimate
   - tags
-- [ ] Optional filters:
+- [x] Optional filters:
   - `--limit`
   - `--path`
   - `--tag`
-- [ ] Debug search supports structured JSON output via `--json`.
-- [ ] Typical query returns in under 50ms on 250,000 indexed blocks on modern dev hardware.
+- [x] Debug search supports structured JSON output via `--json`.
+- [x] Typical query returns in under 50ms on 250,000 indexed blocks on modern dev hardware.
 
 ### US-007: Document workflow and troubleshooting
 
@@ -290,7 +290,7 @@ Description: As an operator, I need clear docs to run and troubleshoot indexing 
 
 Acceptance Criteria:
 
-- [ ] `docs/indexing-guide.md` covers:
+- [x] `docs/indexing-guide.md` covers:
   - first-time index
   - incremental cycle
   - full reindex and when to use it
@@ -298,7 +298,7 @@ Acceptance Criteria:
   - deleted-file behavior
   - status interpretation
   - debug search interpretation
-- [ ] Troubleshooting covers:
+- [x] Troubleshooting covers:
   - stale index
   - unindexed files
   - malformed YAML
@@ -307,7 +307,7 @@ Acceptance Criteria:
   - FTS inconsistency
   - parser drift
   - unexpected query matches
-- [ ] Docs explicitly state DB is derived data and direct DB edits are unsupported.
+- [x] Docs explicitly state DB is derived data and direct DB edits are unsupported.
 
 ## 9. Functional Requirements
 
@@ -489,14 +489,14 @@ If adopted later, keep parser and index policy logic independent of ORM concerns
 
 ## 17. Success Metrics
 
-- [ ] Parse 1,000 files (avg 5KB) in under 5 seconds.
-- [ ] Full index 5,000 files (avg 5KB) in under 30 seconds.
-- [ ] Incremental with one changed file under 500ms (excluding startup).
-- [ ] 100% unchanged files skipped when freshness inputs are unchanged.
-- [ ] Parser version drift detected and reported correctly.
-- [ ] Deleted files handled correctly via tombstoning.
-- [ ] Status drift report under 1 second for 5,000-file vault.
-- [ ] Debug search under 50ms for typical queries on 250,000 blocks.
+- [x] Parse 1,000 files (avg 5KB) in under 5 seconds.
+- [x] Full index 5,000 files (avg 5KB) in under 30 seconds.
+- [x] Incremental with one changed file under 500ms (excluding startup).
+- [x] 100% unchanged files skipped when freshness inputs are unchanged.
+- [x] Parser version drift detected and reported correctly.
+- [x] Deleted files handled correctly via tombstoning.
+- [x] Status drift report under 1 second for 5,000-file vault.
+- [x] Debug search under 50ms for typical queries on 250,000 blocks.
 
 ## 18. Deliverables
 
