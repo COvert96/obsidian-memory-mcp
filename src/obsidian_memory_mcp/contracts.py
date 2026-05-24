@@ -1,3 +1,11 @@
+"""Tool contracts: canonical definitions of each MCP tool's interface.
+
+Each `ToolContract` records the tool's name, description, possible error codes,
+and representative example payloads.  `TOOL_ERROR_CODES` is derived from
+`TOOL_CONTRACTS` and provides a convenient mapping from tool name to its error
+tuple without maintaining a separate, drift-prone list.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -196,4 +204,10 @@ TOOL_CONTRACTS: dict[str, ToolContract] = {
             "file_size_bytes": 128,
         },
     ),
+}
+
+# Derived from TOOL_CONTRACTS — no separate list to maintain.
+# Use this when you need only the error codes without the full contract.
+TOOL_ERROR_CODES: dict[str, tuple[ErrorCode, ...]] = {
+    name: contract.possible_errors for name, contract in TOOL_CONTRACTS.items()
 }
