@@ -13,7 +13,7 @@ context_packs:
       - "README.md"
     include_context_packs:
       - "foundation"
-    token_budget: 1800
+    token_budget: 8000
 
   - name: "foundation"
     paths:

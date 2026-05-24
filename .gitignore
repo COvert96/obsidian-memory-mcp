@@ -221,3 +221,6 @@ __marimo__/
 plans/
 code-review/
 acceptance/
+
+# Local MCP
+memory-mcp-server.yaml

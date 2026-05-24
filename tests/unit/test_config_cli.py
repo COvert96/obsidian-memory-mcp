@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+import obsidian_memory_mcp.server as server_module
 from obsidian_memory_mcp.cli import main
 
 
@@ -44,3 +47,26 @@ context_packs: prd
     assert "vault_path" in output
     assert "index_db_location" in output
     assert "write_constraints" in output
+
+
+def test_serve_cli_starts_mcp_server(
+    registry_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_calls: list[str] = []
+    monkeypatch.setattr(server_module.mcp, "run", lambda transport: run_calls.append(transport))
+
+    exit_code = main(["serve", "--transport", "stdio", "--registry-path", str(registry_path)])
+
+    assert exit_code == 0
+    assert run_calls == ["stdio"]
+
+
+def test_serve_cli_returns_error_for_missing_registry(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    missing = tmp_path / "no-such-registry.yaml"
+
+    exit_code = main(["serve", "--registry-path", str(missing)])
+
+    assert exit_code == 1
+    assert "Failed to start server" in capsys.readouterr().out
