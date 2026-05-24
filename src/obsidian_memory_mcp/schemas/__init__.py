@@ -1,1 +1,0 @@
-"""Bundled JSON Schemas for Obsidian Memory MCP tool contracts."""

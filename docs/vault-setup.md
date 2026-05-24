@@ -55,7 +55,6 @@ Config is valid: path\to\example-vault
 ```
 
 If validation fails, the CLI prints every invalid field and a suggested fix.
-For the shared error response shape and error codes, see `docs/tool-specifications.md`.
 
 ## 4. Choose Guardrails
 
