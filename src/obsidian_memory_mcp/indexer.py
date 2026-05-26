@@ -311,7 +311,9 @@ def _replace_file_index(
                     section.end_line,
                 ),
             )
-            section_ids[section.section_key] = int(cursor.lastrowid)
+            section_ids[section.section_key] = _last_insert_id(
+                cursor, "section insert"
+            )
 
         for block in parsed.blocks:
             section_id = section_ids[block.section_key]
@@ -562,7 +564,7 @@ def _insert_error(
         """,
         (run_id, file_id, vault_path, error_type, message, _now_iso()),
     )
-    return int(cursor.lastrowid)
+    return _last_insert_id(cursor, "index error insert")
 
 
 def _set_file_error(
@@ -630,7 +632,13 @@ def _insert_run(connection: sqlite3.Connection, mode: str, parser_version: str) 
             """,
             (mode, _now_iso(), parser_version),
         )
-    return int(cursor.lastrowid)
+    return _last_insert_id(cursor, "index run insert")
+
+
+def _last_insert_id(cursor: sqlite3.Cursor, operation: str) -> int:
+    if cursor.lastrowid is None:
+        raise RuntimeError(f"SQLite did not return lastrowid for {operation}.")
+    return cursor.lastrowid
 
 
 def _finish_run(

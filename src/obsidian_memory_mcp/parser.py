@@ -412,12 +412,12 @@ def _section_units(content: str) -> tuple[str, ...]:
             index += 1
             continue
         if _is_fence_line(line):
-            unit_lines, index = _consume_fenced_code(lines, index)
-            units.append("\n".join(unit_lines))
+            fenced_lines, index = _consume_fenced_code(lines, index)
+            units.append("\n".join(fenced_lines))
             continue
         if _is_table_line(line):
-            unit_lines, index = _consume_table(lines, index)
-            units.append("\n".join(unit_lines))
+            table_lines, index = _consume_table(lines, index)
+            units.append("\n".join(table_lines))
             continue
 
         unit_lines: list[str] = []

@@ -42,6 +42,23 @@ def test_tool_error_codes_matches_contract_possible_errors() -> None:
         assert TOOL_ERROR_CODES[name] == contract.possible_errors
 
 
+def test_read_section_contract_documents_context_prefix() -> None:
+    response = TOOL_CONTRACTS["read_section"].example_response
+
+    assert "context_prefix" in response
+    assert "context_lines" not in response
+    assert str(response["content"]).startswith("## ")
+
+
+def test_search_notes_contract_documents_heading_level_and_path_filters() -> None:
+    request = TOOL_CONTRACTS["search_notes"].example_request
+    result = TOOL_CONTRACTS["search_notes"].example_response["results"][0]
+
+    assert isinstance(request["paths"], list)
+    assert "exclude_paths" in request
+    assert "heading_level" in result
+
+
 # ---------------------------------------------------------------------------
 # Error catalog
 # ---------------------------------------------------------------------------

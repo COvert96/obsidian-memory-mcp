@@ -67,7 +67,7 @@ TOOL_CONTRACTS: dict[str, ToolContract] = {
             "heading": "Definition",
             "heading_level": 2,
             "content": "## Definition\nCompliance controls encoded as executable rules.",
-            "context_lines": 2,
+            "context_prefix": "Compliance overview.",
         },
     ),
     "search_notes": ToolContract(
@@ -84,6 +84,7 @@ TOOL_CONTRACTS: dict[str, ToolContract] = {
             "limit": 5,
             "tags": ["compliance"],
             "paths": ["wiki/concepts/**"],
+            "exclude_paths": ["wiki/private/**"],
         },
         example_response={
             "project": "occlave",
