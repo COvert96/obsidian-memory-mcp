@@ -12,11 +12,15 @@ from typing import Any
 
 from obsidian_memory_mcp.config import GuardrailEvaluator, ProjectConfig
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
+from obsidian_memory_mcp.markdown_parser import (
+    MarkdownHeading,
+    find_headings,
+    matching_heading,
+    section_end_index,
+)
 from obsidian_memory_mcp.schema import connect_index_db
 from obsidian_memory_mcp.vault import parse_frontmatter
 
-_HEADING_RE = re.compile(r"^(#{1,6})[ \t]+(.+?)\s*$")
-_FENCE_RE = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})")
 _BOOLEAN_TERMS = frozenset({"AND", "OR", "NOT"})
 _MAX_SEARCH_LIMIT = 100
 _PREVIEW_RADIUS = 80
@@ -128,19 +132,6 @@ class SearchService:
 
 
 @dataclass(frozen=True)
-class _Heading:
-    line_index: int
-    level: int
-    text: str
-
-
-@dataclass(frozen=True)
-class _FenceState:
-    marker: str
-    length: int
-
-
-@dataclass(frozen=True)
 class _ExtractedSection:
     heading: str
     heading_level: int
@@ -185,12 +176,12 @@ def _read_text(config: ProjectConfig, path: Path) -> str:
 
 def _extract_section(content: str, heading_name: str) -> _ExtractedSection | None:
     lines = content.splitlines()
-    headings = _find_headings(lines)
-    heading = _matching_heading(headings, heading_name)
+    headings = find_headings(lines)
+    heading = matching_heading(headings, heading_name)
     if heading is None:
         return None
 
-    end_index = _section_end_index(headings, heading, line_count=len(lines))
+    end_index = section_end_index(headings, heading, line_count=len(lines))
     section_content = "\n".join(lines[heading.line_index : end_index]).rstrip()
     context_prefix = _context_prefix(lines, headings, heading.line_index)
     return _ExtractedSection(
@@ -201,66 +192,9 @@ def _extract_section(content: str, heading_name: str) -> _ExtractedSection | Non
     )
 
 
-def _find_headings(lines: list[str]) -> tuple[_Heading, ...]:
-    headings: list[_Heading] = []
-    fence_state: _FenceState | None = None
-
-    for index, line in enumerate(lines):
-        fence_match = _FENCE_RE.match(line)
-        if fence_match is not None:
-            fence_state = _next_fence_state(fence_match, fence_state)
-            continue
-        if fence_state is not None:
-            continue
-
-        match = _HEADING_RE.match(line)
-        if match is None:
-            continue
-
-        headings.append(
-            _Heading(
-                line_index=index,
-                level=len(match.group(1)),
-                text=_clean_heading_text(match.group(2)),
-            )
-        )
-
-    return tuple(headings)
-
-
-def _matching_heading(
-    headings: tuple[_Heading, ...],
-    heading_name: str,
-) -> _Heading | None:
-    target = _normalize_heading_name(heading_name)
-    return next(
-        (
-            heading
-            for heading in headings
-            if _normalize_heading_name(heading.text) == target
-        ),
-        None,
-    )
-
-
-def _section_end_index(
-    headings: tuple[_Heading, ...],
-    current: _Heading,
-    *,
-    line_count: int,
-) -> int:
-    following_headings = (
-        heading for heading in headings if heading.line_index > current.line_index
-    )
-    for heading in following_headings:
-        if heading.level <= current.level:
-            return heading.line_index
-    return line_count
-
-
 def _context_prefix(
     lines: list[str],
-    headings: tuple[_Heading, ...],
+    headings: tuple[MarkdownHeading, ...],
     heading_index: int,
 ) -> str:
     frontmatter_body_start = _frontmatter_body_start(lines)
@@ -286,28 +220,6 @@ def _frontmatter_body_start(lines: list[str]) -> int:
         if line.strip() == "---":
             return index + 1
     return 0
-
-
-def _next_fence_state(
-    match: re.Match[str],
-    current: _FenceState | None,
-) -> _FenceState | None:
-    marker_text = match.group(1)
-    marker = marker_text[0]
-    length = len(marker_text)
-    if current is None:
-        return _FenceState(marker=marker, length=length)
-    if current.marker == marker and length >= current.length:
-        return None
-    return current
-
-
-def _clean_heading_text(text: str) -> str:
-    return re.sub(r"\s+#+\s*$", "", text).strip()
-
-
-def _normalize_heading_name(value: str) -> str:
-    return _clean_heading_text(value.lstrip("#").strip()).casefold()
 
 
 def _validate_limit(limit: int) -> int:
