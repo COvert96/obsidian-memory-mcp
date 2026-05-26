@@ -41,8 +41,10 @@ Implement the core retrieval capabilities: `read_note` (get entire file), `read_
 - [ ] Returns section content between heading and next heading of same/higher level
 - [ ] Returns error `ERR_MISSING_FILE` if note doesn't exist
 - [ ] Returns error `ERR_SECTION_NOT_FOUND` if heading not found in file
-- [ ] Result includes: `{ heading: str, heading_level: int, content: str, file_path: str, context_lines: int }`
-- [ ] Includes 2-3 lines of context above section heading
+- [ ] Response shape: `{ heading: str, heading_level: int, content: str, context_prefix: str, file_path: str }`
+  - `content`: the heading line (e.g. `## Installation`) as the first line, followed by the section body up to the next same-or-higher-level heading
+  - `context_prefix`: up to 3 non-heading lines immediately above the heading line in the source file; empty string if the heading is at the start of the file or is preceded only by frontmatter
+- [ ] Heading line is always the first line of `content`; `context_prefix` is never included in `content`
 - [ ] Case-insensitive heading matching (accept "installation" for "## Installation")
 - [ ] Performance: <50ms for any file/section combination
 
@@ -50,38 +52,42 @@ Implement the core retrieval capabilities: `read_note` (get entire file), `read_
 **Description:** As a tool user, I want to search the vault for notes matching keywords so I can find relevant content.
 
 **Acceptance Criteria:**
-- [ ] Tool parameters: `query` (required), `limit` (optional, default 10), `tags` (optional filter), `paths` (optional filter)
+- [ ] Tool parameters: `query` (required), `limit` (optional, default 10), `tags` (optional list), `paths` (optional list of include globs), `exclude_paths` (optional list of exclude globs)
 - [ ] Uses SQLite FTS5 index from Phase 2 for fulltext search
 - [ ] Returns top-k results ranked by relevance
-- [ ] Each result includes: `{ file_path: str, heading: str, preview: str, rank: float, tags: [str] }`
+- [ ] Each result includes: `{ file_path: str, heading: str, heading_level: int, preview: str, rank: float, tags: [str] }`
 - [ ] Preview shows search term in context (snippet 100-200 characters with "..." around match)
-- [ ] Optional tag filter: only return sections with matching tags
-- [ ] Optional path filter: only return sections from files matching path glob (e.g., `wiki/**`)
+- [ ] Optional tag filter: `tags` is a list of tag strings; only return blocks whose tag set contains **all** listed tags (AND semantics); comparison is case-insensitive with any leading `#` stripped from inputs
+- [ ] Optional path filter: `paths` is a list of include globs (e.g., `["wiki/**", "api/**"]`); only return blocks from files matching at least one glob
+- [ ] Optional path exclusion: `exclude_paths` is a list of exclude globs; blocks from files matching any exclude glob are removed after include filtering
 - [ ] Empty query returns error with message "query is required"
 - [ ] Handles multi-word queries: "complex query" searches all terms
+- [ ] Regex query: if `query` contains a regex pattern (detected by caller wrapping in `/…/`), FTS5 first retrieves candidates using the raw terms, then Python filters the result set using `re.search`; only the filtered subset is returned
 - [ ] Performance: <100ms for typical queries on 5000-file vault
 
 ### US-004: Handle search ranking and relevance
 **Description:** As a tool user, I want results ranked by relevance so I find the most important matches first.
 
 **Acceptance Criteria:**
-- [ ] Relevance ranking considers: term frequency, section heading level (H1 > H2 > content)
-- [ ] Boost score for matches in heading vs content (2x weight)
-- [ ] FTS5 native ranking or custom scoring implemented and documented
-- [ ] Benchmark: on query "compliance", top 3 results contain relevant compliance content (measure via unit test with fixture vault)
+- [ ] Relevance ranking uses FTS5 column-weighted BM25: `bm25(blocks_fts, 0, 0, 1.0, 10.0, 1.0, 1.0)` — column order is `block_key` (UNINDEXED, 0), `vault_path` (UNINDEXED, 0), `section_path` (1.0), `heading` (10.0), `content` (1.0), `tags` (1.0)
+- [ ] The 10× heading weight is applied at the SQL level; no post-processing score adjustment is performed in Phase 3
+- [ ] Heading-level distinction (H1 vs H2) is **not** in scope for Phase 3; `heading_level` is returned in results via a JOIN to `sections` (for client-side use) but does not influence the BM25 score
+- [ ] FTS5 native ranking implemented and documented in `docs/retrieval-guide.md`
+- [ ] Benchmark: on query "compliance", top 3 results contain relevant compliance content (verified by unit test with fixture vault)
 - [ ] No irrelevant results in top 5 for common queries
-- [ ] Ranking is deterministic (same query always produces same order)
+- [ ] Ranking is deterministic (same query always produces same order); `block_key ASC` is used as the tiebreaker
 
 ### US-005: Implement search filters and result formatting
 **Description:** As a tool user, I want to filter search by tags and paths so I can scope results.
 
 **Acceptance Criteria:**
-- [ ] Tag filter: `tags: ["urgent", "api"]` returns only sections with both tags
-- [ ] Path filter: `paths: "wiki/api/**"` returns only files under wiki/api/
-- [ ] Multiple filters are AND'ed (must match all)
-- [ ] Results include section heading level so client can sort/format appropriately
+- [ ] Tag filter: `tags: ["urgent", "api"]` returns only blocks whose tag set contains **both** `urgent` and `api` (AND semantics); matching is case-insensitive and leading `#` is stripped from each input tag before comparison
+- [ ] Path include filter: `paths: ["wiki/api/**"]` returns only files whose `vault_path` matches at least one of the provided globs
+- [ ] Path exclude filter: `exclude_paths: ["wiki/private/**"]` removes files matching any exclude glob after include filtering; applied independently of `paths`
+- [ ] Multiple filter types (tags, paths, exclude_paths) are AND'ed: a result must pass all active filters
+- [ ] Results include `heading_level` (obtained by joining `sections` on `section_key`) so the client can sort/format appropriately
 - [ ] Search result snippets show match context with surrounding words (not just isolated term)
-- [ ] Handles filters on non-indexed content gracefully (section content without tags returns empty filter)
+- [ ] Handles filters on blocks with no tags gracefully: an active `tags` filter returns no results for tag-free blocks (not an error)
 
 ### US-006: Create integration tests for retrieval tools
 **Description:** As a developer, I need end-to-end tests so I can verify tools work on realistic vault content.
@@ -100,7 +106,7 @@ Implement the core retrieval capabilities: `read_note` (get entire file), `read_
 - FR-2: `read_section` MCP tool returns specific heading/section with context
 - FR-3: `search_notes` MCP tool performs FTS queries with optional filtering
 - FR-4: All tools validate paths against vault guardrails before access
-- FR-5: Search ranking prioritizes headings > content, with deterministic ordering
+- FR-5: Search ranking uses FTS5 column-weighted BM25 with `heading` column at 10× weight; `block_key ASC` is the deterministic tiebreaker; heading-level (H1 vs H2) distinction is deferred to a future phase
 - FR-6: Results include metadata: file path, heading level, tags, preview
 - FR-7: All tools return appropriate error codes from Phase 0 on failure
 - FR-8: Performance: read tools <50ms, search <100ms on typical vaults
@@ -116,8 +122,13 @@ Implement the core retrieval capabilities: `read_note` (get entire file), `read_
 ## Technical Considerations
 
 - **Path Validation:** Use Phase 1 guardrail evaluator to check all file access
-- **FTS5 Ranking:** Use SQLite FTS5 native BM25 ranking; document any custom scoring
-- **Search Query Parsing:** Support phrase queries ("exact phrase") and boolean operators (AND/OR/NOT)
+- **FTS5 Ranking:** Use `bm25(blocks_fts, 0, 0, 1.0, 10.0, 1.0, 1.0)` — zero weights for UNINDEXED columns (`block_key`, `vault_path`), then `section_path` 1.0, `heading` 10.0, `content` 1.0, `tags` 1.0. Lower BM25 value = higher relevance (SQLite convention). Document in `docs/retrieval-guide.md`.
+- **Search Query Parsing:** Support phrase queries (`"exact phrase"`) and FTS5 boolean operators (AND/OR/NOT); pass the query string directly to FTS5 MATCH
+- **Regex Queries:** Detected when the query string is wrapped in `/…/`. FTS5 is first called with the bare terms extracted from the pattern to retrieve candidates; Python `re.search` is then applied to each candidate's `content` field. Only matching candidates are returned. This is a post-FTS filter, not a native FTS feature. Document the detection convention in `docs/retrieval-guide.md`.
+- **Tag Filtering:** Tags are stored as a JSON array in `blocks.tags`. Each tag in the `tags` filter parameter is normalised (lowercased, leading `#` stripped) before comparison. For AND semantics, a `LIKE` clause is added per tag. Implemented in the query builder; not in FTS5 itself.
+- **Path Filtering:** `paths` is a list of include globs. Each glob is converted to a `LIKE` pattern against `blocks.vault_path` (using the existing `_glob_to_regex`-style helper). Multiple include globs are OR'ed in SQL. `exclude_paths` is applied as `NOT (vault_path LIKE ?)` clauses AND'ed after the include filter.
+- **`heading_level` in Results:** The `blocks_fts`/`blocks` tables do not store heading level. `heading_level` is obtained by joining `sections` on `blocks.section_key = sections.section_key`. This JOIN is required for all search and read_section responses.
+- **`read_section` Response Fields:** `content` = heading line + section body (up to next same/higher-level heading). `context_prefix` = up to 3 non-heading source lines immediately above the heading; empty string when the heading is at file start or follows frontmatter only.
 - **Result Formatting:** Snippet extraction done in Python, not SQL, for easier context handling
 - **Caching:** No caching in MVP (but note where it could be added in Phase 6)
 
@@ -134,13 +145,13 @@ Implement the core retrieval capabilities: `read_note` (get entire file), `read_
 ## Open Questions
 
 - Should search support regex queries or only simple/phrase matching?
-  A: Yes support regex queries.
+  **Decision:** Regex is supported as a post-FTS Python filter. Query strings wrapped in `/…/` are detected by the handler; FTS5 runs on the extracted terms first, then `re.search` narrows the candidate set. Native FTS5 regex is not used.
 - Should tag filter be OR'ed (any tag) or AND'ed (all tags)?
-  A: Analysis required for retrieval quality.
+  **Decision:** AND semantics — all listed tags must be present on the block. Tag comparison is case-insensitive with leading `#` stripped.
 - Should path filter support exclusion patterns (e.g., `not(wiki/private/*)`)?
-  A: Yes.
+  **Decision:** Yes, via a separate `exclude_paths` parameter (list of globs). The inline `not()` syntax is not supported; use `exclude_paths: ["wiki/private/**"]` instead.
 - For read_section, should we return the heading line itself or just content?
-  A: Yes return heading line.
+  **Decision:** `content` always begins with the heading line. A separate `context_prefix` field returns up to 3 non-heading lines above the heading; it is never part of `content`.
 
 ## Dependencies
 
@@ -154,9 +165,11 @@ Implement the core retrieval capabilities: `read_note` (get entire file), `read_
 
 - `src/obsidian_memory_mcp/retrieval.py` with ReadNoteService, ReadSectionService, SearchService
 - `src/obsidian_memory_mcp/server.py` (or mounted FastMCP handler module) with tool entry points for all three tools
+- `src/obsidian_memory_mcp/contracts.py` updated: `read_section` contract must reflect `context_prefix` field and updated `content` definition; `search_notes` contract must reflect `heading_level`, `paths` as list, and `exclude_paths` parameter
 - `tests/unit/test_read_note.py` with file reading and guardrail tests
-- `tests/unit/test_read_section.py` with section extraction tests
-- `tests/unit/test_search_notes.py` with FTS and filtering tests
+- `tests/unit/test_read_section.py` with section extraction tests, including `context_prefix` assertions
+- `tests/unit/test_search_notes.py` with FTS and filtering tests, including AND tag semantics, path include/exclude globs, and regex post-filter
+- `tests/unit/test_contracts.py` updated to cover the revised `read_section` and `search_notes` contracts
 - `tests/integration/test_retrieval_tools.py` with fixture vault end-to-end tests
-- `docs/retrieval-guide.md` with tool examples and expected results
+- `docs/retrieval-guide.md` with tool examples, BM25 column weight rationale, regex convention, and expected results
 - Fixture vault in `tests/fixtures/sample-vault/` with diverse content for testing
