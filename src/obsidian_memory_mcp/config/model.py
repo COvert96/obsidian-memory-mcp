@@ -13,6 +13,9 @@ DEFAULT_MAX_PROPOSAL_TTL_HOURS = 24
 class ContextPackConfig:
     name: str
     paths: tuple[str, ...]
+    description: str | None = None
+    sections: tuple[str, ...] = ()
+    tags_filter: tuple[str, ...] = ()
     include_context_packs: tuple[str, ...] = ()
     token_budget: int | None = None
 
