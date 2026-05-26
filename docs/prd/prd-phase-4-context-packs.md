@@ -79,77 +79,77 @@ context_packs:
 **Description:** As an operator, I need a clear way to define context packs in config so I can curate reusable collections.
 
 **Acceptance Criteria:**
-- [ ] Context pack defined in config under `context_packs` array
-- [ ] Each pack has: `name` (required), `description` (optional), `paths` (required), `sections` (optional), `tags_filter` (optional), `include_context_packs` (optional), `token_budget` (optional)
-- [ ] `paths` supports: explicit vault-relative paths and glob patterns; evaluated in declaration order
-- [ ] `sections` supports: list of case-insensitive heading names; if omitted, full file is included
-- [ ] `tags_filter` supports: list of tags that must all be present on each matched file
-- [ ] `include_context_packs` supports: named pack references that are merged after this pack's own paths, with cycle detection
-- [ ] Config validation catches: missing required fields, duplicate pack names, unknown pack references, circular `include_context_packs`, non-positive `token_budget`
-- [ ] Example config provided with 2-3 realistic packs in the documentation
+- [x] Context pack defined in config under `context_packs` array
+- [x] Each pack has: `name` (required), `description` (optional), `paths` (required), `sections` (optional), `tags_filter` (optional), `include_context_packs` (optional), `token_budget` (optional)
+- [x] `paths` supports: explicit vault-relative paths and glob patterns; evaluated in declaration order
+- [x] `sections` supports: list of case-insensitive heading names; if omitted, full file is included
+- [x] `tags_filter` supports: list of tags that must all be present on each matched file
+- [x] `include_context_packs` supports: named pack references that are merged after this pack's own paths, with cycle detection
+- [x] Config validation catches: missing required fields, duplicate pack names, unknown pack references, circular `include_context_packs`, non-positive `token_budget`
+- [x] Example config provided with 2-3 realistic packs in the documentation
 
 ### US-002: Implement context pack loader
 **Description:** As a developer, I need a loader that reads config packs and returns their content deterministically.
 
 **Acceptance Criteria:**
-- [ ] Loader takes `pack_name` and `ProjectConfig` and returns a structured result
-- [ ] Concatenation order: config declaration order; included packs appended after the including pack's own files
-- [ ] Each file prefixed with `<!-- From: {vault_relative_path} -->`
-- [ ] Markdown headings and content preserved exactly (no reformatting)
-- [ ] If `sections` is specified: only matching heading blocks are concatenated; full file used as fallback if no sections match
-- [ ] If `tags_filter` is specified: files not matching all tags are silently skipped (not counted as missing)
-- [ ] Returns: `{ content: str, token_count: int, files_included: list[str], missing_files: list[str], warnings: list[str] }`
-- [ ] `token_count` uses the Phase 0 token estimator (deterministic, no LLM calls)
-- [ ] Files not found in the vault are reported in `missing_files`, not `files_included`; pack loading continues with remaining files
-- [ ] Missing sections emit a warning and fall back to including the full file
-- [ ] Performance: load pack in <500ms on a 5000-file vault with packs referencing 100+ files
+- [x] Loader takes `pack_name` and `ProjectConfig` and returns a structured result
+- [x] Concatenation order: config declaration order; included packs appended after the including pack's own files
+- [x] Each file prefixed with `<!-- From: {vault_relative_path} -->`
+- [x] Markdown headings and content preserved exactly (no reformatting)
+- [x] If `sections` is specified: only matching heading blocks are concatenated; full file used as fallback if no sections match
+- [x] If `tags_filter` is specified: files not matching all tags are silently skipped (not counted as missing)
+- [x] Returns: `{ content: str, token_count: int, files_included: list[str], missing_files: list[str], warnings: list[str] }`
+- [x] `token_count` uses the Phase 0 token estimator (deterministic, no LLM calls)
+- [x] Files not found in the vault are reported in `missing_files`, not `files_included`; pack loading continues with remaining files
+- [x] Missing sections emit a warning and fall back to including the full file
+- [x] Performance: load pack in <500ms on a 5000-file vault with packs referencing 100+ files
 
 ### US-003: Implement hard token cap enforcement
 **Description:** As a developer, I need to enforce the configured token cap so packs stay within budget.
 
 **Acceptance Criteria:**
-- [ ] Phase 0 token estimator used for all counts
-- [ ] `strict_budget=true` (default): if `token_count > configured_budget`, return error `ERR_CONTEXT_EXCEEDS_BUDGET`
-- [ ] Error response includes: `current_token_count`, `budget`, `excess_tokens` (how much must be removed), and a suggestion to use a smaller pack or `strict_budget=false`
-- [ ] `strict_budget=false`: truncate content at the last complete section boundary that fits within the budget; return truncated content with truncation details in the `warnings` array (never silent)
-- [ ] Truncation is relevance-prioritized: files are ordered by BM25 score from the pack's file set before truncation; highest-ranked content is preserved
-- [ ] Warning issued if `token_count > 90% of configured_budget` (i.e., > 7200 for the default 8000-token budget); also applies after truncation
-- [ ] Truncation never cuts mid-sentence or mid-section; always ends at a section boundary
+- [x] Phase 0 token estimator used for all counts
+- [x] `strict_budget=true` (default): if `token_count > configured_budget`, return error `ERR_CONTEXT_EXCEEDS_BUDGET`
+- [x] Error response includes: `current_token_count`, `budget`, `excess_tokens` (how much must be removed), and a suggestion to use a smaller pack or `strict_budget=false`
+- [x] `strict_budget=false`: truncate content at the last complete section boundary that fits within the budget; return truncated content with truncation details in the `warnings` array (never silent)
+- [x] Truncation is relevance-prioritized: files are ordered by BM25 score from the pack's file set before truncation; highest-ranked content is preserved
+- [x] Warning issued if `token_count > 90% of configured_budget` (i.e., > 7200 for the default 8000-token budget); also applies after truncation
+- [x] Truncation never cuts mid-sentence or mid-section; always ends at a section boundary
 
 ### US-004: Implement get_context_pack MCP tool
 **Description:** As a tool user, I want to load a context pack in one call so I receive curated, pre-sized context.
 
 **Acceptance Criteria:**
-- [ ] Tool registered in `server.py` under the name `get_context_pack`, following the FastMCP pattern used by `read_note` / `read_section`
-- [ ] Parameters: `project` (required), `pack_name` (required), `strict_budget` (optional, default `true`)
-- [ ] Returns: `{ content: str, token_count: int, pack_name: str, files_included: list[str], missing_files: list[str], warnings: list[str] }`
-- [ ] `strict_budget=true`: returns `ERR_CONTEXT_EXCEEDS_BUDGET` if pack exceeds configured budget
-- [ ] `strict_budget=false`: returns truncated content; truncation details always present in `warnings`
-- [ ] Missing files reported in `missing_files` (not silent)
-- [ ] Stale files: if a file's `mtime_ns > indexed_at` in the index DB, a warning is added: `"File '{path}' has been modified since last index; content may be stale"`
-- [ ] `ERR_INVALID_PROJECT` returned if the `project` argument is not found in the registry, or if `pack_name` is not found in the project's config
+- [x] Tool registered in `server.py` under the name `get_context_pack`, following the FastMCP pattern used by `read_note` / `read_section`
+- [x] Parameters: `project` (required), `pack_name` (required), `strict_budget` (optional, default `true`)
+- [x] Returns: `{ content: str, token_count: int, pack_name: str, files_included: list[str], missing_files: list[str], warnings: list[str] }`
+- [x] `strict_budget=true`: returns `ERR_CONTEXT_EXCEEDS_BUDGET` if pack exceeds configured budget
+- [x] `strict_budget=false`: returns truncated content; truncation details always present in `warnings`
+- [x] Missing files reported in `missing_files` (not silent)
+- [x] Stale files: if a file's `mtime_ns > indexed_at` in the index DB, a warning is added: `"File '{path}' has been modified since last index; content may be stale"`
+- [x] `ERR_INVALID_PROJECT` returned if the `project` argument is not found in the registry, or if `pack_name` is not found in the project's config
 
 ### US-005: Handle missing and stale files gracefully
 **Description:** As an operator, I need visibility into pack health so I know if included files are accessible and current.
 
 **Acceptance Criteria:**
-- [ ] Pack loader detects files not in the vault and reports them in `missing_files` with the vault-relative path
-- [ ] Pack loader detects sections not found in a file; reports in `warnings`, includes the full file as fallback
-- [ ] Stale detection: compare `files.mtime_ns` (file system modification time, nanoseconds) with `files.indexed_at` (index timestamp) from the index DB. If `mtime_ns > indexed_at`, the file is considered stale.
-- [ ] No age-based stale threshold (e.g., "24 hours old") — stale means "changed since last index", not "indexed too long ago"
-- [ ] Stale warning message: `"File '{path}' has been modified since last index; content may be stale. Re-run indexing to refresh."`
-- [ ] Missing files do not abort pack loading; remaining matched files are returned
-- [ ] `mcp-memory pack validate {pack_name}` command checks all files/sections and reports missing, stale, and tag-filtered items
+- [x] Pack loader detects files not in the vault and reports them in `missing_files` with the vault-relative path
+- [x] Pack loader detects sections not found in a file; reports in `warnings`, includes the full file as fallback
+- [x] Stale detection: compare `files.mtime_ns` (file system modification time, nanoseconds) with `files.indexed_at` (index timestamp) from the index DB. If `mtime_ns > indexed_at`, the file is considered stale.
+- [x] No age-based stale threshold (e.g., "24 hours old") — stale means "changed since last index", not "indexed too long ago"
+- [x] Stale warning message: `"File '{path}' has been modified since last index; content may be stale. Re-run indexing to refresh."`
+- [x] Missing files do not abort pack loading; remaining matched files are returned
+- [x] `mcp-memory pack validate {pack_name}` command checks all files/sections and reports missing, stale, and tag-filtered items
 
 ### US-006: Create validation and status CLI commands
 **Description:** As an operator, I need CLI commands to validate packs and check their status.
 
 **Acceptance Criteria:**
-- [ ] `mcp-memory pack list` — print a table of all configured packs showing: name, description, file-pattern count, estimated token count, any known issues
-- [ ] `mcp-memory pack validate {pack_name}` — resolve all paths, check section existence, report missing/stale files; exit code 0 (ok), 1 (errors), 2 (warnings only)
-- [ ] `mcp-memory pack load {pack_name}` — dry-run: print full concatenated content, token count, warnings, total duration; does not require `--dry-run` flag
-- [ ] All commands show: files included, token count, missing/stale files, total elapsed time
-- [ ] Exit codes: 0 = ok, 1 = missing files or config errors, 2 = warnings (stale files, near-budget)
+- [x] `mcp-memory pack list` — print a table of all configured packs showing: name, description, file-pattern count, estimated token count, any known issues
+- [x] `mcp-memory pack validate {pack_name}` — resolve all paths, check section existence, report missing/stale files; exit code 0 (ok), 1 (errors), 2 (warnings only)
+- [x] `mcp-memory pack load {pack_name}` — dry-run: print full concatenated content, token count, warnings, total duration; does not require `--dry-run` flag
+- [x] All commands show: files included, token count, missing/stale files, total elapsed time
+- [x] Exit codes: 0 = ok, 1 = missing files or config errors, 2 = warnings (stale files, near-budget)
 
 ## Functional Requirements
 

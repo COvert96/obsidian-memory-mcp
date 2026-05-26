@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import time
 from pathlib import Path
 from typing import Literal
 
@@ -12,6 +13,7 @@ from obsidian_memory_mcp.config import (
     ConfigValidationException,
     ProjectConfig,
 )
+from obsidian_memory_mcp.context_packs import ContextPackLoader, ContextPackResult
 from obsidian_memory_mcp.errors import ToolExecutionError
 from obsidian_memory_mcp.indexer import IndexMode, IndexRunResult, run_index
 from obsidian_memory_mcp.search_debug import (
@@ -29,8 +31,11 @@ from obsidian_memory_mcp.status import IndexStatus, get_index_status, list_index
 _COMMAND_CONFIG = "config"
 _COMMAND_DEBUG = "debug"
 _COMMAND_INDEX = "index"
+_COMMAND_PACK = "pack"
 _COMMAND_SERVE = "serve"
 _SUBCOMMAND_ERRORS = "errors"
+_SUBCOMMAND_LIST = "list"
+_SUBCOMMAND_LOAD = "load"
 _SUBCOMMAND_SEARCH = "search"
 _SUBCOMMAND_STATUS = "status"
 _SUBCOMMAND_VALIDATE = "validate"
@@ -56,6 +61,8 @@ def main(argv: list[str] | None = None) -> int:
         and arguments.debug_command == _SUBCOMMAND_SEARCH
     ):
         return _debug_search(arguments)
+    if arguments.command == _COMMAND_PACK:
+        return _pack(arguments)
     if arguments.command == _COMMAND_SERVE:
         return _serve(
             transport=arguments.transport, registry_path=arguments.registry_path
@@ -128,6 +135,57 @@ def _build_argument_parser() -> argparse.ArgumentParser:
     search_parser.add_argument(
         "--json", action="store_true", help="Emit structured JSON output."
     )
+
+    pack_parser = subparsers.add_parser(
+        _COMMAND_PACK,
+        help="List, validate, and load configured context packs.",
+    )
+    pack_subparsers = pack_parser.add_subparsers(dest="pack_command")
+
+    pack_list_parser = pack_subparsers.add_parser(
+        _SUBCOMMAND_LIST,
+        help="List configured context packs and known issues.",
+    )
+    pack_list_parser.add_argument(
+        "vault_root",
+        nargs="?",
+        type=Path,
+        default=Path.cwd(),
+        help="Path to the Obsidian vault root (default: current directory).",
+    )
+
+    pack_validate_parser = pack_subparsers.add_parser(
+        _SUBCOMMAND_VALIDATE,
+        help="Validate one configured context pack.",
+    )
+    pack_validate_parser.add_argument("pack_name", help="Context pack name to validate.")
+    pack_validate_parser.add_argument(
+        "vault_root",
+        nargs="?",
+        type=Path,
+        default=Path.cwd(),
+        help="Path to the Obsidian vault root (default: current directory).",
+    )
+
+    pack_load_parser = pack_subparsers.add_parser(
+        _SUBCOMMAND_LOAD,
+        help="Print one context pack's concatenated content.",
+    )
+    pack_load_parser.add_argument("pack_name", help="Context pack name to load.")
+    pack_load_parser.add_argument(
+        "vault_root",
+        nargs="?",
+        type=Path,
+        default=Path.cwd(),
+        help="Path to the Obsidian vault root (default: current directory).",
+    )
+    pack_load_parser.add_argument(
+        "--no-strict-budget",
+        action="store_false",
+        dest="strict_budget",
+        help="Truncate over-budget packs instead of returning an error.",
+    )
+    pack_load_parser.set_defaults(strict_budget=True)
 
     serve_parser = subparsers.add_parser(_COMMAND_SERVE, help="Run the MCP server.")
     serve_parser.add_argument(
@@ -251,6 +309,100 @@ def _debug_search(arguments: argparse.Namespace) -> int:
     return 0
 
 
+def _pack(arguments: argparse.Namespace) -> int:
+    if arguments.pack_command == _SUBCOMMAND_LIST:
+        return _pack_list(arguments.vault_root)
+    if arguments.pack_command == _SUBCOMMAND_VALIDATE:
+        return _pack_validate(arguments.vault_root, arguments.pack_name)
+    if arguments.pack_command == _SUBCOMMAND_LOAD:
+        return _pack_load(
+            arguments.vault_root,
+            arguments.pack_name,
+            strict_budget=arguments.strict_budget,
+        )
+    print("Usage: mcp-memory pack {list|validate|load} ...")
+    return 1
+
+
+def _pack_list(vault_root: Path) -> int:
+    started = time.perf_counter()
+    config = _load_config(vault_root)
+    if config is None:
+        return 1
+
+    loader = ContextPackLoader(config)
+    results: list[ContextPackResult] = []
+    exit_code = 0
+    print("Name                 Patterns  Files  Tokens  Issues  Description")
+    for pack in config.context_packs:
+        try:
+            result = loader.inspect(pack.name)
+        except ToolExecutionError as exc:
+            print(f"{pack.name:<20} <error> {exc.error.message}")
+            exit_code = 1
+            continue
+        results.append(result)
+        issues = _pack_issue_summary(result)
+        print(
+            f"{pack.name:<20} {len(pack.paths):>8} {len(result.files_included):>6} "
+            f"{result.token_count:>7}  {issues:<6} {pack.description or ''}"
+        )
+        exit_code = max(exit_code, _pack_exit_code(result))
+
+    print(f"Duration ms: {_duration_ms(started)}")
+    return exit_code
+
+
+def _pack_validate(vault_root: Path, pack_name: str) -> int:
+    started = time.perf_counter()
+    config = _load_config(vault_root)
+    if config is None:
+        return 1
+
+    try:
+        result = ContextPackLoader(config).inspect(pack_name)
+    except ToolExecutionError as exc:
+        print(f"Context pack validation failed: {exc.error.message}")
+        suggestion = exc.error.details.get("suggestion")
+        if suggestion:
+            print(f"  {suggestion}")
+        return 1
+
+    _print_context_pack_summary(result, duration_ms=_duration_ms(started))
+    if result.tag_filtered_files:
+        print("Tag-filtered files:")
+        for path in result.tag_filtered_files:
+            print(f"  - {path}")
+    return _pack_exit_code(result)
+
+
+def _pack_load(vault_root: Path, pack_name: str, *, strict_budget: bool) -> int:
+    started = time.perf_counter()
+    config = _load_config(vault_root)
+    if config is None:
+        return 1
+
+    try:
+        result = ContextPackLoader(config).load(
+            pack_name,
+            strict_budget=strict_budget,
+        )
+    except ToolExecutionError as exc:
+        print(f"Context pack load failed: {exc.error.message}")
+        for key in ("current_token_count", "budget", "excess_tokens", "suggestion"):
+            if key in exc.error.details:
+                print(f"  {key}: {exc.error.details[key]}")
+        return 1
+
+    print(result.content, end="" if result.content.endswith("\n") else "\n")
+    _print_context_pack_summary(result, duration_ms=_duration_ms(started))
+    if result.missing_files:
+        return 1
+    if result.warnings:
+        return 2
+    return 0
+
+
 def _load_config(vault_root: Path) -> ProjectConfig | None:
     try:
         return ConfigLoader(vault_root).load()
@@ -309,12 +461,65 @@ def _print_status(status: IndexStatus) -> None:
         print(f"WARNING: {warning}")
 
 
+def _print_context_pack_summary(
+    result: ContextPackResult,
+    *,
+    duration_ms: int,
+) -> None:
+    print("Files included:")
+    for path in result.files_included:
+        print(f"  - {path}")
+    print(f"Token count: {result.token_count}")
+    print("Missing files:")
+    if result.missing_files:
+        for path in result.missing_files:
+            print(f"  - {path}")
+    else:
+        print("  <none>")
+    print("Warnings:")
+    if result.warnings:
+        for warning in result.warnings:
+            print(f"  - {warning}")
+    else:
+        print("  <none>")
+    print(f"Duration ms: {duration_ms}")
+
+
+def _pack_issue_summary(result: ContextPackResult) -> str:
+    issues: list[str] = []
+    if result.missing_files:
+        issues.append(f"{len(result.missing_files)} missing")
+    if result.warnings:
+        issues.append(f"{len(result.warnings)} warnings")
+    if result.token_count > result.budget:
+        issues.append("over budget")
+    elif result.token_count > result.budget * 0.9:
+        issues.append("near budget")
+    return ", ".join(issues) or "none"
+
+
+def _pack_exit_code(result: ContextPackResult) -> int:
+    if result.missing_files:
+        return 1
+    if (
+        result.warnings
+        or result.token_count > result.budget
+        or result.token_count > result.budget * 0.9
+    ):
+        return 2
+    return 0
+
+
 def _exit_code_for_index_result(result: IndexRunResult) -> int:
     if result.status == "failed":
         return 1
     if result.status == "success_with_errors":
         return 2
     return 0
+
+
+def _duration_ms(started: float) -> int:
+    return max(0, int((time.perf_counter() - started) * 1000))
 
 
 def _serve(*, transport: Transport, registry_path: Path | None) -> int:
