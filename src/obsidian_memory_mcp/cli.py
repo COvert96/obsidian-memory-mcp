@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
+from typing import Literal
 
 from obsidian_memory_mcp.config import (
     ConfigLoader,
@@ -18,6 +19,7 @@ from obsidian_memory_mcp.search_debug import (
     debug_search,
     search_results_to_json,
 )
+from obsidian_memory_mcp.server import mcp
 from obsidian_memory_mcp.server_registry import (
     SERVER_REGISTRY_ENV_VAR,
     load_project_registry,
@@ -32,6 +34,7 @@ _SUBCOMMAND_ERRORS = "errors"
 _SUBCOMMAND_SEARCH = "search"
 _SUBCOMMAND_STATUS = "status"
 _SUBCOMMAND_VALIDATE = "validate"
+Transport = Literal["stdio", "sse", "streamable-http"]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -314,7 +317,7 @@ def _exit_code_for_index_result(result: IndexRunResult) -> int:
     return 0
 
 
-def _serve(*, transport: str, registry_path: Path | None) -> int:
+def _serve(*, transport: Transport, registry_path: Path | None) -> int:
     if registry_path is not None:
         os.environ[SERVER_REGISTRY_ENV_VAR] = str(registry_path)
 
@@ -327,8 +330,6 @@ def _serve(*, transport: str, registry_path: Path | None) -> int:
         if suggestion:
             print(f"  {suggestion}")
         return 1
-
-    from obsidian_memory_mcp.server import mcp
 
     mcp.run(transport=transport)
     return 0

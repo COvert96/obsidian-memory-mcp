@@ -24,81 +24,81 @@ Implement the core retrieval capabilities: `read_note` (get entire file), `read_
 **Description:** As a tool user, I want to read an entire markdown file from the vault so I can see full context.
 
 **Acceptance Criteria:**
-- [ ] Tool parameter: `note_path` (path relative to vault root)
-- [ ] Validates path against guardrails (Phase 1) before reading
-- [ ] Returns: `{ content: str, frontmatter: dict, file_path: str, file_size_bytes: int }`
-- [ ] Content is exact markdown from disk (no parsing or modification)
-- [ ] Returns error `ERR_MISSING_FILE` if file doesn't exist
-- [ ] Returns error `ERR_GUARDRAIL_VIOLATION` if path outside vault or not readable
-- [ ] Performance: return file in <50ms (even for 100KB files)
-- [ ] Handles special characters in filenames correctly
+- [x] Tool parameter: `note_path` (path relative to vault root)
+- [x] Validates path against guardrails (Phase 1) before reading
+- [x] Returns: `{ content: str, frontmatter: dict, file_path: str, file_size_bytes: int }`
+- [x] Content is exact markdown from disk (no parsing or modification)
+- [x] Returns error `ERR_MISSING_FILE` if file doesn't exist
+- [x] Returns error `ERR_GUARDRAIL_VIOLATION` if path outside vault or not readable
+- [x] Performance: return file in <50ms (even for 100KB files)
+- [x] Handles special characters in filenames correctly
 
 ### US-002: Implement read_section MCP tool
 **Description:** As a tool user, I want to read just one section of a markdown file so I don't need the entire file.
 
 **Acceptance Criteria:**
-- [ ] Tool parameters: `note_path`, `heading_name` (e.g., "Installation", "API Reference")
-- [ ] Returns section content between heading and next heading of same/higher level
-- [ ] Returns error `ERR_MISSING_FILE` if note doesn't exist
-- [ ] Returns error `ERR_SECTION_NOT_FOUND` if heading not found in file
-- [ ] Response shape: `{ heading: str, heading_level: int, content: str, context_prefix: str, file_path: str }`
+- [x] Tool parameters: `note_path`, `heading_name` (e.g., "Installation", "API Reference")
+- [x] Returns section content between heading and next heading of same/higher level
+- [x] Returns error `ERR_MISSING_FILE` if note doesn't exist
+- [x] Returns error `ERR_SECTION_NOT_FOUND` if heading not found in file
+- [x] Response shape: `{ heading: str, heading_level: int, content: str, context_prefix: str, file_path: str }`
   - `content`: the heading line (e.g. `## Installation`) as the first line, followed by the section body up to the next same-or-higher-level heading
   - `context_prefix`: up to 3 non-heading lines immediately above the heading line in the source file; empty string if the heading is at the start of the file or is preceded only by frontmatter
-- [ ] Heading line is always the first line of `content`; `context_prefix` is never included in `content`
-- [ ] Case-insensitive heading matching (accept "installation" for "## Installation")
-- [ ] Performance: <50ms for any file/section combination
+- [x] Heading line is always the first line of `content`; `context_prefix` is never included in `content`
+- [x] Case-insensitive heading matching (accept "installation" for "## Installation")
+- [x] Performance: <50ms for any file/section combination
 
 ### US-003: Implement search_notes MCP tool with FTS
 **Description:** As a tool user, I want to search the vault for notes matching keywords so I can find relevant content.
 
 **Acceptance Criteria:**
-- [ ] Tool parameters: `query` (required), `limit` (optional, default 10), `tags` (optional list), `paths` (optional list of include globs), `exclude_paths` (optional list of exclude globs)
-- [ ] Uses SQLite FTS5 index from Phase 2 for fulltext search
-- [ ] Returns top-k results ranked by relevance
-- [ ] Each result includes: `{ file_path: str, heading: str, heading_level: int, preview: str, rank: float, tags: [str] }`
-- [ ] Preview shows search term in context (snippet 100-200 characters with "..." around match)
-- [ ] Optional tag filter: `tags` is a list of tag strings; only return blocks whose tag set contains **all** listed tags (AND semantics); comparison is case-insensitive with any leading `#` stripped from inputs
-- [ ] Optional path filter: `paths` is a list of include globs (e.g., `["wiki/**", "api/**"]`); only return blocks from files matching at least one glob
-- [ ] Optional path exclusion: `exclude_paths` is a list of exclude globs; blocks from files matching any exclude glob are removed after include filtering
-- [ ] Empty query returns error with message "query is required"
-- [ ] Handles multi-word queries: "complex query" searches all terms
-- [ ] Regex query: if `query` contains a regex pattern (detected by caller wrapping in `/…/`), FTS5 first retrieves candidates using the raw terms, then Python filters the result set using `re.search`; only the filtered subset is returned
-- [ ] Performance: <100ms for typical queries on 5000-file vault
+- [x] Tool parameters: `query` (required), `limit` (optional, default 10), `tags` (optional list), `paths` (optional list of include globs), `exclude_paths` (optional list of exclude globs)
+- [x] Uses SQLite FTS5 index from Phase 2 for fulltext search
+- [x] Returns top-k results ranked by relevance
+- [x] Each result includes: `{ file_path: str, heading: str, heading_level: int, preview: str, rank: float, tags: [str] }`
+- [x] Preview shows search term in context (snippet 100-200 characters with "..." around match)
+- [x] Optional tag filter: `tags` is a list of tag strings; only return blocks whose tag set contains **all** listed tags (AND semantics); comparison is case-insensitive with any leading `#` stripped from inputs
+- [x] Optional path filter: `paths` is a list of include globs (e.g., `["wiki/**", "api/**"]`); only return blocks from files matching at least one glob
+- [x] Optional path exclusion: `exclude_paths` is a list of exclude globs; blocks from files matching any exclude glob are removed after include filtering
+- [x] Empty query returns error with message "query is required"
+- [x] Handles multi-word queries: "complex query" searches all terms
+- [x] Regex query: if `query` contains a regex pattern (detected by caller wrapping in `/…/`), FTS5 first retrieves candidates using the raw terms, then Python filters the result set using `re.search`; only the filtered subset is returned
+- [x] Performance: <100ms for typical queries on 5000-file vault
 
 ### US-004: Handle search ranking and relevance
 **Description:** As a tool user, I want results ranked by relevance so I find the most important matches first.
 
 **Acceptance Criteria:**
-- [ ] Relevance ranking uses FTS5 column-weighted BM25: `bm25(blocks_fts, 0, 0, 1.0, 10.0, 1.0, 1.0)` — column order is `block_key` (UNINDEXED, 0), `vault_path` (UNINDEXED, 0), `section_path` (1.0), `heading` (10.0), `content` (1.0), `tags` (1.0)
-- [ ] The 10× heading weight is applied at the SQL level; no post-processing score adjustment is performed in Phase 3
-- [ ] Heading-level distinction (H1 vs H2) is **not** in scope for Phase 3; `heading_level` is returned in results via a JOIN to `sections` (for client-side use) but does not influence the BM25 score
-- [ ] FTS5 native ranking implemented and documented in `docs/retrieval-guide.md`
-- [ ] Benchmark: on query "compliance", top 3 results contain relevant compliance content (verified by unit test with fixture vault)
-- [ ] No irrelevant results in top 5 for common queries
-- [ ] Ranking is deterministic (same query always produces same order); `block_key ASC` is used as the tiebreaker
+- [x] Relevance ranking uses FTS5 column-weighted BM25: `bm25(blocks_fts, 0, 0, 1.0, 10.0, 1.0, 1.0)` — column order is `block_key` (UNINDEXED, 0), `vault_path` (UNINDEXED, 0), `section_path` (1.0), `heading` (10.0), `content` (1.0), `tags` (1.0)
+- [x] The 10× heading weight is applied at the SQL level; no post-processing score adjustment is performed in Phase 3
+- [x] Heading-level distinction (H1 vs H2) is **not** in scope for Phase 3; `heading_level` is returned in results via a JOIN to `sections` (for client-side use) but does not influence the BM25 score
+- [x] FTS5 native ranking implemented and documented in `docs/retrieval-guide.md`
+- [x] Benchmark: on query "compliance", top 3 results contain relevant compliance content (verified by unit test with fixture vault)
+- [x] No irrelevant results in top 5 for common queries
+- [x] Ranking is deterministic (same query always produces same order); `block_key ASC` is used as the tiebreaker
 
 ### US-005: Implement search filters and result formatting
 **Description:** As a tool user, I want to filter search by tags and paths so I can scope results.
 
 **Acceptance Criteria:**
-- [ ] Tag filter: `tags: ["urgent", "api"]` returns only blocks whose tag set contains **both** `urgent` and `api` (AND semantics); matching is case-insensitive and leading `#` is stripped from each input tag before comparison
-- [ ] Path include filter: `paths: ["wiki/api/**"]` returns only files whose `vault_path` matches at least one of the provided globs
-- [ ] Path exclude filter: `exclude_paths: ["wiki/private/**"]` removes files matching any exclude glob after include filtering; applied independently of `paths`
-- [ ] Multiple filter types (tags, paths, exclude_paths) are AND'ed: a result must pass all active filters
-- [ ] Results include `heading_level` (obtained by joining `sections` on `section_key`) so the client can sort/format appropriately
-- [ ] Search result snippets show match context with surrounding words (not just isolated term)
-- [ ] Handles filters on blocks with no tags gracefully: an active `tags` filter returns no results for tag-free blocks (not an error)
+- [x] Tag filter: `tags: ["urgent", "api"]` returns only blocks whose tag set contains **both** `urgent` and `api` (AND semantics); matching is case-insensitive and leading `#` is stripped from each input tag before comparison
+- [x] Path include filter: `paths: ["wiki/api/**"]` returns only files whose `vault_path` matches at least one of the provided globs
+- [x] Path exclude filter: `exclude_paths: ["wiki/private/**"]` removes files matching any exclude glob after include filtering; applied independently of `paths`
+- [x] Multiple filter types (tags, paths, exclude_paths) are AND'ed: a result must pass all active filters
+- [x] Results include `heading_level` (obtained by joining `sections` on `section_key`) so the client can sort/format appropriately
+- [x] Search result snippets show match context with surrounding words (not just isolated term)
+- [x] Handles filters on blocks with no tags gracefully: an active `tags` filter returns no results for tag-free blocks (not an error)
 
 ### US-006: Create integration tests for retrieval tools
 **Description:** As a developer, I need end-to-end tests so I can verify tools work on realistic vault content.
 
 **Acceptance Criteria:**
-- [ ] Fixture vault created with diverse content: multiple files, heading levels, tags, special characters
-- [ ] Test `read_note` on each fixture file
-- [ ] Test `read_section` on each heading in fixture vault
-- [ ] Test `search_notes` with 15+ queries covering: single term, multi-term, common phrases, edge cases
-- [ ] Tests verify result accuracy and latency (<100ms per search)
-- [ ] Tests verify error handling (missing files, bad paths, etc.)
+- [x] Fixture vault created with diverse content: multiple files, heading levels, tags, special characters
+- [x] Test `read_note` on each fixture file
+- [x] Test `read_section` on each heading in fixture vault
+- [x] Test `search_notes` with 15+ queries covering: single term, multi-term, common phrases, edge cases
+- [x] Tests verify result accuracy and latency (<100ms per search)
+- [x] Tests verify error handling (missing files, bad paths, etc.)
 
 ## Functional Requirements
 
@@ -134,13 +134,13 @@ Implement the core retrieval capabilities: `read_note` (get entire file), `read_
 
 ## Success Metrics
 
-- [ ] Read tools return results in <50ms consistently
-- [ ] Search completes in <100ms even on 5000-file vaults
-- [ ] Search top-3 relevance: >=80% of benchmark queries return relevant results in top 3
-- [ ] Tag/path filtering works on 100% of test cases
-- [ ] All tool contracts match Phase 0 specifications
-- [ ] Error messages are clear and actionable
-- [ ] Integration test suite passes on fixture vault in <5 seconds
+- [x] Read tools return results in <50ms consistently
+- [x] Search completes in <100ms even on 5000-file vaults
+- [x] Search top-3 relevance: >=80% of benchmark queries return relevant results in top 3
+- [x] Tag/path filtering works on 100% of test cases
+- [x] All tool contracts match Phase 0 specifications
+- [x] Error messages are clear and actionable
+- [x] Integration test suite passes on fixture vault in <5 seconds
 
 ## Open Questions
 

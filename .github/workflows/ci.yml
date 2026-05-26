@@ -1,14 +1,22 @@
-name: Unit Tests
+name: CI
 
 on:
-  pull_request:
   push:
-    branches:
-      - main
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-flight runs for the same branch/PR to save runner minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  unit:
-    name: Unit Tests (${{ matrix.os }})
+  checks:
+    name: Checks (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -25,6 +33,12 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+
+      - name: Run ruff
+        run: uv run ruff check
+
+      - name: Run mypy
+        run: uv run mypy src
 
       - name: Run unit tests
         run: uv run pytest tests/unit
