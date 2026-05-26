@@ -6,12 +6,17 @@ from typing import Any
 import yaml
 
 from obsidian_memory_mcp.config.model import CONFIG_FILE_NAME, ProjectConfig
-from obsidian_memory_mcp.config.validator import ConfigValidationException, ConfigValidator
+from obsidian_memory_mcp.config.validator import (
+    ConfigValidationException,
+    ConfigValidator,
+)
 from obsidian_memory_mcp.errors import ErrorCode, build_error
 
 
 class ConfigLoader:
-    def __init__(self, vault_root: str | Path, validator: ConfigValidator | None = None):
+    def __init__(
+        self, vault_root: str | Path, validator: ConfigValidator | None = None
+    ):
         self._vault_root = Path(vault_root)
         self._validator = validator or ConfigValidator()
         self._cached_config: ProjectConfig | None = None
@@ -59,5 +64,7 @@ _LOADERS_BY_VAULT_ROOT: dict[Path, ConfigLoader] = {}
 
 def load_project_config(vault_root: str | Path) -> ProjectConfig:
     resolved_vault_root = Path(vault_root).resolve(strict=False)
-    loader = _LOADERS_BY_VAULT_ROOT.setdefault(resolved_vault_root, ConfigLoader(resolved_vault_root))
+    loader = _LOADERS_BY_VAULT_ROOT.setdefault(
+        resolved_vault_root, ConfigLoader(resolved_vault_root)
+    )
     return loader.load()

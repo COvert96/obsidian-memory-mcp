@@ -133,11 +133,15 @@ def _load_registry_file(registry_path: Path) -> ProjectRegistry:
 
 def _parse_projects(raw: Any, registry_path: Path) -> dict[str, Path]:
     if not isinstance(raw, dict):
-        raise _format_error(registry_path, "a top-level YAML mapping with a 'projects' key")
+        raise _format_error(
+            registry_path, "a top-level YAML mapping with a 'projects' key"
+        )
 
     projects_raw = raw.get("projects")
     if not isinstance(projects_raw, dict) or not projects_raw:
-        raise _format_error(registry_path, "a 'projects' mapping with at least one entry")
+        raise _format_error(
+            registry_path, "a 'projects' mapping with at least one entry"
+        )
 
     result: dict[str, Path] = {}
     for name, value in projects_raw.items():

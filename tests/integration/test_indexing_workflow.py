@@ -37,18 +37,24 @@ def test_indexing_workflow_covers_full_incremental_delete_reappear_parser_drift_
     alpha = vault / "wiki" / "alpha.md"
     beta = vault / "wiki" / "beta.md"
     broken = vault / "wiki" / "broken.md"
-    alpha.write_text("---\ntags: [alpha]\n---\n# Alpha\ninitial searchable", encoding="utf-8")
+    alpha.write_text(
+        "---\ntags: [alpha]\n---\n# Alpha\ninitial searchable", encoding="utf-8"
+    )
     beta.write_text("# Beta\nstable searchable", encoding="utf-8")
     config = _config(vault)
 
     full = run_index(config, mode=IndexMode.FULL)
     no_changes = run_index(config)
-    alpha.write_text("---\ntags: [alpha]\n---\n# Alpha\nchanged searchable", encoding="utf-8")
+    alpha.write_text(
+        "---\ntags: [alpha]\n---\n# Alpha\nchanged searchable", encoding="utf-8"
+    )
     changed = run_index(config)
     beta.unlink()
     deleted = run_index(config)
     drift = get_index_status(config, parser_version="future-parser")
-    broken.write_text("---\n: broken\n---\n# Broken\nstill searchable", encoding="utf-8")
+    broken.write_text(
+        "---\n: broken\n---\n# Broken\nstill searchable", encoding="utf-8"
+    )
     malformed = run_index(config)
     beta.write_text("# Beta\nreturned searchable", encoding="utf-8")
     reappeared = run_index(config)
@@ -65,6 +71,6 @@ def test_indexing_workflow_covers_full_incremental_delete_reappear_parser_drift_
     assert malformed.files_processed == 1
     assert reappeared.files_processed == 1
     assert metadata_drift.files_skipped == 3
-    assert [result.vault_path for result in debug_search(config, "returned", limit=5)] == [
-        "wiki/beta.md"
-    ]
+    assert [
+        result.vault_path for result in debug_search(config, "returned", limit=5)
+    ] == ["wiki/beta.md"]

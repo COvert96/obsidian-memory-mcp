@@ -4,10 +4,16 @@ import sqlite3
 
 import pytest
 
-from obsidian_memory_mcp.schema import SCHEMA_VERSION, SchemaVersionError, bootstrap_schema
+from obsidian_memory_mcp.schema import (
+    SCHEMA_VERSION,
+    SchemaVersionError,
+    bootstrap_schema,
+)
 
 
-def test_schema_bootstrap_creates_required_tables_indexes_and_user_version(tmp_path) -> None:
+def test_schema_bootstrap_creates_required_tables_indexes_and_user_version(
+    tmp_path,
+) -> None:
     connection = sqlite3.connect(tmp_path / "index.sqlite3")
 
     bootstrap_schema(connection)
@@ -18,7 +24,12 @@ def test_schema_bootstrap_creates_required_tables_indexes_and_user_version(tmp_p
             "SELECT name FROM sqlite_master WHERE type IN ('table', 'virtual')"
         )
     }
-    indexes = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='index'")}
+    indexes = {
+        row[0]
+        for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='index'"
+        )
+    }
     user_version = connection.execute("PRAGMA user_version").fetchone()[0]
 
     assert {

@@ -85,7 +85,9 @@ def test_incremental_lifecycle_handles_skip_change_tombstone_reappearance_and_ft
     assert reappeared.files_processed == 1
     assert beta_row["deleted_at"] is None
     assert orphaned_fts_rows == 0
-    assert debug_search(index_config, "changed", limit=5)[0].vault_path == "wiki/alpha.md"
+    assert (
+        debug_search(index_config, "changed", limit=5)[0].vault_path == "wiki/alpha.md"
+    )
     assert debug_search(index_config, "original", limit=5) == ()
 
 
@@ -102,7 +104,9 @@ def test_metadata_drift_with_unchanged_file_hash_updates_stat_without_reparse(
     def fail_if_parsed(*args, **kwargs):  # noqa: ANN002, ANN003
         raise AssertionError("unchanged content should not be reparsed")
 
-    monkeypatch.setattr("obsidian_memory_mcp.indexer.parse_markdown_bytes", fail_if_parsed)
+    monkeypatch.setattr(
+        "obsidian_memory_mcp.indexer.parse_markdown_bytes", fail_if_parsed
+    )
 
     result = run_index(index_config)
 
@@ -131,7 +135,9 @@ def test_malformed_yaml_counts_as_processed_with_error_not_failed(index_config) 
     assert result.errors == 1
 
 
-def test_nonfatal_file_error_does_not_abort_whole_run(index_config, monkeypatch) -> None:
+def test_nonfatal_file_error_does_not_abort_whole_run(
+    index_config, monkeypatch
+) -> None:
     good = index_config.vault_path / "wiki" / "good.md"
     bad = index_config.vault_path / "wiki" / "bad.md"
     good.write_text("# Good\nbody", encoding="utf-8")
@@ -151,7 +157,9 @@ def test_nonfatal_file_error_does_not_abort_whole_run(index_config, monkeypatch)
     assert result.files_failed == 1
 
 
-def test_unreadable_directory_does_not_abort_discovery(index_config, monkeypatch) -> None:
+def test_unreadable_directory_does_not_abort_discovery(
+    index_config, monkeypatch
+) -> None:
     good_dir = index_config.vault_path / "wiki" / "good"
     blocked_dir = index_config.vault_path / "wiki" / "blocked"
     good_dir.mkdir(parents=True)
@@ -173,7 +181,9 @@ def test_unreadable_directory_does_not_abort_discovery(index_config, monkeypatch
     assert result.files_processed == 1
 
 
-def test_incremental_retries_file_with_previous_error(index_config, monkeypatch) -> None:
+def test_incremental_retries_file_with_previous_error(
+    index_config, monkeypatch
+) -> None:
     note = index_config.vault_path / "wiki" / "flaky.md"
     note.write_text("# Flaky\nbody", encoding="utf-8")
     fail_once = True
