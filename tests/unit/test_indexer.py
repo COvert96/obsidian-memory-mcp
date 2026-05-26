@@ -219,7 +219,7 @@ def test_unexpected_error_marks_run_failed_instead_of_leaving_it_running(
     def fail_replace(*args, **kwargs):  # noqa: ANN002, ANN003
         raise KeyError("missing section")
 
-    monkeypatch.setattr("obsidian_memory_mcp.indexer._replace_file_index", fail_replace)
+    monkeypatch.setattr("obsidian_memory_mcp.indexer.replace_file_index", fail_replace)
 
     result = run_index(index_config, mode=IndexMode.FULL)
     connection = _connect(index_config.index_db_location)
