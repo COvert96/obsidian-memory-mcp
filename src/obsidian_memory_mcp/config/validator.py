@@ -246,8 +246,7 @@ class ConfigValidator:
                 errors,
             )
 
-            if name_is_unique:
-                assert isinstance(name, str)
+            if name_is_unique and isinstance(name, str):
                 includes = context_pack.get("include_context_packs", [])
                 if isinstance(includes, list) and all(
                     isinstance(item, str) for item in includes

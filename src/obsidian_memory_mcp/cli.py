@@ -19,6 +19,7 @@ from obsidian_memory_mcp.search_debug import (
     debug_search,
     search_results_to_json,
 )
+from obsidian_memory_mcp.server import mcp
 from obsidian_memory_mcp.server_registry import (
     SERVER_REGISTRY_ENV_VAR,
     load_project_registry,
@@ -329,8 +330,6 @@ def _serve(*, transport: Transport, registry_path: Path | None) -> int:
         if suggestion:
             print(f"  {suggestion}")
         return 1
-
-    from obsidian_memory_mcp.server import mcp
 
     mcp.run(transport=transport)
     return 0
