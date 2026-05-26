@@ -1,7 +1,6 @@
-"""Obsidian Memory MCP — an MCP server for structured, safe access to Obsidian vaults."""
+"""Obsidian Memory MCP - an MCP server for structured, safe access to Obsidian vaults."""
 
 from obsidian_memory_mcp.config import (
-    CONFIG_FILE_NAME,
     AccessConstraints,
     AccessPolicy,
     ConfigLoader,
@@ -33,7 +32,6 @@ __all__ = [
     # Server
     "mcp",
     # Config
-    "CONFIG_FILE_NAME",
     "AccessConstraints",
     "AccessPolicy",
     "ConfigLoader",

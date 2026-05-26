@@ -6,7 +6,7 @@ import sqlite3
 from dataclasses import dataclass
 
 from obsidian_memory_mcp.config import ProjectConfig
-from obsidian_memory_mcp.indexer import discover_markdown_files
+from obsidian_memory_mcp.indexing import discover_markdown_files
 from obsidian_memory_mcp.parser import PARSER_VERSION
 from obsidian_memory_mcp.schema import (
     SCHEMA_VERSION,

@@ -1,25 +1,28 @@
-"""Context pack loading public API and index-query adapter."""
+"""Context pack loading service and index-query adapters."""
 
 from __future__ import annotations
 
 import re
 import sqlite3
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Protocol
 
 from obsidian_memory_mcp.config import ContextPackConfig, ProjectConfig
-from obsidian_memory_mcp.context_pack_budget import (
+from obsidian_memory_mcp.context_packs.budget import (
     BudgetEnforcer,
     format_documents,
     with_near_budget_warning,
 )
-from obsidian_memory_mcp.context_pack_resolver import ContextPackResolver, PackDocument
+from obsidian_memory_mcp.context_packs.models import (
+    DEFAULT_CONTEXT_PACK_TOKEN_BUDGET,
+    ContextPackResult,
+    IndexQueries,
+    PackDocument,
+)
+from obsidian_memory_mcp.context_packs.resolver import ContextPackResolver
 from obsidian_memory_mcp.schema import connect_index_db
 from obsidian_memory_mcp.tokens import estimate_tokens
 
-DEFAULT_CONTEXT_PACK_TOKEN_BUDGET = 8000
 STALE_WARNING_TEMPLATE = (
     "File '{path}' has been modified since last index; content may be stale. "
     "Re-run indexing to refresh."
@@ -28,41 +31,6 @@ STALE_WARNING_TEMPLATE = (
 _ISO_TIMESTAMP_RE = re.compile(
     r"^(?P<head>.*?)(?:\.(?P<fraction>\d+))?(?P<zone>Z|[+-]\d{2}:\d{2})?$"
 )
-
-
-@dataclass(frozen=True)
-class ContextPackResult:
-    pack_name: str
-    content: str
-    token_count: int
-    files_included: tuple[str, ...]
-    missing_files: tuple[str, ...]
-    warnings: tuple[str, ...]
-    budget: int
-    tag_filtered_files: tuple[str, ...] = ()
-    original_token_count: int | None = None
-
-    def as_response(self) -> dict[str, Any]:
-        return {
-            "pack_name": self.pack_name,
-            "content": self.content,
-            "token_count": self.token_count,
-            "files_included": list(self.files_included),
-            "missing_files": list(self.missing_files),
-            "warnings": list(self.warnings),
-        }
-
-
-class IndexQueries(Protocol):
-    def bm25_ranks(
-        self,
-        query: str,
-        vault_paths: tuple[str, ...],
-    ) -> dict[str, float]:
-        """Return BM25 ranks keyed by vault path."""
-
-    def indexed_at(self, vault_paths: tuple[str, ...]) -> dict[str, str]:
-        """Return index timestamps keyed by vault path."""
 
 
 class SqliteIndexQueries:

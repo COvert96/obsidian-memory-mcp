@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 from obsidian_memory_mcp.config import ConfigLoader
-from obsidian_memory_mcp.indexer import IndexMode, run_index
+from obsidian_memory_mcp.indexing import IndexMode, run_index
 from obsidian_memory_mcp.search_debug import debug_search
 from obsidian_memory_mcp.status import get_index_status
 
