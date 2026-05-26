@@ -202,7 +202,7 @@ The project has detailed PRDs for 6 phases, extensive JSON specifications, machi
 
 **Decision:** How should configuration be handled?
 
-**Recommendation:** Keep the current approach: a `memory-mcp.yaml` file at the vault root, loaded and validated by `config/loader.py` and `config/validator.py`.
+**Recommendation:** Keep the current approach: a `memory-mcp.yaml` file at the vault root, loaded and validated by `config/loader.py` and `config/validation/_validator.py`.
 
 **Rationale:**
 - Already implemented and tested in Phase 1.
@@ -277,7 +277,7 @@ Error handling should use the existing `ErrorCode` enum and `ErrorResponse` mode
 │ ┌─────────────┐  ┌──────────────┐  ┌─────────────────┐  │
 │ │ Indexing    │  │ Retrieval    │  │ Proposals       │  │
 │ │ parser.py   │  │ reader.py    │  │ proposals.py    │  │
-│ │ indexer.py  │  │ search.py    │  │ audit.py        │  │
+│ │ indexing/   │  │ search.py    │  │ audit.py        │  │
 │ │ schema.py   │  │ packs.py     │  │                 │  │
 │ └─────────────┘  └──────────────┘  └─────────────────┘  │
 │                                                          │
@@ -315,10 +315,11 @@ Error handling should use the existing `ErrorCode` enum and `ErrorResponse` mode
 - Add a helper to serialize `ErrorResponse` into MCP's `CallToolResult(isError=True)` format.
 - Remove HTTP status codes from `ErrorDefinition` — MCP doesn't use HTTP status codes for tool errors.
 
-**Indexing** (`parser.py`, `indexer.py`, `schema.py` — Phase 2, new)
+**Indexing** (`parser.py`, `indexing/service.py`, `indexing/repository.py`, `schema.py` — Phase 2, new)
 - `parser.py`: Markdown parser extracting frontmatter, headings, sections, wikilinks from `.md` files.
 - `schema.py`: SQLite schema creation (files, sections, wikilinks tables + FTS5 virtual table).
-- `indexer.py`: Walks vault files, parses them, writes to SQLite. Supports full and incremental reindex using SHA-256 file hashes.
+- `indexing/service.py`: Walks vault files, parses them, and orchestrates indexing runs.
+- `indexing/repository.py`: Persists index rows and run metadata in SQLite.
 
 **Retrieval** (`reader.py`, `search.py`, `packs.py` — Phases 3–4, new)
 - `reader.py`: Implements `read_note` and `read_section` by reading vault files through the safety layers.
@@ -571,7 +572,7 @@ The existing Phase 0–1 code is not wasted. The domain modules (config, guardra
 |---|---|
 | `config/loader.py` | Clean config loading with caching. Works as-is. |
 | `config/model.py` | Immutable dataclasses for config. Used by all domain code. |
-| `config/validator.py` | Thorough validation with good error messages. |
+| `config/validation/_validator.py` | Thorough validation with good error messages. |
 | `config/guardrails.py` | Glob-to-regex policy evaluator. Core safety feature. |
 | `paths.py` | Path normalization with security hardening. Critical. |
 | `tokens.py` | Token estimation. Used by context packs. |
@@ -606,7 +607,7 @@ Phase 2 (indexing) and SDK integration can proceed in parallel or sequentially:
 **Step 2: Phase 2 — Indexing (6–8 hours, per existing PRD)**
 1. Build `parser.py` (markdown parser).
 2. Build `schema.py` (SQLite schema).
-3. Build `indexer.py` (indexing service).
+3. Build `indexing/service.py` (indexing service).
 4. Add `mcp-memory index` CLI command.
 5. Tests per Phase 2 PRD.
 
@@ -670,7 +671,7 @@ The following decisions are now locked for implementation and PRD alignment:
 **Priority 2 — Phase 2: Indexing (per existing PRD)**
 
 7. Build markdown parser (`parser.py`).
-8. Build SQLite schema and indexer (`schema.py`, `indexer.py`).
+8. Build SQLite schema and indexing service (`schema.py`, `indexing/service.py`).
 9. Add `mcp-memory index` CLI command.
 10. Write unit and integration tests.
 

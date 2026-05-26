@@ -1,4 +1,4 @@
-"""MCP server — tool registration and request handling.
+"""MCP server - tool registration and request handling.
 
 Follows the FastMCP pattern: a module-level ``mcp`` instance with
 ``@mcp.tool()``-decorated functions.  FastMCP handles transport, JSON-RPC

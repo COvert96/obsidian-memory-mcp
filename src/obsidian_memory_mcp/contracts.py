@@ -207,7 +207,7 @@ TOOL_CONTRACTS: dict[str, ToolContract] = {
     ),
 }
 
-# Derived from TOOL_CONTRACTS — no separate list to maintain.
+# Derived from TOOL_CONTRACTS - no separate list to maintain.
 # Use this when you need only the error codes without the full contract.
 TOOL_ERROR_CODES: dict[str, tuple[ErrorCode, ...]] = {
     name: contract.possible_errors for name, contract in TOOL_CONTRACTS.items()

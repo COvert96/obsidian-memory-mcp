@@ -19,7 +19,7 @@ from obsidian_memory_mcp.cli_pack import (
     handle_pack_command,
 )
 from obsidian_memory_mcp.errors import ToolExecutionError
-from obsidian_memory_mcp.indexer import IndexMode, IndexRunResult, run_index
+from obsidian_memory_mcp.indexing import IndexMode, IndexRunResult, run_index
 from obsidian_memory_mcp.search_debug import (
     DebugSearchError,
     debug_search,

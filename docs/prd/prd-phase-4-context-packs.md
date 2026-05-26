@@ -153,7 +153,7 @@ context_packs:
 
 ## Functional Requirements
 
-- FR-1: Context pack configuration stored in `context_packs` array in `memory-mcp.yaml`; schema validated by `ConfigValidator` in `config/validator.py`
+- FR-1: Context pack configuration stored in `context_packs` array in `memory-mcp.yaml`; schema validated by `ConfigValidator` in `config/validation/_validator.py`
 - FR-2: Pack loader concatenates files/sections in deterministic, config-declaration order
 - FR-3: Phase 0 token estimator used for all token counts; counts are deterministic (same pack = same count every time)
 - FR-4: Hard cap: packs exceeding the configured budget (default 8000 tokens) fail with `ERR_CONTEXT_EXCEEDS_BUDGET` when `strict_budget=true`
@@ -183,7 +183,7 @@ context_packs:
 - **Relevance Signal for Truncation:** Use pack `paths` patterns as the query scope for BM25 ranking. If no ranking signal is available (no FTS index), fall back to config declaration order
 - **Error Reporting:** Collect all issues before returning; never stop at first error
 - **Nested Packs:** `include_context_packs` is resolved recursively in topological order; files from included packs are appended after the including pack's own resolved files; duplicates (same vault path appearing via multiple include paths) are deduplicated, first occurrence wins
-- **Transitional State:** `get_context_pack` already has a contract in `contracts.py` and an error code in `errors.py`. Phase 4 adds the runtime implementation in `context_packs.py` and the server registration in `server.py`. No contract changes are required.
+- **Transitional State:** `get_context_pack` already has a contract in `contracts.py` and an error code in `errors.py`. Phase 4 adds the runtime implementation in `context_packs/` and the server registration in `server.py`. No contract changes are required.
 
 ## Success Metrics
 
@@ -204,10 +204,10 @@ context_packs:
 
 ## Deliverables
 
-- `src/obsidian_memory_mcp/context_packs.py` — `ContextPackLoader` class and pack resolution logic
+- `src/obsidian_memory_mcp/context_packs/` — context-pack package (`loader`, `resolver`, `budget`, `models`)
 - `src/obsidian_memory_mcp/server.py` — add `get_context_pack` FastMCP tool registration
 - `src/obsidian_memory_mcp/config/model.py` — extend `ContextPackConfig` with `description`, `sections`, `tags_filter` fields
-- `src/obsidian_memory_mcp/config/validator.py` — extend `ConfigValidator._validate_context_packs` to validate new fields
+- `src/obsidian_memory_mcp/config/validation/_validator.py` — extend `ConfigValidator._validate_context_packs` to validate new fields
 - `src/obsidian_memory_mcp/cli.py` — add `pack list`, `pack validate`, `pack load` sub-commands
 - `tests/unit/test_context_packs.py` — loader, token budget, and missing-file tests
 - `tests/unit/test_context_pack_truncation.py` — truncation, section-boundary, and relevance-ordering tests
@@ -225,7 +225,7 @@ context_packs:
   Resolved: By relevance (BM25 ranking from the existing FTS index).
 
 - **Should packs support nested pack inclusion (pack-in-pack)?**
-  Resolved: Yes. `include_context_packs` is already implemented in `config/model.py` and `config/validator.py` with topological cycle detection. The feature is kept and supported in Phase 4.
+  Resolved: Yes. `include_context_packs` is already implemented in `config/model.py` and `config/validation/_validator.py` with topological cycle detection. The feature is kept and supported in Phase 4.
 
 - **Should missing sections be errors (fail pack) or warnings (partial file)?**
   Resolved: Warnings; full file included as fallback.

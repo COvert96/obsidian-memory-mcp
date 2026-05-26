@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from obsidian_memory_mcp.config import ConfigLoader
-from obsidian_memory_mcp.indexer import IndexMode, run_index
+from obsidian_memory_mcp.indexing import IndexMode, run_index
 from obsidian_memory_mcp.schema import connect_index_db
 from obsidian_memory_mcp.status import _count, get_index_status
 

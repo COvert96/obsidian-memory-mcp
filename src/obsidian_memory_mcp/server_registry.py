@@ -1,7 +1,7 @@
 """Server-level project registry: maps project names to vault root directories.
 
 The registry is loaded from a YAML file once at server startup (in the
-Composition Root — `create_mcp_server`) and passed as a dependency to each
+Composition Root - `create_mcp_server`) and passed as a dependency to each
 tool implementation.  This module contains only pure, stateless functions;
 there is no module-level cache or global mutable state.
 

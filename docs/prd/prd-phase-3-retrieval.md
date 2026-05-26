@@ -163,7 +163,7 @@ Implement the core retrieval capabilities: `read_note` (get entire file), `read_
 
 ## Deliverables
 
-- `src/obsidian_memory_mcp/retrieval.py` with ReadNoteService, ReadSectionService, SearchService
+- `src/obsidian_memory_mcp/retrieval/` with `readers.py` (ReadNoteService + ReadSectionService) and `search.py` (SearchService)
 - `src/obsidian_memory_mcp/server.py` (or mounted FastMCP handler module) with tool entry points for all three tools
 - `src/obsidian_memory_mcp/contracts.py` updated: `read_section` contract must reflect `context_prefix` field and updated `content` definition; `search_notes` contract must reflect `heading_level`, `paths` as list, and `exclude_paths` parameter
 - `tests/unit/test_read_note.py` with file reading and guardrail tests

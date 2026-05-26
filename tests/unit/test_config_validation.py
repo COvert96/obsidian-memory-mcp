@@ -5,10 +5,10 @@ from pathlib import Path
 import pytest
 
 from obsidian_memory_mcp.config import (
-    CONFIG_FILE_NAME,
     ConfigLoader,
     ConfigValidationException,
     ConfigValidator,
+    ProjectConfig,
     load_project_config,
 )
 from obsidian_memory_mcp.errors import ErrorCode
@@ -36,7 +36,7 @@ def valid_config(vault_path: Path) -> dict[str, object]:
 
 
 def write_config(vault_path: Path, content: str) -> Path:
-    config_path = vault_path / CONFIG_FILE_NAME
+    config_path = vault_path / ProjectConfig.CONFIG_FILE_NAME
     config_path.write_text(content, encoding="utf-8")
     return config_path
 
@@ -85,7 +85,7 @@ def test_loader_reports_missing_config_with_actionable_error(tmp_path: Path) -> 
 
     error = exc_info.value.error
     assert error.code is ErrorCode.ERR_INVALID_PROJECT
-    assert str(vault / CONFIG_FILE_NAME) in error.message
+    assert str(vault / ProjectConfig.CONFIG_FILE_NAME) in error.message
     assert "Create memory-mcp.yaml" in error.details["suggestion"]
 
 
