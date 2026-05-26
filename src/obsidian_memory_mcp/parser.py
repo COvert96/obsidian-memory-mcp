@@ -115,20 +115,18 @@ def parse_markdown(
     raw_bytes = content if isinstance(content, bytes) else content.encode("utf-8")
     text = raw_bytes.decode("utf-8")
     normalized_text = _normalize_newlines(text)
-    frontmatter, frontmatter_error, body, body_start_line = _extract_frontmatter(normalized_text)
+    frontmatter, frontmatter_error, body, body_start_line = _extract_frontmatter(
+        normalized_text
+    )
     body_lines = body.split("\n")
     note_tags = _extract_tags(frontmatter, body_lines)
     headings = _find_headings(vault_path, body_lines, body_start_line)
-    sections = _build_sections(vault_path, body_lines, body_start_line, headings, note_tags)
-    blocks = tuple(
-        block
-        for section in sections
-        for block in _build_blocks(section)
+    sections = _build_sections(
+        vault_path, body_lines, body_start_line, headings, note_tags
     )
+    blocks = tuple(block for section in sections for block in _build_blocks(section))
     wikilinks = tuple(
-        link
-        for section in sections
-        for link in _extract_wikilinks(vault_path, section)
+        link for section in sections for link in _extract_wikilinks(vault_path, section)
     )
 
     return ParsedNote(
@@ -162,7 +160,9 @@ def parse_markdown_bytes(
     content: bytes,
     parser_version: str = PARSER_VERSION,
 ) -> ParsedNote:
-    return parse_markdown(vault_path=vault_path, content=content, parser_version=parser_version)
+    return parse_markdown(
+        vault_path=vault_path, content=content, parser_version=parser_version
+    )
 
 
 def estimate_markdown_tokens(text: str) -> int:
@@ -178,7 +178,11 @@ def _extract_frontmatter(content: str) -> tuple[dict[str, Any], str | None, str,
         return {}, None, content, 1
 
     closing_index = next(
-        (index for index, line in enumerate(lines[1:], start=1) if line.strip() == "---"),
+        (
+            index
+            for index, line in enumerate(lines[1:], start=1)
+            if line.strip() == "---"
+        ),
         -1,
     )
     if closing_index < 0:
@@ -189,7 +193,12 @@ def _extract_frontmatter(content: str) -> tuple[dict[str, Any], str | None, str,
         parsed = yaml.safe_load(frontmatter_text) or {}
     except yaml.YAMLError as error:
         body = "\n".join(lines[closing_index + 1 :])
-        return {}, f"frontmatter_parse_error: malformed YAML: {error}", body, closing_index + 2
+        return (
+            {},
+            f"frontmatter_parse_error: malformed YAML: {error}",
+            body,
+            closing_index + 2,
+        )
 
     frontmatter = parsed if isinstance(parsed, dict) else {}
     body = "\n".join(lines[closing_index + 1 :])
@@ -284,7 +293,9 @@ def _build_sections(
 
     for index, heading in enumerate(headings):
         next_heading_index = (
-            headings[index + 1].body_line_index if index + 1 < len(headings) else len(body_lines)
+            headings[index + 1].body_line_index
+            if index + 1 < len(headings)
+            else len(body_lines)
         )
         content_lines = body_lines[heading.body_line_index + 1 : next_heading_index]
         sections.append(
@@ -297,7 +308,8 @@ def _build_sections(
                 section_path=heading.section_path,
                 content="\n".join(content_lines),
                 start_line=heading.line_number,
-                end_line=body_start_line + max(next_heading_index - 1, heading.body_line_index),
+                end_line=body_start_line
+                + max(next_heading_index - 1, heading.body_line_index),
                 tags=tags,
             )
         )
@@ -366,7 +378,9 @@ def _build_blocks(section: ParsedSection) -> tuple[ParsedBlock, ...]:
     return tuple(blocks)
 
 
-def _append_block(blocks: list[ParsedBlock], section: ParsedSection, content: str) -> None:
+def _append_block(
+    blocks: list[ParsedBlock], section: ParsedSection, content: str
+) -> None:
     normalized_content = content.strip()
     if not normalized_content:
         return
@@ -439,7 +453,10 @@ def _split_oversized_unit(unit: str) -> tuple[str, ...]:
             continue
 
         candidate = "\n".join([*current_lines, line])
-        if current_lines and estimate_markdown_tokens(candidate) > HARD_BLOCK_MAX_TOKENS:
+        if (
+            current_lines
+            and estimate_markdown_tokens(candidate) > HARD_BLOCK_MAX_TOKENS
+        ):
             parts.append("\n".join(current_lines))
             current_lines = [line]
         else:
@@ -452,7 +469,9 @@ def _split_oversized_unit(unit: str) -> tuple[str, ...]:
 
 def _split_long_line(line: str) -> tuple[str, ...]:
     max_chars = HARD_BLOCK_MAX_TOKENS * 4
-    return tuple(line[index : index + max_chars] for index in range(0, len(line), max_chars))
+    return tuple(
+        line[index : index + max_chars] for index in range(0, len(line), max_chars)
+    )
 
 
 def _consume_fenced_code(lines: list[str], start_index: int) -> tuple[list[str], int]:
@@ -467,7 +486,11 @@ def _consume_fenced_code(lines: list[str], start_index: int) -> tuple[list[str],
     while index < len(lines):
         collected.append(lines[index])
         closing = _FENCE_RE.match(lines[index])
-        if closing is not None and closing.group(1)[0] == marker and len(closing.group(1)) >= length:
+        if (
+            closing is not None
+            and closing.group(1)[0] == marker
+            and len(closing.group(1)) >= length
+        ):
             return collected, index + 1
         index += 1
     return collected, index
@@ -482,7 +505,9 @@ def _consume_table(lines: list[str], start_index: int) -> tuple[list[str], int]:
     return collected, index
 
 
-def _extract_wikilinks(vault_path: str, section: ParsedSection) -> tuple[ParsedWikilink, ...]:
+def _extract_wikilinks(
+    vault_path: str, section: ParsedSection
+) -> tuple[ParsedWikilink, ...]:
     links: list[ParsedWikilink] = []
     for match in _WIKILINK_RE.finditer(section.content):
         raw_target = match.group(1).strip()
@@ -501,7 +526,9 @@ def _extract_wikilinks(vault_path: str, section: ParsedSection) -> tuple[ParsedW
     return tuple(links)
 
 
-def _extract_tags(frontmatter: dict[str, Any], body_lines: list[str]) -> tuple[str, ...]:
+def _extract_tags(
+    frontmatter: dict[str, Any], body_lines: list[str]
+) -> tuple[str, ...]:
     tags: set[str] = set()
     tags.update(_frontmatter_tags(frontmatter.get("tags")))
 
@@ -517,7 +544,9 @@ def _frontmatter_tags(value: Any) -> set[str]:
     if value is None:
         return set()
     if isinstance(value, str):
-        return {_normalize_tag(part) for part in re.split(r"[\s,]+", value) if part.strip()}
+        return {
+            _normalize_tag(part) for part in re.split(r"[\s,]+", value) if part.strip()
+        }
     if isinstance(value, (list, tuple)):
         return {_normalize_tag(str(part)) for part in value if str(part).strip()}
     return {_normalize_tag(str(value))}
@@ -564,8 +593,10 @@ def _join_units(units: list[str]) -> str:
 
 
 def _looks_like_media_target(target: str) -> bool:
-    return target.lower().split("#", maxsplit=1)[0].endswith(
-        (".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".pdf")
+    return (
+        target.lower()
+        .split("#", maxsplit=1)[0]
+        .endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".pdf"))
     )
 
 

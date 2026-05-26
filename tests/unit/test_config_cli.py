@@ -31,7 +31,9 @@ write_constraints:
     assert "Config is valid" in capsys.readouterr().out
 
 
-def test_config_validate_cli_reports_all_validation_errors(tmp_path: Path, capsys) -> None:
+def test_config_validate_cli_reports_all_validation_errors(
+    tmp_path: Path, capsys
+) -> None:
     (tmp_path / "memory-mcp.yaml").write_text(
         """
 vault_path: relative/path
@@ -53,9 +55,13 @@ def test_serve_cli_starts_mcp_server(
     registry_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run_calls: list[str] = []
-    monkeypatch.setattr(server_module.mcp, "run", lambda transport: run_calls.append(transport))
+    monkeypatch.setattr(
+        server_module.mcp, "run", lambda transport: run_calls.append(transport)
+    )
 
-    exit_code = main(["serve", "--transport", "stdio", "--registry-path", str(registry_path)])
+    exit_code = main(
+        ["serve", "--transport", "stdio", "--registry-path", str(registry_path)]
+    )
 
     assert exit_code == 0
     assert run_calls == ["stdio"]

@@ -8,7 +8,11 @@ from dataclasses import dataclass
 from obsidian_memory_mcp.config import ProjectConfig
 from obsidian_memory_mcp.indexer import discover_markdown_files
 from obsidian_memory_mcp.parser import PARSER_VERSION
-from obsidian_memory_mcp.schema import SCHEMA_VERSION, bootstrap_schema, connect_index_db
+from obsidian_memory_mcp.schema import (
+    SCHEMA_VERSION,
+    bootstrap_schema,
+    connect_index_db,
+)
 
 _COUNTABLE_TABLES = frozenset({"sections", "blocks", "wikilinks"})
 
@@ -53,10 +57,14 @@ def get_index_status(
     try:
         bootstrap_schema(connection)
         candidates = discover_markdown_files(config)
-        candidate_by_path = {candidate.vault_path: candidate for candidate in candidates}
+        candidate_by_path = {
+            candidate.vault_path: candidate for candidate in candidates
+        }
         file_rows = {
             row["vault_path"]: row
-            for row in connection.execute("SELECT * FROM files WHERE deleted_at IS NULL")
+            for row in connection.execute(
+                "SELECT * FROM files WHERE deleted_at IS NULL"
+            )
         }
         indexed_paths = set(file_rows)
         candidate_paths = set(candidate_by_path)
@@ -69,7 +77,9 @@ def get_index_status(
         parser_version_drift = sum(
             1 for row in file_rows.values() if row["parser_version"] != parser_version
         )
-        files_with_errors = sum(1 for row in file_rows.values() if row["last_error_id"] is not None)
+        files_with_errors = sum(
+            1 for row in file_rows.values() if row["last_error_id"] is not None
+        )
         warnings = _warnings(
             files_with_errors=files_with_errors,
             total_markdown_files=len(candidates),
@@ -102,7 +112,9 @@ def get_index_status(
         connection.close()
 
 
-def list_index_errors(config: ProjectConfig, *, limit: int = 50) -> tuple[IndexErrorRecord, ...]:
+def list_index_errors(
+    config: ProjectConfig, *, limit: int = 50
+) -> tuple[IndexErrorRecord, ...]:
     connection = connect_index_db(config.index_db_location)
     try:
         bootstrap_schema(connection)
@@ -131,7 +143,10 @@ def list_index_errors(config: ProjectConfig, *, limit: int = 50) -> tuple[IndexE
 
 
 def _metadata_changed(row, candidate) -> bool:
-    return row["size_bytes"] != candidate.size_bytes or row["mtime_ns"] != candidate.mtime_ns
+    return (
+        row["size_bytes"] != candidate.size_bytes
+        or row["mtime_ns"] != candidate.mtime_ns
+    )
 
 
 def _count(connection: sqlite3.Connection, table: str) -> int:

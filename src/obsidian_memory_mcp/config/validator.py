@@ -12,7 +12,12 @@ from obsidian_memory_mcp.config.model import (
     ContextPackConfig,
     ProjectConfig,
 )
-from obsidian_memory_mcp.errors import ErrorCode, ErrorResponse, ToolExecutionError, build_error
+from obsidian_memory_mcp.errors import (
+    ErrorCode,
+    ErrorResponse,
+    ToolExecutionError,
+    build_error,
+)
 
 
 @dataclass(frozen=True)
@@ -69,7 +74,9 @@ class ConfigValidator:
         vault_path = Path(data["vault_path"]).resolve()
         return ProjectConfig(
             vault_path=vault_path,
-            index_db_location=_resolve_config_path(vault_path, data["index_db_location"]),
+            index_db_location=_resolve_config_path(
+                vault_path, data["index_db_location"]
+            ),
             context_packs=_parse_context_packs(data["context_packs"]),
             write_constraints=_parse_write_constraints(data["write_constraints"]),
             tags_separator=data.get("tags_separator", DEFAULT_TAGS_SEPARATOR),
@@ -80,7 +87,9 @@ class ConfigValidator:
         )
 
     @staticmethod
-    def _missing_required_field_errors(data: dict[str, Any]) -> list[ConfigValidationError]:
+    def _missing_required_field_errors(
+        data: dict[str, Any],
+    ) -> list[ConfigValidationError]:
         return [
             ConfigValidationError(
                 field=field_name,
@@ -107,7 +116,9 @@ class ConfigValidator:
 
         vault_path = data["vault_path"]
         if not isinstance(vault_path, str):
-            errors.append(_type_error("vault_path", "a string absolute path", vault_path))
+            errors.append(
+                _type_error("vault_path", "a string absolute path", vault_path)
+            )
             return None
 
         candidate = Path(vault_path)
@@ -147,7 +158,11 @@ class ConfigValidator:
 
         index_db_location = data["index_db_location"]
         if not isinstance(index_db_location, str) or not index_db_location:
-            errors.append(_type_error("index_db_location", "a non-empty string path", index_db_location))
+            errors.append(
+                _type_error(
+                    "index_db_location", "a non-empty string path", index_db_location
+                )
+            )
             return
 
         if vault_path is None:
@@ -174,7 +189,11 @@ class ConfigValidator:
 
         context_packs = data["context_packs"]
         if not isinstance(context_packs, list):
-            errors.append(_type_error("context_packs", "a list of context pack objects", context_packs))
+            errors.append(
+                _type_error(
+                    "context_packs", "a list of context pack objects", context_packs
+                )
+            )
             return
 
         names: set[str] = set()
@@ -190,7 +209,9 @@ class ConfigValidator:
             name_is_unique = False
             if not isinstance(name, str) or not name:
                 errors.append(
-                    _type_error(f"context_packs[{index}].name", "a non-empty string", name)
+                    _type_error(
+                        f"context_packs[{index}].name", "a non-empty string", name
+                    )
                 )
             elif name in names:
                 errors.append(
@@ -227,7 +248,9 @@ class ConfigValidator:
 
             if name_is_unique:
                 includes = context_pack.get("include_context_packs", [])
-                if isinstance(includes, list) and all(isinstance(item, str) for item in includes):
+                if isinstance(includes, list) and all(
+                    isinstance(item, str) for item in includes
+                ):
                     includes_by_name[name] = (index, tuple(includes))
 
         self._validate_context_pack_references(includes_by_name, names, errors)
@@ -276,7 +299,11 @@ class ConfigValidator:
         write_constraints = data["write_constraints"]
         if not isinstance(write_constraints, dict):
             errors.append(
-                _type_error("write_constraints", "an object with read/write policies", write_constraints)
+                _type_error(
+                    "write_constraints",
+                    "an object with read/write policies",
+                    write_constraints,
+                )
             )
             return
 
@@ -287,8 +314,12 @@ class ConfigValidator:
                     _type_error(f"write_constraints.{operation}", "an object", policy)
                 )
                 continue
-            self._validate_string_list(policy, "allow", f"write_constraints.{operation}.allow", errors)
-            self._validate_string_list(policy, "deny", f"write_constraints.{operation}.deny", errors)
+            self._validate_string_list(
+                policy, "allow", f"write_constraints.{operation}.allow", errors
+            )
+            self._validate_string_list(
+                policy, "deny", f"write_constraints.{operation}.deny", errors
+            )
 
     def _validate_optional_fields(
         self,
@@ -296,7 +327,9 @@ class ConfigValidator:
         errors: list[ConfigValidationError],
     ) -> None:
         if "tags_separator" in data and not isinstance(data["tags_separator"], str):
-            errors.append(_type_error("tags_separator", "a string", data["tags_separator"]))
+            errors.append(
+                _type_error("tags_separator", "a string", data["tags_separator"])
+            )
         self._validate_optional_positive_int(
             data,
             "max_proposal_ttl_hours",
@@ -326,7 +359,9 @@ class ConfigValidator:
             return
 
         value = container[key]
-        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        if not isinstance(value, list) or not all(
+            isinstance(item, str) for item in value
+        ):
             errors.append(_type_error(field_path, "a list of strings", value))
             return
 

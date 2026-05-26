@@ -42,7 +42,9 @@ def debug_search(
         try:
             rows = connection.execute(sql, params).fetchall()
         except sqlite3.OperationalError as error:
-            raise DebugSearchError(f"Invalid debug search query {query!r}: {error}") from error
+            raise DebugSearchError(
+                f"Invalid debug search query {query!r}: {error}"
+            ) from error
         return tuple(_row_to_result(query, row) for row in rows)
     finally:
         connection.close()

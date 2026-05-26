@@ -21,7 +21,9 @@ def vault(tmp_path: Path) -> Path:
     vault_path = tmp_path / "vault"
     (vault_path / "wiki" / "nested").mkdir(parents=True)
     (vault_path / "wiki" / "note.md").write_text("# Note\n", encoding="utf-8")
-    (vault_path / "wiki" / "nested" / "note.md").write_text("# Nested\n", encoding="utf-8")
+    (vault_path / "wiki" / "nested" / "note.md").write_text(
+        "# Nested\n", encoding="utf-8"
+    )
     (tmp_path / "sibling_vault").mkdir()
     return vault_path
 

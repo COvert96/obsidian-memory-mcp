@@ -56,10 +56,14 @@ def test_status_reports_health_counts_and_drift(tmp_path: Path) -> None:
     assert "Parser version drift exists." in status.warnings
 
 
-def test_status_warns_when_more_than_ten_percent_of_files_have_errors(tmp_path: Path) -> None:
+def test_status_warns_when_more_than_ten_percent_of_files_have_errors(
+    tmp_path: Path,
+) -> None:
     vault = tmp_path / "vault"
     vault.mkdir()
-    (vault / "broken.md").write_text("---\n: broken\n---\n# Broken\nbody", encoding="utf-8")
+    (vault / "broken.md").write_text(
+        "---\n: broken\n---\n# Broken\nbody", encoding="utf-8"
+    )
     config = _config(vault)
     run_index(config, mode=IndexMode.FULL)
 
