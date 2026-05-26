@@ -23,7 +23,9 @@ def test_estimate_matches_tiktoken_gpt4_encoder() -> None:
     encoder = tiktoken.encoding_for_model("gpt-4")
     text = "# Title\n\n- alpha\n- beta\n\n[[Link]]"
     normalized = text.replace("\r\n", "\n").replace("\r", "\n")
-    assert estimate_tokens(text) == len(encoder.encode(normalized, disallowed_special=()))
+    assert estimate_tokens(text) == len(
+        encoder.encode(normalized, disallowed_special=())
+    )
 
 
 def test_empty_string_returns_zero() -> None:

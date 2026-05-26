@@ -73,7 +73,9 @@ def test_read_note_raises_for_unknown_project(
     monkeypatch.setenv(SERVER_REGISTRY_ENV_VAR, str(registry_path))
 
     with pytest.raises(ToolError) as exc_info:
-        _call("read_note", {"project": "no-such-project", "note_path": "wiki/concept.md"})
+        _call(
+            "read_note", {"project": "no-such-project", "note_path": "wiki/concept.md"}
+        )
 
     assert ErrorCode.ERR_INVALID_PROJECT.value in str(exc_info.value)
 

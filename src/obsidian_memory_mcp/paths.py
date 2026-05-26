@@ -19,7 +19,9 @@ def normalize_vault_path(vault_root: str | Path, requested_path: str | Path) -> 
         )
 
     normalized_text = unquote(raw_path).replace("\\", "/")
-    path_parts = tuple(part for part in normalized_text.split("/") if part not in {"", "."})
+    path_parts = tuple(
+        part for part in normalized_text.split("/") if part not in {"", "."}
+    )
     if ".." in path_parts:
         raise _guardrail_violation(
             requested_path=raw_path,
@@ -77,7 +79,9 @@ def _is_absolute_path(normalized_path: str, requested: Path) -> bool:
     return normalized_path.startswith(("/", "//"))
 
 
-def _guardrail_violation(*, requested_path: str, message: str, suggestion: str) -> ToolExecutionError:
+def _guardrail_violation(
+    *, requested_path: str, message: str, suggestion: str
+) -> ToolExecutionError:
     return ToolExecutionError(
         build_error(
             ErrorCode.ERR_GUARDRAIL_VIOLATION,
