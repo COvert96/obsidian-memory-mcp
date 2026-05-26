@@ -13,6 +13,11 @@ from obsidian_memory_mcp.config import (
     GuardrailEvaluator,
     ProjectConfig,
 )
+from obsidian_memory_mcp.context_packs.models import (
+    PackDocument,
+    Resolution,
+    ResolvedContextPack,
+)
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
 from obsidian_memory_mcp.markdown_parser import (
     find_headings,
@@ -22,28 +27,6 @@ from obsidian_memory_mcp.markdown_parser import (
 from obsidian_memory_mcp.vault import parse_frontmatter
 
 _GLOB_CHARS = frozenset("*?[")
-
-
-@dataclass(frozen=True)
-class PackDocument:
-    vault_path: str
-    absolute_path: Path
-    content: str
-    fragments: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class Resolution:
-    documents: tuple[PackDocument, ...]
-    missing_files: tuple[str, ...]
-    warnings: tuple[str, ...]
-    tag_filtered_files: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class ResolvedContextPack:
-    pack: ContextPackConfig
-    resolution: Resolution
 
 
 @dataclass(frozen=True)

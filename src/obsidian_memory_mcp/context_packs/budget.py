@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import re
 from dataclasses import replace
-from typing import TYPE_CHECKING
 
 from obsidian_memory_mcp.config import ContextPackConfig
-from obsidian_memory_mcp.context_pack_resolver import PackDocument
+from obsidian_memory_mcp.context_packs.models import (
+    ContextPackResult,
+    IndexQueries,
+    PackDocument,
+)
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
 from obsidian_memory_mcp.tokens import estimate_tokens
-
-if TYPE_CHECKING:
-    from obsidian_memory_mcp.context_packs import ContextPackResult, IndexQueries
 
 NEAR_BUDGET_RATIO = 0.9
 

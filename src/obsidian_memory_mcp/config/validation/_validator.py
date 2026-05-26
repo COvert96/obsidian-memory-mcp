@@ -1,48 +1,19 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from obsidian_memory_mcp.config.model import (
-    DEFAULT_MAX_PROPOSAL_TTL_HOURS,
-    DEFAULT_TAGS_SEPARATOR,
-    AccessConstraints,
-    AccessPolicy,
-    ContextPackConfig,
-    ProjectConfig,
+from obsidian_memory_mcp.config.model import ProjectConfig
+from obsidian_memory_mcp.config.validation._errors import (
+    ConfigValidationError,
+    ConfigValidationException,
+    validation_error_response,
 )
-from obsidian_memory_mcp.errors import (
-    ErrorCode,
-    ErrorResponse,
-    ToolExecutionError,
-    build_error,
+from obsidian_memory_mcp.config.validation._parsers import (
+    parse_context_packs,
+    parse_write_constraints,
+    resolve_config_path,
 )
-
-
-@dataclass(frozen=True)
-class ConfigValidationError:
-    field: str
-    expected: str
-    actual: Any
-    suggestion: str
-
-    @property
-    def message(self) -> str:
-        return (
-            f"Field '{self.field}' must be {self.expected}. "
-            f"Got {self.actual!r}. {self.suggestion}"
-        )
-
-
-class ConfigValidationException(ToolExecutionError):
-    def __init__(
-        self,
-        error: ErrorResponse,
-        validation_errors: list[ConfigValidationError] | None = None,
-    ):
-        super().__init__(error)
-        self.validation_errors = validation_errors or []
 
 
 class ConfigValidator:
@@ -69,20 +40,21 @@ class ConfigValidator:
     def validate(self, data: Any) -> ProjectConfig:
         errors = self.collect_errors(data)
         if errors:
-            raise ConfigValidationException(_validation_error_response(errors), errors)
+            raise ConfigValidationException(validation_error_response(errors), errors)
 
         vault_path = Path(data["vault_path"]).resolve()
         return ProjectConfig(
             vault_path=vault_path,
-            index_db_location=_resolve_config_path(
-                vault_path, data["index_db_location"]
+            index_db_location=resolve_config_path(vault_path, data["index_db_location"]),
+            context_packs=parse_context_packs(data["context_packs"]),
+            write_constraints=parse_write_constraints(data["write_constraints"]),
+            tags_separator=data.get(
+                "tags_separator",
+                ProjectConfig.DEFAULT_TAGS_SEPARATOR,
             ),
-            context_packs=_parse_context_packs(data["context_packs"]),
-            write_constraints=_parse_write_constraints(data["write_constraints"]),
-            tags_separator=data.get("tags_separator", DEFAULT_TAGS_SEPARATOR),
             max_proposal_ttl_hours=data.get(
                 "max_proposal_ttl_hours",
-                DEFAULT_MAX_PROPOSAL_TTL_HOURS,
+                ProjectConfig.DEFAULT_MAX_PROPOSAL_TTL_HOURS,
             ),
         )
 
@@ -116,9 +88,7 @@ class ConfigValidator:
 
         vault_path = data["vault_path"]
         if not isinstance(vault_path, str):
-            errors.append(
-                _type_error("vault_path", "a string absolute path", vault_path)
-            )
+            errors.append(_type_error("vault_path", "a string absolute path", vault_path))
             return None
 
         candidate = Path(vault_path)
@@ -168,7 +138,7 @@ class ConfigValidator:
         if vault_path is None:
             return
 
-        resolved = _resolve_config_path(vault_path, index_db_location)
+        resolved = resolve_config_path(vault_path, index_db_location)
         if not resolved.is_relative_to(vault_path):
             errors.append(
                 ConfigValidationError(
@@ -428,42 +398,6 @@ def _type_error(field: str, expected: str, actual: Any) -> ConfigValidationError
     )
 
 
-def _resolve_config_path(vault_path: Path, configured_path: str) -> Path:
-    path = Path(configured_path)
-    if path.is_absolute():
-        return path.resolve(strict=False)
-    return (vault_path / path).resolve(strict=False)
-
-
-def _parse_context_packs(data: list[dict[str, Any]]) -> tuple[ContextPackConfig, ...]:
-    return tuple(
-        ContextPackConfig(
-            name=context_pack["name"],
-            paths=tuple(context_pack["paths"]),
-            description=context_pack.get("description"),
-            sections=tuple(context_pack.get("sections", ())),
-            tags_filter=tuple(context_pack.get("tags_filter", ())),
-            include_context_packs=tuple(context_pack.get("include_context_packs", ())),
-            token_budget=context_pack.get("token_budget"),
-        )
-        for context_pack in data
-    )
-
-
-def _parse_write_constraints(data: dict[str, Any]) -> AccessConstraints:
-    return AccessConstraints(
-        read=_parse_access_policy(data.get("read", {})),
-        write=_parse_access_policy(data.get("write", {})),
-    )
-
-
-def _parse_access_policy(data: dict[str, Any]) -> AccessPolicy:
-    return AccessPolicy(
-        allow=tuple(data.get("allow", ())),
-        deny=tuple(data.get("deny", ())),
-    )
-
-
 def _find_context_pack_cycle(includes_by_name: dict[str, tuple[str, ...]]) -> list[str]:
     visiting: set[str] = set()
     visited: set[str] = set()
@@ -492,18 +426,3 @@ def _find_context_pack_cycle(includes_by_name: dict[str, tuple[str, ...]]) -> li
         if cycle:
             return cycle
     return []
-
-
-def _validation_error_response(errors: list[ConfigValidationError]) -> ErrorResponse:
-    field_names = ", ".join(error.field for error in errors[:5])
-    if len(errors) > 5:
-        field_names = f"{field_names}, ..."
-
-    return build_error(
-        ErrorCode.ERR_INVALID_PROJECT,
-        message=f"Project config is invalid. Fix these field(s): {field_names}.",
-        details={
-            "errors": [error.message for error in errors],
-            "suggestion": "Fix all listed fields, then run 'mcp-memory config validate' again.",
-        },
-    )

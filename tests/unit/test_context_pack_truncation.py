@@ -9,7 +9,7 @@ from obsidian_memory_mcp.config import (
     ProjectConfig,
 )
 from obsidian_memory_mcp.context_packs import ContextPackLoader
-from obsidian_memory_mcp.indexer import IndexMode, run_index
+from obsidian_memory_mcp.indexing import IndexMode, run_index
 
 
 def _config(
