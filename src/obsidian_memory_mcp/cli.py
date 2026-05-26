@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
+from typing import Literal
 
 from obsidian_memory_mcp.config import (
     ConfigLoader,
@@ -32,6 +33,7 @@ _SUBCOMMAND_ERRORS = "errors"
 _SUBCOMMAND_SEARCH = "search"
 _SUBCOMMAND_STATUS = "status"
 _SUBCOMMAND_VALIDATE = "validate"
+Transport = Literal["stdio", "sse", "streamable-http"]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -314,7 +316,7 @@ def _exit_code_for_index_result(result: IndexRunResult) -> int:
     return 0
 
 
-def _serve(*, transport: str, registry_path: Path | None) -> int:
+def _serve(*, transport: Transport, registry_path: Path | None) -> int:
     if registry_path is not None:
         os.environ[SERVER_REGISTRY_ENV_VAR] = str(registry_path)
 
