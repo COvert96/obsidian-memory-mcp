@@ -217,6 +217,10 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# Claude
+.claude/settings.local.json
+.claude/worktrees/
+
 # Agent Outputs
 plans/
 code-review/

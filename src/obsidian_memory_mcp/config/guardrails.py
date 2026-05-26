@@ -19,6 +19,10 @@ class GuardrailEvaluator:
     def check_read(self, requested_path: str | Path) -> Path:
         return self._resolve_allowed_path("read", requested_path, self._read_policy)
 
+    def allows_read_relative(self, relative_path: str | Path) -> bool:
+        normalized = str(relative_path).replace("\\", "/").lstrip("/")
+        return self._read_policy.evaluate(normalized).allowed
+
     def check_write(self, requested_path: str | Path) -> Path:
         return self._resolve_allowed_path("write", requested_path, self._write_policy)
 

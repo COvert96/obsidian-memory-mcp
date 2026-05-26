@@ -101,7 +101,9 @@ def test_loader_reports_malformed_yaml(tmp_path: Path) -> None:
     assert "malformed YAML" in exc_info.value.error.message
 
 
-def test_validator_accepts_relative_index_db_location_inside_vault(tmp_path: Path) -> None:
+def test_validator_accepts_relative_index_db_location_inside_vault(
+    tmp_path: Path,
+) -> None:
     config = ConfigValidator().validate(valid_config(tmp_path))
 
     assert config.index_db_location == tmp_path.resolve() / "memory-index.sqlite3"
@@ -199,7 +201,11 @@ def test_validator_rejects_duplicate_context_pack_names(tmp_path: Path) -> None:
 def test_validator_rejects_unknown_context_pack_references(tmp_path: Path) -> None:
     data = valid_config(tmp_path)
     data["context_packs"] = [
-        {"name": "prd", "paths": ["docs/**/*.md"], "include_context_packs": ["missing"]},
+        {
+            "name": "prd",
+            "paths": ["docs/**/*.md"],
+            "include_context_packs": ["missing"],
+        },
     ]
 
     errors = ConfigValidator().collect_errors(data)
@@ -208,7 +214,9 @@ def test_validator_rejects_unknown_context_pack_references(tmp_path: Path) -> No
     assert "unknown context pack" in errors[0].message
 
 
-def test_validator_reports_original_index_for_unknown_context_pack_references(tmp_path: Path) -> None:
+def test_validator_reports_original_index_for_unknown_context_pack_references(
+    tmp_path: Path,
+) -> None:
     data = valid_config(tmp_path)
     data["context_packs"] = [
         {"name": "first", "paths": ["first.md"]},
@@ -243,7 +251,9 @@ def test_validator_rejects_circular_context_pack_references(tmp_path: Path) -> N
         ("write_constraints.write.deny", [None]),
     ],
 )
-def test_validator_rejects_invalid_constraint_lists(tmp_path: Path, field: str, value: object) -> None:
+def test_validator_rejects_invalid_constraint_lists(
+    tmp_path: Path, field: str, value: object
+) -> None:
     data = valid_config(tmp_path)
     constraints = data["write_constraints"]
     assert isinstance(constraints, dict)
