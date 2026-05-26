@@ -14,7 +14,12 @@ from obsidian_memory_mcp.config import (
     load_project_config,
 )
 from obsidian_memory_mcp.contracts import TOOL_CONTRACTS, TOOL_ERROR_CODES, ToolContract
-from obsidian_memory_mcp.errors import ERROR_CATALOG, ErrorCode, ErrorResponse, ToolExecutionError
+from obsidian_memory_mcp.errors import (
+    ERROR_CATALOG,
+    ErrorCode,
+    ErrorResponse,
+    ToolExecutionError,
+)
 from obsidian_memory_mcp.server import mcp
 from obsidian_memory_mcp.server_registry import (
     DEFAULT_SERVER_REGISTRY_FILE,

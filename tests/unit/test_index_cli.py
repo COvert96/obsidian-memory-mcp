@@ -23,11 +23,15 @@ write_constraints:
     )
 
 
-def test_index_cli_runs_incremental_status_errors_and_debug_search(tmp_path: Path, capsys) -> None:
+def test_index_cli_runs_incremental_status_errors_and_debug_search(
+    tmp_path: Path, capsys
+) -> None:
     vault = tmp_path / "vault"
     vault.mkdir()
     _write_config(vault)
-    (vault / "note.md").write_text("---\n: broken\n---\n# Note\nneedle body", encoding="utf-8")
+    (vault / "note.md").write_text(
+        "---\n: broken\n---\n# Note\nneedle body", encoding="utf-8"
+    )
 
     index_exit = main(["index", str(vault)])
     status_exit = main(["index", "status", str(vault)])
@@ -61,7 +65,9 @@ def test_full_index_cli_requires_confirmation_unless_yes_is_passed(
     assert "cancelled" in capsys.readouterr().out.lower()
 
 
-def test_index_cli_returns_guardrail_exit_code_for_invalid_config(tmp_path: Path, capsys) -> None:
+def test_index_cli_returns_guardrail_exit_code_for_invalid_config(
+    tmp_path: Path, capsys
+) -> None:
     vault = tmp_path / "vault"
     vault.mkdir()
 
@@ -71,7 +77,9 @@ def test_index_cli_returns_guardrail_exit_code_for_invalid_config(tmp_path: Path
     assert "Config is invalid" in capsys.readouterr().out
 
 
-def test_debug_search_cli_reports_malformed_query_without_traceback(tmp_path: Path, capsys) -> None:
+def test_debug_search_cli_reports_malformed_query_without_traceback(
+    tmp_path: Path, capsys
+) -> None:
     vault = tmp_path / "vault"
     vault.mkdir()
     _write_config(vault)

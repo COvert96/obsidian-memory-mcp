@@ -6,7 +6,11 @@ import pytest
 
 from obsidian_memory_mcp.config import ConfigLoader
 from obsidian_memory_mcp.indexer import IndexMode, run_index
-from obsidian_memory_mcp.search_debug import DebugSearchError, debug_search, search_results_to_json
+from obsidian_memory_mcp.search_debug import (
+    DebugSearchError,
+    debug_search,
+    search_results_to_json,
+)
 
 
 def _config(vault: Path):
@@ -28,7 +32,9 @@ write_constraints:
     return ConfigLoader(vault).load()
 
 
-def test_debug_search_returns_canonical_metadata_snippet_score_and_filters(tmp_path: Path) -> None:
+def test_debug_search_returns_canonical_metadata_snippet_score_and_filters(
+    tmp_path: Path,
+) -> None:
     vault = tmp_path / "vault"
     (vault / "wiki").mkdir(parents=True)
     (vault / "archive").mkdir()
@@ -36,7 +42,9 @@ def test_debug_search_returns_canonical_metadata_snippet_score_and_filters(tmp_p
         "---\ntags: [project]\n---\n# Alpha\nsearchable compliance note",
         encoding="utf-8",
     )
-    (vault / "archive" / "beta.md").write_text("# Beta\nsearchable archived note", encoding="utf-8")
+    (vault / "archive" / "beta.md").write_text(
+        "# Beta\nsearchable archived note", encoding="utf-8"
+    )
     config = _config(vault)
     run_index(config, mode=IndexMode.FULL)
 
@@ -45,7 +53,10 @@ def test_debug_search_returns_canonical_metadata_snippet_score_and_filters(tmp_p
     tag_results = debug_search(config, "searchable", limit=10, tag="project")
     json_payload = search_results_to_json("searchable", tag_results)
 
-    assert {result.vault_path for result in all_results} == {"wiki/alpha.md", "archive/beta.md"}
+    assert {result.vault_path for result in all_results} == {
+        "wiki/alpha.md",
+        "archive/beta.md",
+    }
     assert [result.vault_path for result in path_results] == ["wiki/alpha.md"]
     assert [result.vault_path for result in tag_results] == ["wiki/alpha.md"]
     assert tag_results[0].block_key.startswith("wiki/alpha.md#alpha#1::block-")
@@ -105,5 +116,9 @@ def test_path_filter_treats_like_metacharacters_as_literal_path_characters(
     underscore_results = debug_search(config, "needle", path="client_projects/")
     percent_results = debug_search(config, "needle", path="literal%path/")
 
-    assert [result.vault_path for result in underscore_results] == ["client_projects/alpha.md"]
-    assert [result.vault_path for result in percent_results] == ["literal%path/gamma.md"]
+    assert [result.vault_path for result in underscore_results] == [
+        "client_projects/alpha.md"
+    ]
+    assert [result.vault_path for result in percent_results] == [
+        "literal%path/gamma.md"
+    ]

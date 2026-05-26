@@ -167,9 +167,7 @@ def _process_deleted_files(
 ) -> None:
     candidate_paths = {candidate.vault_path for candidate in candidates}
     indexed_paths = {
-        vault_path
-        for vault_path, row in file_rows.items()
-        if row["deleted_at"] is None
+        vault_path for vault_path, row in file_rows.items() if row["deleted_at"] is None
     }
     for vault_path in sorted(indexed_paths.difference(candidate_paths)):
         _tombstone_file(connection, run_id, vault_path)
@@ -199,7 +197,9 @@ def _process_candidate(
             run_id,
             parser_version=parser_version,
             file_hash=existing_file["file_hash"] if existing_file else None,
-            raw_content_hash=existing_file["raw_content_hash"] if existing_file else None,
+            raw_content_hash=existing_file["raw_content_hash"]
+            if existing_file
+            else None,
             normalized_content_hash=(
                 existing_file["normalized_content_hash"] if existing_file else None
             ),
@@ -219,7 +219,9 @@ def _process_candidate(
         and existing_file["file_hash"] == file_hash
         and _can_skip_existing_error(existing_file)
     ):
-        _update_metadata_for_unchanged_file(connection, existing_file["id"], candidate, run_id)
+        _update_metadata_for_unchanged_file(
+            connection, existing_file["id"], candidate, run_id
+        )
         stats.files_skipped += 1
         return
 
@@ -490,7 +492,9 @@ def _update_metadata_for_unchanged_file(
         )
 
 
-def _tombstone_file(connection: sqlite3.Connection, run_id: int, vault_path: str) -> None:
+def _tombstone_file(
+    connection: sqlite3.Connection, run_id: int, vault_path: str
+) -> None:
     row = _fetch_file(connection, vault_path)
     if row is None:
         return
@@ -509,7 +513,9 @@ def _tombstone_file(connection: sqlite3.Connection, run_id: int, vault_path: str
 def _delete_derived_rows(connection: sqlite3.Connection, file_id: int) -> None:
     block_keys = [
         row["block_key"]
-        for row in connection.execute("SELECT block_key FROM blocks WHERE file_id = ?", (file_id,))
+        for row in connection.execute(
+            "SELECT block_key FROM blocks WHERE file_id = ?", (file_id,)
+        )
     ]
     connection.executemany(
         "DELETE FROM blocks_fts WHERE block_key = ?",
@@ -559,12 +565,18 @@ def _insert_error(
     return int(cursor.lastrowid)
 
 
-def _set_file_error(connection: sqlite3.Connection, file_id: int, error_id: int) -> None:
-    connection.execute("UPDATE files SET last_error_id = ? WHERE id = ?", (error_id, file_id))
+def _set_file_error(
+    connection: sqlite3.Connection, file_id: int, error_id: int
+) -> None:
+    connection.execute(
+        "UPDATE files SET last_error_id = ? WHERE id = ?", (error_id, file_id)
+    )
 
 
 def _fetch_file(connection: sqlite3.Connection, vault_path: str) -> sqlite3.Row | None:
-    return connection.execute("SELECT * FROM files WHERE vault_path = ?", (vault_path,)).fetchone()
+    return connection.execute(
+        "SELECT * FROM files WHERE vault_path = ?", (vault_path,)
+    ).fetchone()
 
 
 def _fetch_files_by_path(connection: sqlite3.Connection) -> dict[str, sqlite3.Row]:
@@ -700,15 +712,23 @@ def _iter_markdown_entries(
             with os.scandir(directory) as entries:
                 for entry in entries:
                     if entry.is_dir(follow_symlinks=False):
-                        if entry.name not in DEFAULT_EXCLUDED_DIRS and not entry.is_symlink():
+                        if (
+                            entry.name not in DEFAULT_EXCLUDED_DIRS
+                            and not entry.is_symlink()
+                        ):
                             child_directories.append(
-                                (entry.path, _join_relative(relative_directory, entry.name))
+                                (
+                                    entry.path,
+                                    _join_relative(relative_directory, entry.name),
+                                )
                             )
                         continue
                     if entry.name.endswith(".md") and (
                         entry.is_file(follow_symlinks=False) or entry.is_symlink()
                     ):
-                        found.append((_join_relative(relative_directory, entry.name), entry))
+                        found.append(
+                            (_join_relative(relative_directory, entry.name), entry)
+                        )
         except OSError:
             continue
 

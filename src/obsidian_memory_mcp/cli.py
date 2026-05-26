@@ -6,11 +6,22 @@ import argparse
 import os
 from pathlib import Path
 
-from obsidian_memory_mcp.config import ConfigLoader, ConfigValidationException, ProjectConfig
+from obsidian_memory_mcp.config import (
+    ConfigLoader,
+    ConfigValidationException,
+    ProjectConfig,
+)
 from obsidian_memory_mcp.errors import ToolExecutionError
 from obsidian_memory_mcp.indexer import IndexMode, IndexRunResult, run_index
-from obsidian_memory_mcp.search_debug import DebugSearchError, debug_search, search_results_to_json
-from obsidian_memory_mcp.server_registry import SERVER_REGISTRY_ENV_VAR, load_project_registry
+from obsidian_memory_mcp.search_debug import (
+    DebugSearchError,
+    debug_search,
+    search_results_to_json,
+)
+from obsidian_memory_mcp.server_registry import (
+    SERVER_REGISTRY_ENV_VAR,
+    load_project_registry,
+)
 from obsidian_memory_mcp.status import IndexStatus, get_index_status, list_index_errors
 
 _COMMAND_CONFIG = "config"
@@ -30,14 +41,22 @@ def main(argv: list[str] | None = None) -> int:
     except SystemExit as exc:
         return int(exc.code or 0)
 
-    if arguments.command == _COMMAND_CONFIG and arguments.config_command == _SUBCOMMAND_VALIDATE:
+    if (
+        arguments.command == _COMMAND_CONFIG
+        and arguments.config_command == _SUBCOMMAND_VALIDATE
+    ):
         return _validate_config(arguments.vault_root)
     if arguments.command == _COMMAND_INDEX:
         return _index(arguments)
-    if arguments.command == _COMMAND_DEBUG and arguments.debug_command == _SUBCOMMAND_SEARCH:
+    if (
+        arguments.command == _COMMAND_DEBUG
+        and arguments.debug_command == _SUBCOMMAND_SEARCH
+    ):
         return _debug_search(arguments)
     if arguments.command == _COMMAND_SERVE:
-        return _serve(transport=arguments.transport, registry_path=arguments.registry_path)
+        return _serve(
+            transport=arguments.transport, registry_path=arguments.registry_path
+        )
 
     parser.print_help()
     return 1
@@ -47,13 +66,17 @@ def _build_argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="mcp-memory")
     subparsers = parser.add_subparsers(dest="command")
 
-    config_parser = subparsers.add_parser(_COMMAND_CONFIG, help="Manage vault configuration.")
+    config_parser = subparsers.add_parser(
+        _COMMAND_CONFIG, help="Manage vault configuration."
+    )
     config_subparsers = config_parser.add_subparsers(dest="config_command")
 
     validate_parser = config_subparsers.add_parser(
         _SUBCOMMAND_VALIDATE, help="Validate a vault memory-mcp.yaml."
     )
-    validate_parser.add_argument("vault_root", type=Path, help="Path to the Obsidian vault root.")
+    validate_parser.add_argument(
+        "vault_root", type=Path, help="Path to the Obsidian vault root."
+    )
 
     index_parser = subparsers.add_parser(
         _COMMAND_INDEX,
@@ -76,22 +99,32 @@ def _build_argument_parser() -> argparse.ArgumentParser:
         help="Vault path, or one of: status {vault_path}, errors {vault_path}.",
     )
 
-    debug_parser = subparsers.add_parser(_COMMAND_DEBUG, help="Run developer diagnostics.")
+    debug_parser = subparsers.add_parser(
+        _COMMAND_DEBUG, help="Run developer diagnostics."
+    )
     debug_subparsers = debug_parser.add_subparsers(dest="debug_command")
     search_parser = debug_subparsers.add_parser(
         _SUBCOMMAND_SEARCH,
         help="Inspect FTS search ranking and snippets.",
         usage=(
-            "mcp-memory debug search {vault_path} \"{query}\" "
+            'mcp-memory debug search {vault_path} "{query}" '
             "[--limit 10] [--path wiki/] [--tag tag] [--json]"
         ),
     )
-    search_parser.add_argument("vault_root", type=Path, help="Path to the Obsidian vault root.")
+    search_parser.add_argument(
+        "vault_root", type=Path, help="Path to the Obsidian vault root."
+    )
     search_parser.add_argument("query", help="FTS query to inspect.")
-    search_parser.add_argument("--limit", type=int, default=10, help="Maximum results to return.")
-    search_parser.add_argument("--path", help="Restrict results to a vault-relative path prefix.")
+    search_parser.add_argument(
+        "--limit", type=int, default=10, help="Maximum results to return."
+    )
+    search_parser.add_argument(
+        "--path", help="Restrict results to a vault-relative path prefix."
+    )
     search_parser.add_argument("--tag", help="Restrict results to blocks with the tag.")
-    search_parser.add_argument("--json", action="store_true", help="Emit structured JSON output.")
+    search_parser.add_argument(
+        "--json", action="store_true", help="Emit structured JSON output."
+    )
 
     serve_parser = subparsers.add_parser(_COMMAND_SERVE, help="Run the MCP server.")
     serve_parser.add_argument(
@@ -296,6 +329,7 @@ def _serve(*, transport: str, registry_path: Path | None) -> int:
         return 1
 
     from obsidian_memory_mcp.server import mcp
+
     mcp.run(transport=transport)
     return 0
 
