@@ -7,15 +7,34 @@ vault_path: "path/to/example-vault"
 index_db_location: "memory-index.sqlite3"
 
 context_packs:
-  - name: "prd"
+  - name: "api-docs"
+    description: "Public API reference and usage examples"
     paths:
-      - "docs/prd/**/*.md"
-      - "README.md"
+      - "wiki/api/**/*.md"
+    token_budget: 6000
+
+  - name: "architecture"
+    description: "Architecture decisions and system overview"
+    paths:
+      - "docs/architecture/overview.md"
+      - "docs/adr/**/*.md"
+    sections:
+      - "Decision"
+      - "Context"
+    token_budget: 8000
+
+  - name: "compliance-bundle"
+    description: "Compliance policy plus reusable API docs"
+    paths:
+      - "docs/compliance/policy.md"
+    tags_filter:
+      - "compliance"
     include_context_packs:
-      - "foundation"
+      - "api-docs"
     token_budget: 8000
 
   - name: "foundation"
+    description: "Core repository orientation"
     paths:
       - "docs/tool-specifications.md"
 

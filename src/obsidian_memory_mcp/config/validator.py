@@ -233,6 +233,24 @@ class ConfigValidator:
                 errors,
                 require_non_empty=True,
             )
+            self._validate_optional_string(
+                context_pack,
+                "description",
+                f"context_packs[{index}].description",
+                errors,
+            )
+            self._validate_string_list(
+                context_pack,
+                "sections",
+                f"context_packs[{index}].sections",
+                errors,
+            )
+            self._validate_string_list(
+                context_pack,
+                "tags_filter",
+                f"context_packs[{index}].tags_filter",
+                errors,
+            )
             self._validate_string_list(
                 context_pack,
                 "include_context_packs",
@@ -376,6 +394,18 @@ class ConfigValidator:
             )
 
     @staticmethod
+    def _validate_optional_string(
+        container: dict[str, Any],
+        key: str,
+        field_path: str,
+        errors: list[ConfigValidationError],
+    ) -> None:
+        if key not in container:
+            return
+        if not isinstance(container[key], str):
+            errors.append(_type_error(field_path, "a string", container[key]))
+
+    @staticmethod
     def _validate_optional_positive_int(
         container: dict[str, Any],
         key: str,
@@ -410,6 +440,9 @@ def _parse_context_packs(data: list[dict[str, Any]]) -> tuple[ContextPackConfig,
         ContextPackConfig(
             name=context_pack["name"],
             paths=tuple(context_pack["paths"]),
+            description=context_pack.get("description"),
+            sections=tuple(context_pack.get("sections", ())),
+            tags_filter=tuple(context_pack.get("tags_filter", ())),
             include_context_packs=tuple(context_pack.get("include_context_packs", ())),
             token_budget=context_pack.get("token_budget"),
         )

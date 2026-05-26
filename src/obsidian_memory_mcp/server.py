@@ -20,6 +20,7 @@ from obsidian_memory_mcp.config import (
     ProjectConfig,
     load_project_config,
 )
+from obsidian_memory_mcp.context_packs import ContextPackLoader
 from obsidian_memory_mcp.retrieval import (
     ReadNoteService,
     ReadSectionService,
@@ -90,6 +91,31 @@ def search_notes(
     return {"project": project, **result}
 
 
+@mcp.tool()
+def get_context_pack(
+    project: str,
+    pack_name: str,
+    strict_budget: bool = True,
+) -> dict[str, Any]:
+    """Load a configured context pack from a project vault.
+
+    Args:
+        project: Project name as defined in the server registry.
+        pack_name: Context pack name from the project's memory-mcp.yaml.
+        strict_budget: When true, reject packs over budget instead of truncating.
+    """
+    config = _project_config(project)
+    result = _make_context_pack_loader(config).load(
+        pack_name,
+        strict_budget=strict_budget,
+    )
+    return {"project": project, **result.as_response()}
+
+
 def _project_config(project: str) -> ProjectConfig:
     registry = load_project_registry()
     return load_project_config(registry.resolve(project))
+
+
+def _make_context_pack_loader(config: ProjectConfig) -> ContextPackLoader:
+    return ContextPackLoader(config)
