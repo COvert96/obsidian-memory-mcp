@@ -1,0 +1,15 @@
+{
+  "python.terminal.useEnvFile": true,
+  "[python]": {
+      "editor.codeActionsOnSave": {
+          "source.fixAll.ruff": "explicit",
+          "source.organizeImports.ruff": "explicit"
+      },
+  },
+  "ruff.organizeImports": true,
+  "ruff.fixAll": true,
+  "editor.formatOnSave": true,
+  "chat.tools.terminal.autoApprove": {
+    "uv": true,
+  }
+}
