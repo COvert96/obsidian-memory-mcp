@@ -28,7 +28,9 @@ def _encoder() -> tiktoken.Encoding:
 
 
 def _build_argument_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Estimate Obsidian Memory MCP token counts.")
+    parser = argparse.ArgumentParser(
+        description="Estimate Obsidian Memory MCP token counts."
+    )
     parser.add_argument("--text", help="Inline text to estimate.")
     parser.add_argument("--file", type=Path, help="Path to a text file to estimate.")
     return parser

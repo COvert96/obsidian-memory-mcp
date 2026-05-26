@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from obsidian_memory_mcp.contracts import TOOL_CONTRACTS, TOOL_ERROR_CODES, ToolContract
+from obsidian_memory_mcp.contracts import TOOL_CONTRACTS, TOOL_ERROR_CODES
 from obsidian_memory_mcp.errors import ERROR_CATALOG, ErrorCode, build_error
 
 
@@ -49,12 +49,16 @@ def test_tool_error_codes_matches_contract_possible_errors() -> None:
 
 def test_error_catalog_covers_all_error_codes() -> None:
     for code in ErrorCode:
-        assert code in ERROR_CATALOG, f"ErrorCode {code!r} is missing from ERROR_CATALOG."
+        assert code in ERROR_CATALOG, (
+            f"ErrorCode {code!r} is missing from ERROR_CATALOG."
+        )
 
 
 def test_error_catalog_entries_have_non_empty_recovery_suggestions() -> None:
     for code, definition in ERROR_CATALOG.items():
-        assert definition.recovery_suggestion, f"{code!r} has an empty recovery_suggestion."
+        assert definition.recovery_suggestion, (
+            f"{code!r} has an empty recovery_suggestion."
+        )
 
 
 def test_error_template_placeholders_format_from_details() -> None:
@@ -62,7 +66,9 @@ def test_error_template_placeholders_format_from_details() -> None:
         ErrorCode.ERR_MISSING_FILE,
         details={"file_path": "wiki/missing.md"},
     )
-    assert error.message == "File 'wiki/missing.md' does not exist in the project vault."
+    assert (
+        error.message == "File 'wiki/missing.md' does not exist in the project vault."
+    )
 
 
 def test_missing_placeholder_key_is_left_unchanged() -> None:

@@ -8,7 +8,6 @@ import pytest
 
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError
 from obsidian_memory_mcp.server_registry import (
-    ProjectRegistry,
     load_project_registry,
 )
 
