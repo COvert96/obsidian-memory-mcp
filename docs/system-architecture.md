@@ -276,8 +276,8 @@ Error handling should use the existing `ErrorCode` enum and `ErrorResponse` mode
 │                                                          │
 │ ┌─────────────┐  ┌──────────────┐  ┌─────────────────┐  │
 │ │ Indexing    │  │ Retrieval    │  │ Proposals       │  │
-│ │ parser.py   │  │ reader.py    │  │ proposals.py    │  │
-│ │ indexing/   │  │ search.py    │  │ audit.py        │  │
+│ │ parser.py   │  │ reader.py    │  │ repository.py   │  │
+│ │ indexing/   │  │ search.py    │  │ manager.py      │  │
 │ │ schema.py   │  │ packs.py     │  │                 │  │
 │ └─────────────┘  └──────────────┘  └─────────────────┘  │
 │                                                          │
@@ -326,9 +326,14 @@ Error handling should use the existing `ErrorCode` enum and `ErrorResponse` mode
 - `search.py`: Implements `search_notes` using FTS5 queries with BM25 ranking.
 - `packs.py`: Implements `get_context_pack` by loading configured file sets, concatenating content, and enforcing token budgets.
 
-**Proposals** (`proposals.py`, `audit.py` — Phase 5, new)
-- `proposals.py`: Manages the lifecycle of write proposals (create, list, approve, expire). Stores proposals in SQLite with hash snapshots.
-- `audit.py`: Logs all proposal actions (created, approved, rejected, expired) to an audit table.
+**Proposals** (`repository.py`, `manager.py` — Phase 5A, new)
+
+Follows the same sub-package pattern as `indexing/` and `retrieval/`. The `proposals/` package is the boundary: `server.py` and `cli.py` import only from `proposals/__init__.py`; they do not reach into sub-modules directly.
+
+- `proposals/_models.py`: Domain data types — `Proposal`, `ProposalStatus`, `ProposalOperation`. Pure dataclasses, no IO imports.
+- `proposals/repository.py`: SQLite CRUD detail — insert, query by ID/status/file, update status, expire. Mirrors `indexing/repository.py`.
+- `proposals/manager.py`: `ProposalManager` — orchestrates the full proposal lifecycle (create, list, approve, reject, expire). Enforces write guardrails and `old_hash` conflict detection. Calls `repository` for persistence; calls `schema` for the DB connection.
+- `proposals/__init__.py`: Re-exports `ProposalManager` and the result types that callers need. Internal sub-modules are not part of the public surface.
 
 **Tokens** (`tokens.py` — existing, keep as-is)
 - Token estimation using tiktoken's GPT-4 encoder. Used by context pack budget enforcement.
@@ -336,7 +341,7 @@ Error handling should use the existing `ErrorCode` enum and `ErrorResponse` mode
 **CLI** (`cli.py` — existing, extend)
 - `mcp-memory config validate <vault>` — existing.
 - `mcp-memory index <vault>` — Phase 2.
-- `mcp-memory serve` — Phase 6 (starts the MCP server).
+- `mcp-memory serve` — Phase 2A (starts the MCP server).
 
 **Tests** (`tests/` — existing, extend per phase)
 - Unit tests for each domain module.
@@ -423,21 +428,21 @@ CREATE TABLE wikilinks (
     display   TEXT                      -- Display text if different
 );
 
--- Write proposals (Phase 5)
+-- Write proposals (Phase 5A)
 CREATE TABLE proposals (
     id          TEXT PRIMARY KEY,       -- UUID
     vault_path  TEXT NOT NULL,
-    operation   TEXT NOT NULL,          -- "create", "update", "append"
-    content     TEXT NOT NULL,
+    operation   TEXT NOT NULL,          -- "create", "update", "delete"
+    content     TEXT,                   -- NULL for delete operations
     old_hash    TEXT,                   -- NULL for create operations
-    new_hash    TEXT NOT NULL,
+    new_hash    TEXT,                   -- NULL for delete operations
     status      TEXT NOT NULL DEFAULT 'pending',  -- pending, applied, rejected, expired
     created_at  TEXT NOT NULL,
     expires_at  TEXT NOT NULL,
     applied_at  TEXT
 );
 
--- Audit log (Phase 5)
+-- Audit log (Phase 5A)
 CREATE TABLE audit_log (
     id          INTEGER PRIMARY KEY,
     proposal_id TEXT NOT NULL,
@@ -456,6 +461,13 @@ Memory records are regular markdown files in designated vault directories (e.g.,
 3. Frontmatter conventions (e.g., `type: memory`, `source: agent`) — not enforced by the system, but useful for filtering.
 
 There is no separate memory data model. Memories are vault files.
+
+For workflows that manage contradictory memory, the important distinction is between:
+
+1. **File-state conflicts**: the target file changed since proposal creation (`old_hash` mismatch).
+2. **Semantic contradictions**: new information invalidates or supersedes older memory even when no filesystem race occurred.
+
+The proposal system handles the first problem directly. The second should be treated as a higher-level workflow policy for `Memory/`, typically by archiving or marking the old memory as superseded and creating or updating a new active source-of-truth note. That often requires a grouped multi-file change, not a single-file overwrite.
 
 ---
 
@@ -489,9 +501,9 @@ There is no separate memory data model. Memories are vault files.
 
 #### `propose_memory_update`
 - **Purpose:** Create a write proposal without modifying the vault.
-- **Inputs:** `project: str`, `file_path: str`, `operation: str` ("create"|"update"|"append"), `content: str`
+- **Inputs:** `project: str`, `file_path: str`, `operation: str` ("create"|"update"|"delete"), `content: str` (required for create/update, omitted for delete)
 - **Outputs:** `project`, `proposal_id: str`, `file_path`, `operation`, `old_hash: str | null`, `new_hash: str`, `ttl_seconds: int`
-- **Safety:** Write guardrail policy evaluated. File hash captured at proposal time for conflict detection. Content stored in SQLite, not written to disk.
+- **Safety:** Write guardrail policy evaluated. File hash captured at proposal time for conflict detection. Content stored in SQLite, not written to disk. This primitive is sufficient for straightforward single-file writes, but workflows such as memory supersession may need a grouped changeset abstraction above it.
 
 #### `list_proposals`
 - **Purpose:** List pending or filtered proposals.
@@ -503,7 +515,7 @@ There is no separate memory data model. Memories are vault files.
 - **Purpose:** Apply a pending proposal to disk.
 - **Inputs:** `project: str`, `proposal_id: str`
 - **Outputs:** `project`, `proposal_id`, `file_path`, `operation`, `status: str`, `written_at: str`, `file_size_bytes: int`
-- **Safety:** Re-checks write guardrail. Compares current file hash against proposal's `old_hash` — rejects if file changed since proposal was created (stale proposal). Writes atomically (write to temp file, then rename).
+- **Safety:** Re-checks write guardrail. Compares current file hash against proposal's `old_hash` — rejects if file changed since proposal was created (stale proposal). Writes atomically (write to temp file, then rename). When a workflow must archive prior memory and publish a new source-of-truth note together, approval should operate on one grouped logical change rather than independent single-file approvals.
 
 ---
 
@@ -681,17 +693,18 @@ The following decisions are now locked for implementation and PRD alignment:
 12. Implement `search_notes` tool handler backed by FTS5.
 13. Benchmark search relevance against a small question set (don't wait for Phase 6 to start measuring).
 
-**Priority 4 — Phases 4–5: Context packs and proposals**
+**Priority 4 — Phase 4, Phase 5A, and optional Phase 5B: Context packs and proposal workflows**
 
 14. Implement `get_context_pack` with token budget enforcement (default 8000, pack-level override).
-15. Implement proposal workflow (propose, list, approve).
-16. Add audit logging.
+15. Implement core proposal workflow (propose, list, approve, reject) in Phase 5A.
+16. Add Phase 5A lifecycle logging.
+17. If needed by real workflows, implement Phase 5B grouped changesets and memory supersession.
 
 **Priority 5 — Phase 6: Polish and release**
 
-17. Full benchmark suite and relevance measurement.
-18. CI/CD pipeline.
-19. Documentation and packaging.
+18. Full benchmark suite and relevance measurement.
+19. CI/CD pipeline.
+20. Documentation and packaging.
 
 ---
 
