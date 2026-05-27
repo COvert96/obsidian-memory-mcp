@@ -11,6 +11,7 @@ propagate naturally to FastMCP, which converts them to
 
 from __future__ import annotations
 
+from pathlib import PurePosixPath
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -21,6 +22,7 @@ from obsidian_memory_mcp.config import (
     load_project_config,
 )
 from obsidian_memory_mcp.context_packs import ContextPackLoader
+from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
 from obsidian_memory_mcp.proposals import ProposalManager
 from obsidian_memory_mcp.retrieval import (
     ReadNoteService,
@@ -137,14 +139,16 @@ def propose_memory_update(
     operation: str,
     content: str | None = None,
 ) -> dict[str, Any]:
-    """Create a guarded write proposal without mutating the target file.
+    """Create a guarded write proposal for `Memory/` files only.
 
     Args:
         project: Project name as defined in the server registry.
-        file_path: Vault-relative path to the target markdown file.
+        file_path: Vault-relative path under `Memory/` (for example,
+            `Memory/company-summary.md`).
         operation: One of "create", "update", or "delete".
         content: Required for create/update proposals; omitted for delete.
     """
+    _require_memory_path(file_path)
     config = _project_config(project)
     result = ProposalManager(config).create(
         file_path=file_path,
@@ -215,3 +219,20 @@ def _project_config(project: str) -> ProjectConfig:
 
 def _make_context_pack_loader(config: ProjectConfig) -> ContextPackLoader:
     return ContextPackLoader(config)
+
+
+def _require_memory_path(file_path: str) -> None:
+    normalized_path = file_path.replace("\\", "/").strip()
+    path = PurePosixPath(normalized_path)
+    if len(path.parts) >= 2 and path.parts[0] == "Memory":
+        return
+    raise ToolExecutionError(
+        build_error(
+            ErrorCode.ERR_INVALID_REQUEST,
+            message=(
+                "propose_memory_update only supports files under 'Memory/'. "
+                f"Received '{file_path}'."
+            ),
+            details={"file_path": file_path, "required_prefix": "Memory/"},
+        )
+    )

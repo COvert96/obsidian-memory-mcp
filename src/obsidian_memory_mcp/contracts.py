@@ -161,7 +161,10 @@ TOOL_CONTRACTS: dict[str, ToolContract] = {
     ),
     "propose_memory_update": ToolContract(
         name="propose_memory_update",
-        description="Create a guarded write proposal without mutating the target file.",
+        description=(
+            "Create a guarded write proposal for files under Memory/ without "
+            "mutating the target file."
+        ),
         possible_errors=(
             ErrorCode.ERR_INVALID_REQUEST,
             ErrorCode.ERR_INVALID_PROJECT,
