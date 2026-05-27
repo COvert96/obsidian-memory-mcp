@@ -27,8 +27,10 @@ vault_path: "{vault.as_posix()}"
 index_db_location: memory-index.sqlite3
 context_packs:
   - name: docs
+    description: "General project docs"
     paths: ["docs/*.md"]
   - name: tiny
+    description: "Small budget test pack"
     paths: ["docs/*.md"]
     token_budget: 1
 write_constraints:
@@ -44,9 +46,28 @@ write_constraints:
     return vault, registry
 
 
-def test_server_exposes_get_context_pack_tool() -> None:
+def test_server_exposes_context_pack_tools() -> None:
     tools = asyncio.run(mcp.list_tools())
     assert any(tool.name == "get_context_pack" for tool in tools)
+    assert any(tool.name == "list_context_packs" for tool in tools)
+
+
+def test_list_context_packs_returns_configured_pack_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _vault, registry = _prepare_vault(tmp_path)
+    monkeypatch.setenv(SERVER_REGISTRY_ENV_VAR, str(registry))
+
+    payload = _call("list_context_packs", {"project": "sample"})
+
+    assert payload["project"] == "sample"
+    assert payload["returned_count"] == 2
+    names = [pack["pack_name"] for pack in payload["context_packs"]]
+    assert names == ["docs", "tiny"]
+    assert payload["context_packs"][0]["description"] == "General project docs"
+    assert payload["context_packs"][0]["token_budget"] == 8000
+    assert payload["context_packs"][1]["token_budget"] == 1
 
 
 def test_get_context_pack_returns_pack_payload(
