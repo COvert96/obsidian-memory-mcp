@@ -235,3 +235,29 @@ def test_mcp_approval_returns_invalid_request_for_missing_proposal(
         )
 
     assert ErrorCode.ERR_INVALID_REQUEST.value in str(missing.value)
+
+
+def test_mcp_propose_memory_update_rejects_non_memory_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    vault = tmp_path / "vault"
+    (vault / ".mcp").mkdir(parents=True)
+    vault.mkdir(exist_ok=True)
+    _write_config(vault)
+    registry = _write_registry(tmp_path, vault)
+    monkeypatch.setenv(SERVER_REGISTRY_ENV_VAR, str(registry))
+
+    with pytest.raises(ToolError) as invalid_path:
+        _call(
+            "propose_memory_update",
+            {
+                "project": "sample",
+                "file_path": "wiki/new-note.md",
+                "operation": "create",
+                "content": "# Not allowed",
+            },
+        )
+
+    assert ErrorCode.ERR_INVALID_REQUEST.value in str(invalid_path.value)
+    assert "Memory/" in str(invalid_path.value)
