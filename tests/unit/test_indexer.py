@@ -148,7 +148,9 @@ def test_nonfatal_file_error_does_not_abort_whole_run(
             raise PermissionError("permission denied")
         return path.read_bytes()
 
-    monkeypatch.setattr("obsidian_memory_mcp.indexing.service.read_file_bytes", read_bytes)
+    monkeypatch.setattr(
+        "obsidian_memory_mcp.indexing.service.read_file_bytes", read_bytes
+    )
 
     result = run_index(index_config, mode=IndexMode.FULL)
 
@@ -195,7 +197,9 @@ def test_incremental_retries_file_with_previous_error(
             raise PermissionError("temporary lock")
         return path.read_bytes()
 
-    monkeypatch.setattr("obsidian_memory_mcp.indexing.service.read_file_bytes", read_bytes)
+    monkeypatch.setattr(
+        "obsidian_memory_mcp.indexing.service.read_file_bytes", read_bytes
+    )
     failed = run_index(index_config, mode=IndexMode.FULL)
 
     result = run_index(index_config)

@@ -5,7 +5,8 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
+SUPPORTED_SCHEMA_VERSIONS = frozenset({0, 2, SCHEMA_VERSION})
 
 
 class SchemaVersionError(RuntimeError):
@@ -30,7 +31,7 @@ def bootstrap_schema(connection: sqlite3.Connection) -> None:
     """
 
     current_version = _user_version(connection)
-    if current_version not in (0, SCHEMA_VERSION):
+    if current_version not in SUPPORTED_SCHEMA_VERSIONS:
         raise SchemaVersionError(
             f"Unsupported index schema version {current_version}; expected {SCHEMA_VERSION}."
         )
@@ -156,6 +157,38 @@ def bootstrap_schema(connection: sqlite3.Connection) -> None:
             ON index_errors(run_id);
         CREATE INDEX IF NOT EXISTS idx_index_errors_file_id
             ON index_errors(file_id);
+
+        CREATE TABLE IF NOT EXISTS proposals (
+            id TEXT PRIMARY KEY,
+            file_path TEXT NOT NULL,
+            operation TEXT NOT NULL,
+            content TEXT,
+            old_hash TEXT,
+            new_hash TEXT,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            status_changed_at TEXT,
+            applied_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS proposal_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            proposal_id TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            occurred_at TEXT NOT NULL,
+            details TEXT NOT NULL,
+            FOREIGN KEY(proposal_id) REFERENCES proposals(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_proposals_status_created
+            ON proposals(status, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_proposals_file_path
+            ON proposals(file_path);
+        CREATE INDEX IF NOT EXISTS idx_proposals_created
+            ON proposals(created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_proposal_events_proposal_id
+            ON proposal_events(proposal_id, id);
         """
     )
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")

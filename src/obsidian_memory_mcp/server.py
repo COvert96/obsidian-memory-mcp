@@ -21,6 +21,7 @@ from obsidian_memory_mcp.config import (
     load_project_config,
 )
 from obsidian_memory_mcp.context_packs import ContextPackLoader
+from obsidian_memory_mcp.proposals import ProposalManager
 from obsidian_memory_mcp.retrieval import (
     ReadNoteService,
     ReadSectionService,
@@ -127,6 +128,84 @@ def list_context_packs(project: str) -> dict[str, Any]:
         "context_packs": [pack.as_response() for pack in packs],
         "returned_count": len(packs),
     }
+
+
+@mcp.tool()
+def propose_memory_update(
+    project: str,
+    file_path: str,
+    operation: str,
+    content: str | None = None,
+) -> dict[str, Any]:
+    """Create a guarded write proposal without mutating the target file.
+
+    Args:
+        project: Project name as defined in the server registry.
+        file_path: Vault-relative path to the target markdown file.
+        operation: One of "create", "update", or "delete".
+        content: Required for create/update proposals; omitted for delete.
+    """
+    config = _project_config(project)
+    result = ProposalManager(config).create(
+        file_path=file_path,
+        operation=operation,
+        content=content,
+    )
+    return {"project": project, **result.as_response()}
+
+
+@mcp.tool()
+def list_proposals(
+    project: str,
+    status: str | None = "pending",
+    file_path: str | None = None,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """List proposal metadata with status and optional file-path filters.
+
+    Args:
+        project: Project name as defined in the server registry.
+        status: Optional proposal status filter. Defaults to pending.
+        file_path: Optional vault-relative proposal target path.
+        limit: Maximum number of proposals to return.
+    """
+    config = _project_config(project)
+    proposals = ProposalManager(config).list(
+        status=status,
+        file_path=file_path,
+        limit=limit,
+    )
+    return {
+        "project": project,
+        "proposals": [proposal.as_response() for proposal in proposals],
+        "returned_count": len(proposals),
+    }
+
+
+@mcp.tool()
+def approve_proposal(project: str, proposal_id: str) -> dict[str, Any]:
+    """Apply a pending proposal if the target file still matches its old hash.
+
+    Args:
+        project: Project name as defined in the server registry.
+        proposal_id: ID returned by propose_memory_update.
+    """
+    config = _project_config(project)
+    result = ProposalManager(config).approve(proposal_id)
+    return {"project": project, **result.as_response()}
+
+
+@mcp.tool()
+def reject_proposal(project: str, proposal_id: str) -> dict[str, Any]:
+    """Reject a pending proposal without applying any file mutation.
+
+    Args:
+        project: Project name as defined in the server registry.
+        proposal_id: ID returned by propose_memory_update.
+    """
+    config = _project_config(project)
+    result = ProposalManager(config).reject(proposal_id)
+    return {"project": project, **result.as_response()}
 
 
 def _project_config(project: str) -> ProjectConfig:

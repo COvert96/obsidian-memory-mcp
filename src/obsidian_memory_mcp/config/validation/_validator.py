@@ -45,7 +45,9 @@ class ConfigValidator:
         vault_path = Path(data["vault_path"]).resolve()
         return ProjectConfig(
             vault_path=vault_path,
-            index_db_location=resolve_config_path(vault_path, data["index_db_location"]),
+            index_db_location=resolve_config_path(
+                vault_path, data["index_db_location"]
+            ),
             context_packs=parse_context_packs(data["context_packs"]),
             write_constraints=parse_write_constraints(data["write_constraints"]),
             tags_separator=data.get(
@@ -55,6 +57,14 @@ class ConfigValidator:
             max_proposal_ttl_hours=data.get(
                 "max_proposal_ttl_hours",
                 ProjectConfig.DEFAULT_MAX_PROPOSAL_TTL_HOURS,
+            ),
+            proposal_ttl_seconds=data.get(
+                "proposal_ttl_seconds",
+                ProjectConfig.DEFAULT_PROPOSAL_TTL_SECONDS,
+            ),
+            max_proposal_content_bytes=data.get(
+                "max_proposal_content_bytes",
+                ProjectConfig.DEFAULT_MAX_PROPOSAL_CONTENT_BYTES,
             ),
         )
 
@@ -88,7 +98,9 @@ class ConfigValidator:
 
         vault_path = data["vault_path"]
         if not isinstance(vault_path, str):
-            errors.append(_type_error("vault_path", "a string absolute path", vault_path))
+            errors.append(
+                _type_error("vault_path", "a string absolute path", vault_path)
+            )
             return None
 
         candidate = Path(vault_path)
@@ -322,6 +334,18 @@ class ConfigValidator:
             data,
             "max_proposal_ttl_hours",
             "max_proposal_ttl_hours",
+            errors,
+        )
+        self._validate_optional_positive_int(
+            data,
+            "proposal_ttl_seconds",
+            "proposal_ttl_seconds",
+            errors,
+        )
+        self._validate_optional_positive_int(
+            data,
+            "max_proposal_content_bytes",
+            "max_proposal_content_bytes",
             errors,
         )
 

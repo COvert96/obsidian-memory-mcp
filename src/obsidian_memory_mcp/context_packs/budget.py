@@ -35,7 +35,9 @@ class BudgetEnforcer:
             return with_near_budget_warning(result)
         if strict_budget:
             raise _budget_error(result)
-        return with_near_budget_warning(self._truncate_to_budget(result, documents, pack))
+        return with_near_budget_warning(
+            self._truncate_to_budget(result, documents, pack)
+        )
 
     def _truncate_to_budget(
         self,

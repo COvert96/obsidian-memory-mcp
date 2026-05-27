@@ -42,7 +42,9 @@ write_constraints:
         encoding="utf-8",
     )
     registry = tmp_path / "memory-mcp-server.yaml"
-    registry.write_text(f'projects:\n  sample: "{vault.as_posix()}"\n', encoding="utf-8")
+    registry.write_text(
+        f'projects:\n  sample: "{vault.as_posix()}"\n', encoding="utf-8"
+    )
     return vault, registry
 
 

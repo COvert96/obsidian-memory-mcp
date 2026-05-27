@@ -14,6 +14,7 @@ EXPECTED_TOOL_NAMES = {
     "propose_memory_update",
     "read_note",
     "read_section",
+    "reject_proposal",
     "search_notes",
 }
 
@@ -68,6 +69,15 @@ def test_list_context_packs_contract_documents_metadata_fields() -> None:
     assert "pack_name" in first_pack
     assert "token_budget" in first_pack
     assert "description" in first_pack
+
+
+def test_proposal_contracts_use_consistent_ids_and_error_codes() -> None:
+    list_item = TOOL_CONTRACTS["list_proposals"].example_response["proposals"][0]
+    approve_errors = TOOL_CONTRACTS["approve_proposal"].possible_errors
+
+    assert "proposal_id" in list_item
+    assert "id" not in list_item
+    assert ErrorCode.ERR_MISSING_FILE not in approve_errors
 
 
 # ---------------------------------------------------------------------------

@@ -177,7 +177,9 @@ class ContextPackResolver:
             if explicit_path.absolute_path is not None:
                 paths.append(explicit_path.absolute_path)
 
-        resolved = self._documents_from_paths(tuple(paths), pack, warnings=tuple(warnings))
+        resolved = self._documents_from_paths(
+            tuple(paths), pack, warnings=tuple(warnings)
+        )
         return Resolution(
             documents=resolved.documents,
             missing_files=tuple(missing_files),
@@ -204,7 +206,9 @@ class ContextPackResolver:
     def _expand_glob(self, pattern: str) -> tuple[tuple[Path, ...], tuple[str, ...]]:
         normalized = _normalize_vault_reference(pattern)
         if _is_unsafe_pattern(normalized):
-            return (), (f"Path pattern '{normalized}' was skipped because it is unsafe.",)
+            return (), (
+                f"Path pattern '{normalized}' was skipped because it is unsafe.",
+            )
 
         matches = sorted(
             (
@@ -365,9 +369,7 @@ def _extract_named_sections(
         selected.append("\n".join(lines[heading.line_index : end_index]).rstrip())
 
     missing = tuple(
-        name
-        for name in section_names
-        if normalize_heading_name(name) not in found
+        name for name in section_names if normalize_heading_name(name) not in found
     )
     return tuple(selected), missing
 
@@ -408,9 +410,7 @@ def _frontmatter_tags(content: str) -> set[str]:
         return set()
     if isinstance(value, str):
         return {
-            _normalize_tag(part)
-            for part in re.split(r"[\s,]+", value)
-            if part.strip()
+            _normalize_tag(part) for part in re.split(r"[\s,]+", value) if part.strip()
         }
     if isinstance(value, (list, tuple)):
         return {_normalize_tag(str(part)) for part in value if str(part).strip()}

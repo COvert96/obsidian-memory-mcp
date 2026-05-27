@@ -33,6 +33,8 @@ class ProjectConfig:
     CONFIG_FILE_NAME: ClassVar[str] = "memory-mcp.yaml"
     DEFAULT_TAGS_SEPARATOR: ClassVar[str] = ","
     DEFAULT_MAX_PROPOSAL_TTL_HOURS: ClassVar[int] = 24
+    DEFAULT_PROPOSAL_TTL_SECONDS: ClassVar[int] = 3600
+    DEFAULT_MAX_PROPOSAL_CONTENT_BYTES: ClassVar[int] = 1024 * 1024
 
     vault_path: Path
     index_db_location: Path
@@ -40,6 +42,8 @@ class ProjectConfig:
     write_constraints: AccessConstraints
     tags_separator: str = DEFAULT_TAGS_SEPARATOR
     max_proposal_ttl_hours: int = DEFAULT_MAX_PROPOSAL_TTL_HOURS
+    proposal_ttl_seconds: int = DEFAULT_PROPOSAL_TTL_SECONDS
+    max_proposal_content_bytes: int = DEFAULT_MAX_PROPOSAL_CONTENT_BYTES
 
 
 WritePolicy = AccessPolicy
