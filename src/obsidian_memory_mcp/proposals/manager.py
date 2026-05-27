@@ -26,6 +26,7 @@ from obsidian_memory_mcp.proposals._models import (
 )
 from obsidian_memory_mcp.proposals.repository import ProposalRepository
 from obsidian_memory_mcp.schema import bootstrap_schema, connect_index_db
+from obsidian_memory_mcp.wikilinks import escape_wikilink_alias_separator
 
 PREVIEW_MAX_CHARS = 500
 PREVIEW_ELLIPSIS = "..."
@@ -55,9 +56,13 @@ class ProposalManager:
         content: str | None = None,
     ) -> ProposalCreateResult:
         normalized_operation = _normalize_operation(operation)
-        _validate_content(
+        normalized_content = _normalize_content_for_write(
             normalized_operation,
             content,
+        )
+        _validate_content(
+            normalized_operation,
+            normalized_content,
             max_content_bytes=self._config.max_proposal_content_bytes,
         )
         target = self._guardrails.check_write(file_path)
@@ -65,14 +70,16 @@ class ProposalManager:
         old_hash = self._old_hash_for(
             normalized_operation, target, normalized_file_path
         )
-        new_hash = _content_hash(content) if content is not None else None
+        new_hash = (
+            _content_hash(normalized_content) if normalized_content is not None else None
+        )
         ttl_seconds = self._ttl_seconds()
         created_at = self._now()
         proposal = Proposal(
             proposal_id=self._id_factory(),
             file_path=normalized_file_path,
             operation=normalized_operation,
-            content=content,
+            content=normalized_content,
             old_hash=old_hash,
             new_hash=new_hash,
             status=ProposalStatus.PENDING,
@@ -434,7 +441,7 @@ def _apply_file_change(proposal: Proposal, target: Path) -> int:
     if proposal.content is None:
         raise RuntimeError(f"Proposal '{proposal.proposal_id}' has no content.")
 
-    content_bytes = proposal.content.encode("utf-8")
+    content_bytes = escape_wikilink_alias_separator(proposal.content).encode("utf-8")
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = target.with_name(f".{target.name}.{uuid.uuid4().hex}.tmp")
     try:
@@ -454,6 +461,17 @@ def _file_hash_or_none(path: Path) -> str | None:
 
 def _content_hash(content: str) -> str:
     return _sha256(content.encode("utf-8"))
+
+
+def _normalize_content_for_write(
+    operation: ProposalOperation,
+    content: str | None,
+) -> str | None:
+    if content is None:
+        return None
+    if operation in {ProposalOperation.CREATE, ProposalOperation.UPDATE}:
+        return escape_wikilink_alias_separator(content)
+    return content
 
 
 def _sha256(content: bytes) -> str:

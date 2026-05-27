@@ -64,6 +64,13 @@ def test_parser_models_are_immutable() -> None:
             "# T\nSee [[Other Note|alias]]",
             lambda note: note.wikilinks[0].alias == "alias",
         ),
+        (
+            "# T\nSee [[Other Note\\|alias]]",
+            lambda note: (
+                note.wikilinks[0].target == "Other Note"
+                and note.wikilinks[0].alias == "alias"
+            ),
+        ),
         ("# T\nBody #alpha/sub", lambda note: note.tags == ("alpha/sub",)),
         ("# T\n`#notatag`\n#yes", lambda note: note.tags == ("yes",)),
         (

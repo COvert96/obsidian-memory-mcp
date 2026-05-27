@@ -109,6 +109,35 @@ def test_create_update_and_delete_proposals_capture_hashes_without_writing(
     assert deleted.new_hash is None
 
 
+def test_create_and_approve_escape_wikilink_alias_separator_before_write(
+    tmp_path: Path,
+) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    manager = ProposalManager(_config(vault), id_factory=_sequential_ids())
+    proposal = manager.create(
+        file_path="Memory/table.md",
+        operation=ProposalOperation.CREATE,
+        content="| Link |\n| --- |\n| [[World/Reference/Helious|Helious]] |",
+    )
+
+    stored = manager.get(proposal.proposal_id)
+    expected_content = (
+        "| Link |\n| --- |\n| [[World/Reference/Helious\\|Helious]] |"
+    )
+
+    assert stored is not None
+    assert stored.content == expected_content
+    assert proposal.new_hash == _sha256(expected_content)
+
+    manager.approve(proposal.proposal_id)
+
+    assert (
+        vault.joinpath("Memory", "table.md").read_text(encoding="utf-8")
+        == expected_content
+    )
+
+
 def test_proposal_creation_validates_operation_content_and_guardrails(
     tmp_path: Path,
 ) -> None:
