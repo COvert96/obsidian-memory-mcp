@@ -227,7 +227,66 @@ def test_loader_reports_unknown_pack_as_invalid_project(tmp_path: Path) -> None:
     with pytest.raises(ToolExecutionError) as exc_info:
         ContextPackLoader(config).load("missing")
 
-    assert exc_info.value.error.code is ErrorCode.ERR_INVALID_PROJECT
+    error = exc_info.value.error
+    assert error.code is ErrorCode.ERR_INVALID_PROJECT
+    assert error.details["known_context_packs"] == ["known"]
+    assert error.details["closest_matches"] == []
+    assert "list_context_packs" in error.details["suggestion"]
+
+
+def test_loader_suggests_close_context_pack_names(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    config = _config(
+        vault,
+        (
+            ContextPackConfig(name="overview", paths=("README.md",)),
+            ContextPackConfig(name="deep-dive", paths=("README.md",)),
+        ),
+    )
+
+    with pytest.raises(ToolExecutionError) as exc_info:
+        ContextPackLoader(config).load("overveiw")
+
+    error = exc_info.value.error
+    assert error.code is ErrorCode.ERR_INVALID_PROJECT
+    assert error.details["known_context_packs"] == ["deep-dive", "overview"]
+    assert error.details["closest_matches"] == ["overview"]
+
+
+def test_loader_lists_configured_context_pack_metadata(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    config = _config(
+        vault,
+        (
+            ContextPackConfig(
+                name="overview",
+                description="High-level project docs",
+                paths=("docs/*.md",),
+            ),
+            ContextPackConfig(
+                name="api",
+                paths=("wiki/api/**/*.md",),
+                sections=("authentication",),
+                tags_filter=("public",),
+                include_context_packs=("overview",),
+                token_budget=1200,
+            ),
+        ),
+    )
+
+    summaries = ContextPackLoader(config).list_packs()
+
+    assert len(summaries) == 2
+    assert summaries[0].pack_name == "overview"
+    assert summaries[0].description == "High-level project docs"
+    assert summaries[0].token_budget == 8000
+    assert summaries[1].pack_name == "api"
+    assert summaries[1].token_budget == 1200
+    assert summaries[1].sections == ("authentication",)
+    assert summaries[1].tags_filter == ("public",)
+    assert summaries[1].include_context_packs == ("overview",)
 
 
 def _insert_indexed_file(

@@ -14,6 +14,7 @@ from obsidian_memory_mcp.context_packs.budget import (
     with_near_budget_warning,
 )
 from obsidian_memory_mcp.context_packs.models import (
+    ContextPackSummary,
     DEFAULT_CONTEXT_PACK_TOKEN_BUDGET,
     ContextPackResult,
     IndexQueries,
@@ -104,6 +105,7 @@ class ContextPackLoader:
         resolved_index_queries = index_queries or SqliteIndexQueries(
             config.index_db_location
         )
+        self._configured_packs = config.context_packs
         self._resolver = resolver or ContextPackResolver(config)
         self._index_queries = resolved_index_queries
         self._budget_enforcer = budget_enforcer or BudgetEnforcer(
@@ -127,6 +129,9 @@ class ContextPackLoader:
     def inspect(self, pack_name: str) -> ContextPackResult:
         result, _documents, _pack = self._resolved_result(pack_name)
         return with_near_budget_warning(result)
+
+    def list_packs(self) -> tuple[ContextPackSummary, ...]:
+        return tuple(_pack_summary(pack) for pack in self._configured_packs)
 
     def _resolved_result(
         self,
@@ -154,6 +159,18 @@ class ContextPackLoader:
 
 def _budget_for(pack: ContextPackConfig) -> int:
     return pack.token_budget or DEFAULT_CONTEXT_PACK_TOKEN_BUDGET
+
+
+def _pack_summary(pack: ContextPackConfig) -> ContextPackSummary:
+    return ContextPackSummary(
+        pack_name=pack.name,
+        description=pack.description,
+        token_budget=_budget_for(pack),
+        path_patterns=pack.paths,
+        sections=pack.sections,
+        tags_filter=pack.tags_filter,
+        include_context_packs=pack.include_context_packs,
+    )
 
 
 def _stale_warnings(

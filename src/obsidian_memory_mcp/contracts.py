@@ -104,7 +104,10 @@ TOOL_CONTRACTS: dict[str, ToolContract] = {
     ),
     "get_context_pack": ToolContract(
         name="get_context_pack",
-        description="Load a deterministic, budget-bound pack of curated project context.",
+        description=(
+            "Load a deterministic, budget-bound pack of curated project context. "
+            "Call list_context_packs first when pack_name is unknown."
+        ),
         possible_errors=(
             ErrorCode.ERR_INVALID_REQUEST,
             ErrorCode.ERR_INVALID_PROJECT,
@@ -124,6 +127,36 @@ TOOL_CONTRACTS: dict[str, ToolContract] = {
             "files_included": ["docs/prd/master.md"],
             "missing_files": [],
             "warnings": [],
+        },
+    ),
+    "list_context_packs": ToolContract(
+        name="list_context_packs",
+        description=(
+            "List configured context packs and metadata so clients can select "
+            "a valid pack_name."
+        ),
+        possible_errors=(
+            ErrorCode.ERR_INVALID_REQUEST,
+            ErrorCode.ERR_INVALID_PROJECT,
+            ErrorCode.ERR_INTERNAL,
+        ),
+        example_request={
+            "project": "occlave",
+        },
+        example_response={
+            "project": "occlave",
+            "context_packs": [
+                {
+                    "pack_name": "overview",
+                    "description": "High-level project documentation.",
+                    "token_budget": 8000,
+                    "path_patterns": ["docs/overview/*.md"],
+                    "sections": [],
+                    "tags_filter": [],
+                    "include_context_packs": [],
+                }
+            ],
+            "returned_count": 1,
         },
     ),
     "propose_memory_update": ToolContract(
