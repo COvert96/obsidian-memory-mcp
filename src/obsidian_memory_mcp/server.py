@@ -139,14 +139,26 @@ def propose_memory_update(
     operation: str,
     content: str | None = None,
 ) -> dict[str, Any]:
-    """Create a guarded write proposal for `Memory/` files only.
+    """Propose a write to a file in the `Memory/` directory.
+
+    This is step 1 of a two-step workflow: call this tool to create a
+    proposal, then call `approve_proposal` with the returned `proposal_id`
+    to apply the change to disk.  The file is not modified until approval.
+
+    Use `list_context_packs` first to discover the correct `project` name.
+    Only files under `Memory/` are accepted — paths starting with anything
+    else (e.g. `wiki/`) are rejected with a guardrail error.
 
     Args:
-        project: Project name as defined in the server registry.
-        file_path: Vault-relative path under `Memory/` (for example,
-            `Memory/company-summary.md`).
-        operation: One of "create", "update", or "delete".
-        content: Required for create/update proposals; omitted for delete.
+        project: Project name from the server registry — use the same value
+            returned by `list_context_packs` (e.g. "occlave").
+        file_path: Vault-relative path that must begin with `Memory/`
+            (for example, `Memory/company-summary.md`).
+        operation: One of "create" (target must not exist), "update"
+            (target must already exist), or "delete".
+        content: Full file content for create/update; omit for delete.
+            Prefer focused, concise notes — very large content (> 8 KB)
+            should be split into multiple smaller Memory files.
     """
     _require_memory_path(file_path)
     config = _project_config(project)
@@ -188,11 +200,15 @@ def list_proposals(
 
 @mcp.tool()
 def approve_proposal(project: str, proposal_id: str) -> dict[str, Any]:
-    """Apply a pending proposal if the target file still matches its old hash.
+    """Apply a pending proposal to disk (step 2 of the write workflow).
+
+    Call this immediately after `propose_memory_update` succeeds to
+    commit the change.  The file is only written when this call returns
+    status "applied".
 
     Args:
-        project: Project name as defined in the server registry.
-        proposal_id: ID returned by propose_memory_update.
+        project: Project name — same value used in `propose_memory_update`.
+        proposal_id: The `proposal_id` returned by `propose_memory_update`.
     """
     config = _project_config(project)
     result = ProposalManager(config).approve(proposal_id)
@@ -201,11 +217,11 @@ def approve_proposal(project: str, proposal_id: str) -> dict[str, Any]:
 
 @mcp.tool()
 def reject_proposal(project: str, proposal_id: str) -> dict[str, Any]:
-    """Reject a pending proposal without applying any file mutation.
+    """Discard a pending proposal without writing any file.
 
     Args:
-        project: Project name as defined in the server registry.
-        proposal_id: ID returned by propose_memory_update.
+        project: Project name — same value used in `propose_memory_update`.
+        proposal_id: The `proposal_id` returned by `propose_memory_update`.
     """
     config = _project_config(project)
     result = ProposalManager(config).reject(proposal_id)
