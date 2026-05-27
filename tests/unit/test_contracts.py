@@ -80,6 +80,15 @@ def test_proposal_contracts_use_consistent_ids_and_error_codes() -> None:
     assert ErrorCode.ERR_MISSING_FILE not in approve_errors
 
 
+def test_propose_memory_update_contract_declares_memory_scope() -> None:
+    contract = TOOL_CONTRACTS["propose_memory_update"]
+    file_path = contract.example_request["file_path"]
+
+    assert "Memory/" in contract.description
+    assert isinstance(file_path, str)
+    assert file_path.startswith("Memory/")
+
+
 # ---------------------------------------------------------------------------
 # Error catalog
 # ---------------------------------------------------------------------------
