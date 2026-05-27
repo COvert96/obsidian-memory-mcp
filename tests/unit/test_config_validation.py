@@ -5,10 +5,10 @@ from pathlib import Path
 import pytest
 
 from obsidian_memory_mcp.config import (
-    CONFIG_FILE_NAME,
     ConfigLoader,
     ConfigValidationException,
     ConfigValidator,
+    ProjectConfig,
     load_project_config,
 )
 from obsidian_memory_mcp.errors import ErrorCode
@@ -36,7 +36,7 @@ def valid_config(vault_path: Path) -> dict[str, object]:
 
 
 def write_config(vault_path: Path, content: str) -> Path:
-    config_path = vault_path / CONFIG_FILE_NAME
+    config_path = vault_path / ProjectConfig.CONFIG_FILE_NAME
     config_path.write_text(content, encoding="utf-8")
     return config_path
 
@@ -85,7 +85,7 @@ def test_loader_reports_missing_config_with_actionable_error(tmp_path: Path) -> 
 
     error = exc_info.value.error
     assert error.code is ErrorCode.ERR_INVALID_PROJECT
-    assert str(vault / CONFIG_FILE_NAME) in error.message
+    assert str(vault / ProjectConfig.CONFIG_FILE_NAME) in error.message
     assert "Create memory-mcp.yaml" in error.details["suggestion"]
 
 
@@ -183,6 +183,60 @@ def test_validator_rejects_context_pack_without_name_or_paths(tmp_path: Path) ->
         "context_packs[0].paths",
         "context_packs[1].name",
     }
+
+
+def test_validator_accepts_full_context_pack_schema(tmp_path: Path) -> None:
+    data = valid_config(tmp_path)
+    data["context_packs"] = [
+        {
+            "name": "architecture",
+            "description": "Architecture decisions and overview",
+            "paths": ["docs/architecture.md"],
+            "sections": ["Decision", "Context"],
+            "tags_filter": ["architecture", "public"],
+            "include_context_packs": ["foundation"],
+            "token_budget": 6000,
+        },
+        {"name": "foundation", "paths": ["README.md"]},
+    ]
+
+    config = ConfigValidator().validate(data)
+    pack = config.context_packs[0]
+
+    assert pack.description == "Architecture decisions and overview"
+    assert pack.sections == ("Decision", "Context")
+    assert pack.tags_filter == ("architecture", "public")
+    assert pack.token_budget == 6000
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("description", 123),
+        ("sections", "Decision"),
+        ("sections", [None]),
+        ("tags_filter", "public"),
+        ("tags_filter", [123]),
+        ("token_budget", 0),
+    ],
+)
+def test_validator_rejects_invalid_context_pack_schema_fields(
+    tmp_path: Path,
+    field: str,
+    value: object,
+) -> None:
+    data = valid_config(tmp_path)
+    data["context_packs"] = [
+        {
+            "name": "architecture",
+            "paths": ["docs/architecture.md"],
+            field: value,
+        }
+    ]
+
+    errors = ConfigValidator().collect_errors(data)
+
+    assert errors[0].field == f"context_packs[0].{field}"
 
 
 def test_validator_rejects_duplicate_context_pack_names(tmp_path: Path) -> None:

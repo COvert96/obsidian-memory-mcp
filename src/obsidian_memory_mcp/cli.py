@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import time
 from pathlib import Path
 from typing import Literal
 
@@ -12,8 +13,13 @@ from obsidian_memory_mcp.config import (
     ConfigValidationException,
     ProjectConfig,
 )
+from obsidian_memory_mcp.cli_pack import (
+    COMMAND_PACK,
+    add_pack_parser,
+    handle_pack_command,
+)
 from obsidian_memory_mcp.errors import ToolExecutionError
-from obsidian_memory_mcp.indexer import IndexMode, IndexRunResult, run_index
+from obsidian_memory_mcp.indexing import IndexMode, IndexRunResult, run_index
 from obsidian_memory_mcp.search_debug import (
     DebugSearchError,
     debug_search,
@@ -56,6 +62,8 @@ def main(argv: list[str] | None = None) -> int:
         and arguments.debug_command == _SUBCOMMAND_SEARCH
     ):
         return _debug_search(arguments)
+    if arguments.command == COMMAND_PACK:
+        return handle_pack_command(arguments, _load_config)
     if arguments.command == _COMMAND_SERVE:
         return _serve(
             transport=arguments.transport, registry_path=arguments.registry_path
@@ -128,6 +136,8 @@ def _build_argument_parser() -> argparse.ArgumentParser:
     search_parser.add_argument(
         "--json", action="store_true", help="Emit structured JSON output."
     )
+
+    add_pack_parser(subparsers)
 
     serve_parser = subparsers.add_parser(_COMMAND_SERVE, help="Run the MCP server.")
     serve_parser.add_argument(
@@ -315,6 +325,10 @@ def _exit_code_for_index_result(result: IndexRunResult) -> int:
     if result.status == "success_with_errors":
         return 2
     return 0
+
+
+def _duration_ms(started: float) -> int:
+    return max(0, int((time.perf_counter() - started) * 1000))
 
 
 def _serve(*, transport: Transport, registry_path: Path | None) -> int:

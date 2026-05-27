@@ -1,4 +1,4 @@
-"""Retrieval use cases for guarded note reads and indexed search."""
+"""Indexed search retrieval service."""
 
 from __future__ import annotations
 
@@ -7,72 +7,17 @@ import re
 import sqlite3
 from dataclasses import dataclass
 from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
-from obsidian_memory_mcp.config import GuardrailEvaluator, ProjectConfig
+from obsidian_memory_mcp.config import ProjectConfig
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
 from obsidian_memory_mcp.schema import connect_index_db
-from obsidian_memory_mcp.vault import parse_frontmatter
 
-_HEADING_RE = re.compile(r"^(#{1,6})[ \t]+(.+?)\s*$")
-_FENCE_RE = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})")
 _BOOLEAN_TERMS = frozenset({"AND", "OR", "NOT"})
 _MAX_SEARCH_LIMIT = 100
 _PREVIEW_RADIUS = 80
 _PREVIEW_MIN_LENGTH = 180
 _PREVIEW_MAX_LENGTH = 200
-
-
-class ReadNoteService:
-    """Read complete markdown notes through the configured read guardrails."""
-
-    def __init__(self, config: ProjectConfig, guardrails: GuardrailEvaluator):
-        self._config = config
-        self._guardrails = guardrails
-
-    def read(self, note_path: str) -> dict[str, Any]:
-        resolved_path = _resolve_existing_note(
-            self._config, self._guardrails, note_path
-        )
-        raw = _read_text(self._config, resolved_path)
-        return {
-            "file_path": resolved_path.relative_to(self._config.vault_path).as_posix(),
-            "content": raw,
-            "frontmatter": parse_frontmatter(raw),
-            "file_size_bytes": len(raw.encode("utf-8")),
-        }
-
-
-class ReadSectionService:
-    """Read one heading section from a guarded markdown note."""
-
-    def __init__(self, config: ProjectConfig, guardrails: GuardrailEvaluator):
-        self._config = config
-        self._guardrails = guardrails
-
-    def read(self, note_path: str, heading_name: str) -> dict[str, Any]:
-        resolved_path = _resolve_existing_note(
-            self._config, self._guardrails, note_path
-        )
-        raw = _read_text(self._config, resolved_path)
-        section = _extract_section(raw, heading_name)
-        if section is None:
-            file_path = resolved_path.relative_to(self._config.vault_path).as_posix()
-            raise ToolExecutionError(
-                build_error(
-                    ErrorCode.ERR_SECTION_NOT_FOUND,
-                    details={"file_path": file_path, "heading_name": heading_name},
-                )
-            )
-
-        return {
-            "file_path": resolved_path.relative_to(self._config.vault_path).as_posix(),
-            "heading": section.heading,
-            "heading_level": section.heading_level,
-            "content": section.content,
-            "context_prefix": section.context_prefix,
-        }
 
 
 class SearchService:
@@ -128,186 +73,9 @@ class SearchService:
 
 
 @dataclass(frozen=True)
-class _Heading:
-    line_index: int
-    level: int
-    text: str
-
-
-@dataclass(frozen=True)
-class _FenceState:
-    marker: str
-    length: int
-
-
-@dataclass(frozen=True)
-class _ExtractedSection:
-    heading: str
-    heading_level: int
-    content: str
-    context_prefix: str
-
-
-@dataclass(frozen=True)
 class _RegexQuery:
     pattern: re.Pattern[str]
     fts_query: str
-
-
-def _resolve_existing_note(
-    config: ProjectConfig,
-    guardrails: GuardrailEvaluator,
-    note_path: str,
-) -> Path:
-    resolved_path = guardrails.check_read(note_path)
-    if resolved_path.is_file():
-        return resolved_path
-
-    relative = resolved_path.relative_to(config.vault_path).as_posix()
-    raise ToolExecutionError(
-        build_error(ErrorCode.ERR_MISSING_FILE, details={"file_path": relative})
-    )
-
-
-def _read_text(config: ProjectConfig, path: Path) -> str:
-    try:
-        return path.read_text(encoding="utf-8")
-    except PermissionError as error:
-        relative = path.relative_to(config.vault_path).as_posix()
-        raise ToolExecutionError(
-            build_error(
-                ErrorCode.ERR_GUARDRAIL_VIOLATION,
-                message=f"Path '{relative}' is not readable.",
-                details={"path": relative, "suggestion": "Choose a readable note."},
-            )
-        ) from error
-
-
-def _extract_section(content: str, heading_name: str) -> _ExtractedSection | None:
-    lines = content.splitlines()
-    headings = _find_headings(lines)
-    heading = _matching_heading(headings, heading_name)
-    if heading is None:
-        return None
-
-    end_index = _section_end_index(headings, heading, line_count=len(lines))
-    section_content = "\n".join(lines[heading.line_index : end_index]).rstrip()
-    context_prefix = _context_prefix(lines, headings, heading.line_index)
-    return _ExtractedSection(
-        heading=heading.text,
-        heading_level=heading.level,
-        content=section_content,
-        context_prefix=context_prefix,
-    )
-
-
-def _find_headings(lines: list[str]) -> tuple[_Heading, ...]:
-    headings: list[_Heading] = []
-    fence_state: _FenceState | None = None
-
-    for index, line in enumerate(lines):
-        fence_match = _FENCE_RE.match(line)
-        if fence_match is not None:
-            fence_state = _next_fence_state(fence_match, fence_state)
-            continue
-        if fence_state is not None:
-            continue
-
-        match = _HEADING_RE.match(line)
-        if match is None:
-            continue
-
-        headings.append(
-            _Heading(
-                line_index=index,
-                level=len(match.group(1)),
-                text=_clean_heading_text(match.group(2)),
-            )
-        )
-
-    return tuple(headings)
-
-
-def _matching_heading(
-    headings: tuple[_Heading, ...],
-    heading_name: str,
-) -> _Heading | None:
-    target = _normalize_heading_name(heading_name)
-    return next(
-        (
-            heading
-            for heading in headings
-            if _normalize_heading_name(heading.text) == target
-        ),
-        None,
-    )
-
-
-def _section_end_index(
-    headings: tuple[_Heading, ...],
-    current: _Heading,
-    *,
-    line_count: int,
-) -> int:
-    following_headings = (
-        heading for heading in headings if heading.line_index > current.line_index
-    )
-    for heading in following_headings:
-        if heading.level <= current.level:
-            return heading.line_index
-    return line_count
-
-
-def _context_prefix(
-    lines: list[str],
-    headings: tuple[_Heading, ...],
-    heading_index: int,
-) -> str:
-    frontmatter_body_start = _frontmatter_body_start(lines)
-    heading_line_indexes = {heading.line_index for heading in headings}
-    context: list[str] = []
-    index = heading_index - 1
-
-    while index >= frontmatter_body_start and len(context) < 3:
-        line = lines[index]
-        if index in heading_line_indexes:
-            break
-        if line.strip():
-            context.append(line)
-        index -= 1
-
-    return "\n".join(reversed(context))
-
-
-def _frontmatter_body_start(lines: list[str]) -> int:
-    if not lines or lines[0].strip() != "---":
-        return 0
-    for index, line in enumerate(lines[1:], start=1):
-        if line.strip() == "---":
-            return index + 1
-    return 0
-
-
-def _next_fence_state(
-    match: re.Match[str],
-    current: _FenceState | None,
-) -> _FenceState | None:
-    marker_text = match.group(1)
-    marker = marker_text[0]
-    length = len(marker_text)
-    if current is None:
-        return _FenceState(marker=marker, length=length)
-    if current.marker == marker and length >= current.length:
-        return None
-    return current
-
-
-def _clean_heading_text(text: str) -> str:
-    return re.sub(r"\s+#+\s*$", "", text).strip()
-
-
-def _normalize_heading_name(value: str) -> str:
-    return _clean_heading_text(value.lstrip("#").strip()).casefold()
 
 
 def _validate_limit(limit: int) -> int:

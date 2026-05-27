@@ -11,7 +11,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 
 from obsidian_memory_mcp.config import ConfigLoader
 from obsidian_memory_mcp.errors import ErrorCode
-from obsidian_memory_mcp.indexer import IndexMode, run_index
+from obsidian_memory_mcp.indexing import IndexMode, run_index
 from obsidian_memory_mcp.server import mcp
 from obsidian_memory_mcp.server_registry import SERVER_REGISTRY_ENV_VAR
 

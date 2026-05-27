@@ -1,4 +1,4 @@
-"""MCP server — tool registration and request handling.
+"""MCP server - tool registration and request handling.
 
 Follows the FastMCP pattern: a module-level ``mcp`` instance with
 ``@mcp.tool()``-decorated functions.  FastMCP handles transport, JSON-RPC
@@ -20,6 +20,7 @@ from obsidian_memory_mcp.config import (
     ProjectConfig,
     load_project_config,
 )
+from obsidian_memory_mcp.context_packs import ContextPackLoader
 from obsidian_memory_mcp.retrieval import (
     ReadNoteService,
     ReadSectionService,
@@ -90,6 +91,48 @@ def search_notes(
     return {"project": project, **result}
 
 
+@mcp.tool()
+def get_context_pack(
+    project: str,
+    pack_name: str,
+    strict_budget: bool = True,
+) -> dict[str, Any]:
+    """Load a configured context pack from a project vault.
+
+    Args:
+        project: Project name as defined in the server registry.
+        pack_name: Context pack name from the project's memory-mcp.yaml.
+            Call list_context_packs first when the pack name is unknown.
+        strict_budget: When true, reject packs over budget instead of truncating.
+    """
+    config = _project_config(project)
+    result = _make_context_pack_loader(config).load(
+        pack_name,
+        strict_budget=strict_budget,
+    )
+    return {"project": project, **result.as_response()}
+
+
+@mcp.tool()
+def list_context_packs(project: str) -> dict[str, Any]:
+    """List configured context packs for a project.
+
+    Args:
+        project: Project name as defined in the server registry.
+    """
+    config = _project_config(project)
+    packs = _make_context_pack_loader(config).list_packs()
+    return {
+        "project": project,
+        "context_packs": [pack.as_response() for pack in packs],
+        "returned_count": len(packs),
+    }
+
+
 def _project_config(project: str) -> ProjectConfig:
     registry = load_project_registry()
     return load_project_config(registry.resolve(project))
+
+
+def _make_context_pack_loader(config: ProjectConfig) -> ContextPackLoader:
+    return ContextPackLoader(config)
