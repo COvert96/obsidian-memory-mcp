@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from obsidian_memory_mcp.config import ConfigLoader
-from obsidian_memory_mcp.indexer import IndexMode, run_index
+from obsidian_memory_mcp.indexing import IndexMode, run_index
 from obsidian_memory_mcp.parser import PARSER_VERSION
 from obsidian_memory_mcp.search_debug import debug_search
 
@@ -105,7 +105,7 @@ def test_metadata_drift_with_unchanged_file_hash_updates_stat_without_reparse(
         raise AssertionError("unchanged content should not be reparsed")
 
     monkeypatch.setattr(
-        "obsidian_memory_mcp.indexer.parse_markdown_bytes", fail_if_parsed
+        "obsidian_memory_mcp.indexing.service.parse_markdown_bytes", fail_if_parsed
     )
 
     result = run_index(index_config)
@@ -148,7 +148,7 @@ def test_nonfatal_file_error_does_not_abort_whole_run(
             raise PermissionError("permission denied")
         return path.read_bytes()
 
-    monkeypatch.setattr("obsidian_memory_mcp.indexer.read_file_bytes", read_bytes)
+    monkeypatch.setattr("obsidian_memory_mcp.indexing.service.read_file_bytes", read_bytes)
 
     result = run_index(index_config, mode=IndexMode.FULL)
 
@@ -173,7 +173,7 @@ def test_unreadable_directory_does_not_abort_discovery(
             raise PermissionError("blocked directory")
         return original_scandir(path)
 
-    monkeypatch.setattr("obsidian_memory_mcp.indexer.os.scandir", scandir)
+    monkeypatch.setattr("obsidian_memory_mcp.indexing.service.os.scandir", scandir)
 
     result = run_index(index_config, mode=IndexMode.FULL)
 
@@ -195,7 +195,7 @@ def test_incremental_retries_file_with_previous_error(
             raise PermissionError("temporary lock")
         return path.read_bytes()
 
-    monkeypatch.setattr("obsidian_memory_mcp.indexer.read_file_bytes", read_bytes)
+    monkeypatch.setattr("obsidian_memory_mcp.indexing.service.read_file_bytes", read_bytes)
     failed = run_index(index_config, mode=IndexMode.FULL)
 
     result = run_index(index_config)
@@ -219,7 +219,9 @@ def test_unexpected_error_marks_run_failed_instead_of_leaving_it_running(
     def fail_replace(*args, **kwargs):  # noqa: ANN002, ANN003
         raise KeyError("missing section")
 
-    monkeypatch.setattr("obsidian_memory_mcp.indexer._replace_file_index", fail_replace)
+    monkeypatch.setattr(
+        "obsidian_memory_mcp.indexing.service.replace_file_index", fail_replace
+    )
 
     result = run_index(index_config, mode=IndexMode.FULL)
     connection = _connect(index_config.index_db_location)

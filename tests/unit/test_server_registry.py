@@ -44,7 +44,7 @@ def test_projects_mapping_is_immutable(registry_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# load_project_registry — file-level failures
+# load_project_registry - file-level failures
 # ---------------------------------------------------------------------------
 
 

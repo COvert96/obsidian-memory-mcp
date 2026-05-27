@@ -2,17 +2,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-
-
-CONFIG_FILE_NAME = "memory-mcp.yaml"
-DEFAULT_TAGS_SEPARATOR = ","
-DEFAULT_MAX_PROPOSAL_TTL_HOURS = 24
+from typing import ClassVar
 
 
 @dataclass(frozen=True)
 class ContextPackConfig:
     name: str
     paths: tuple[str, ...]
+    description: str | None = None
+    sections: tuple[str, ...] = ()
+    tags_filter: tuple[str, ...] = ()
     include_context_packs: tuple[str, ...] = ()
     token_budget: int | None = None
 
@@ -31,6 +30,10 @@ class AccessConstraints:
 
 @dataclass(frozen=True)
 class ProjectConfig:
+    CONFIG_FILE_NAME: ClassVar[str] = "memory-mcp.yaml"
+    DEFAULT_TAGS_SEPARATOR: ClassVar[str] = ","
+    DEFAULT_MAX_PROPOSAL_TTL_HOURS: ClassVar[int] = 24
+
     vault_path: Path
     index_db_location: Path
     context_packs: tuple[ContextPackConfig, ...]

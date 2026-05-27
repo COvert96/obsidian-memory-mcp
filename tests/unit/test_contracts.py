@@ -9,6 +9,7 @@ from obsidian_memory_mcp.errors import ERROR_CATALOG, ErrorCode, build_error
 EXPECTED_TOOL_NAMES = {
     "approve_proposal",
     "get_context_pack",
+    "list_context_packs",
     "list_proposals",
     "propose_memory_update",
     "read_note",
@@ -57,6 +58,16 @@ def test_search_notes_contract_documents_heading_level_and_path_filters() -> Non
     assert isinstance(request["paths"], list)
     assert "exclude_paths" in request
     assert "heading_level" in result
+
+
+def test_list_context_packs_contract_documents_metadata_fields() -> None:
+    response = TOOL_CONTRACTS["list_context_packs"].example_response
+
+    assert response["returned_count"] >= 1
+    first_pack = response["context_packs"][0]
+    assert "pack_name" in first_pack
+    assert "token_budget" in first_pack
+    assert "description" in first_pack
 
 
 # ---------------------------------------------------------------------------
