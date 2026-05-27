@@ -39,10 +39,7 @@ def test_read_section_returns_heading_body_nested_headings_and_context(
         "heading": "Installation",
         "heading_level": 2,
         "content": (
-            "## Installation\n"
-            "Install the package.\n"
-            "### Windows\n"
-            "Use PowerShell."
+            "## Installation\nInstall the package.\n### Windows\nUse PowerShell."
         ),
         "context_prefix": "Context one.\nContext two.\nContext three.",
     }
@@ -65,13 +62,7 @@ def test_read_section_ignores_heading_markers_inside_fenced_code(
 ) -> None:
     note = vault_root / "wiki" / "code.md"
     note.write_text(
-        "# Real\n"
-        "```md\n"
-        "## Fake\n"
-        "```\n"
-        "Still real.\n"
-        "# Next\n"
-        "Done.\n",
+        "# Real\n```md\n## Fake\n```\nStill real.\n# Next\nDone.\n",
         encoding="utf-8",
     )
 

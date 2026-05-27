@@ -7,7 +7,11 @@ import sqlite3
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from obsidian_memory_mcp.indexing._models import FileCandidate, _FileIndexError, _RunStats
+from obsidian_memory_mcp.indexing._models import (
+    FileCandidate,
+    _FileIndexError,
+    _RunStats,
+)
 
 if TYPE_CHECKING:
     from obsidian_memory_mcp.parser import ParsedNote
