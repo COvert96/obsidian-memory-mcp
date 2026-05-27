@@ -143,6 +143,7 @@ Recommend refactoring when any of the following are detected:
 - **Tramp Data**: A Use Case receives or returns a raw Entity to/from the UI. Extract dedicated Request/Response DTOs.
 - **Detail lock-in** (Rigid Redesign): Switching a concrete detail (e.g., a specific DB) would require rewriting business logic. Insert a Gateway interface.
 - **React/Next.js boundary bleed**: Server component data-fetching logic, `useRouter`, or `fetch` calls appear inside components that contain business logic. Extract into a dedicated service/use-case layer; keep components as pure presenters.
+- **Type-import inversion**: An infrastructure module (repository, writer, adapter) imports a type that is defined in a service or use-case module. Fix: extract the shared type into a shared models/DTOs module that both sides import. A repository importing from its service is a layering violation regardless of how small the import is.
 
 **Output format for refactoring recommendations**: Provide (1) the identified smell, (2) the specific violation, (3) the recommended structural change with a before/after code sketch.
 
@@ -150,7 +151,8 @@ Recommend refactoring when any of the following are detected:
 
 ## System Design Heuristics
 
-- **Screaming Structure**: Top-level package names should reflect use cases (`orders/`, `catalog/`), not technical layers (`controllers/`, `models/`).
+- **Screaming Structure**: Top-level package/module names should reflect use cases (`orders/`, `catalog/`), not technical layers (`controllers/`, `models/`). Within a domain package, filenames should make the layer order legible: shared data models → repository (infrastructure/IO) → service (orchestration). No upward imports — if a repository needs a type from its service, that type belongs in a shared models module.
+- **Package boundary surface**: A package's public entry point (barrel file, `__init__.py`, `index.ts`) should re-export only the stable API that external callers need. Internal submodules are implementation details. If callers must reach into internals to get what they need, the public entry point is under-exporting and the boundary is leaking.
 - **Evaluate Modularity**: Decompose systems into independently deployable units (jars, packages, services).
 - **Preserve Optionality**: When asked to choose a concrete tool or framework, assess reversibility first. If reversible or premature, propose an abstraction boundary and explain the tradeoff. If a concrete choice is required, recommend one and specify it should be injected at the outermost layer (Composition Root / Main).
 - **Boundary Cost Rule**: Implement a boundary when: (a) the volatile component has ≥2 consumers, OR (b) switching it without the boundary would require touching more than one layer.
