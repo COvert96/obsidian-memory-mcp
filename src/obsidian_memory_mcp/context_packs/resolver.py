@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import difflib
 import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -80,15 +81,21 @@ class ContextPackResolver:
         if pack is not None:
             return pack
 
+        known_pack_names = sorted(self._packs_by_name)
+        close_matches = tuple(
+            difflib.get_close_matches(pack_name, known_pack_names, n=3, cutoff=0.6)
+        )
         raise ToolExecutionError(
             build_error(
                 ErrorCode.ERR_INVALID_PROJECT,
                 message=f"Context pack '{pack_name}' is not configured for this project.",
                 details={
                     "pack_name": pack_name,
-                    "known_context_packs": sorted(self._packs_by_name),
+                    "known_context_packs": known_pack_names,
+                    "closest_matches": list(close_matches),
                     "suggestion": (
-                        "Use a pack name from this project's context_packs config."
+                        "Call list_context_packs for this project and use an exact "
+                        "pack_name from that result."
                     ),
                 },
             )

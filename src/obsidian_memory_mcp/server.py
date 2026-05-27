@@ -102,6 +102,7 @@ def get_context_pack(
     Args:
         project: Project name as defined in the server registry.
         pack_name: Context pack name from the project's memory-mcp.yaml.
+            Call list_context_packs first when the pack name is unknown.
         strict_budget: When true, reject packs over budget instead of truncating.
     """
     config = _project_config(project)
@@ -110,6 +111,22 @@ def get_context_pack(
         strict_budget=strict_budget,
     )
     return {"project": project, **result.as_response()}
+
+
+@mcp.tool()
+def list_context_packs(project: str) -> dict[str, Any]:
+    """List configured context packs for a project.
+
+    Args:
+        project: Project name as defined in the server registry.
+    """
+    config = _project_config(project)
+    packs = _make_context_pack_loader(config).list_packs()
+    return {
+        "project": project,
+        "context_packs": [pack.as_response() for pack in packs],
+        "returned_count": len(packs),
+    }
 
 
 def _project_config(project: str) -> ProjectConfig:

@@ -56,6 +56,28 @@ class ContextPackResult:
         }
 
 
+@dataclass(frozen=True)
+class ContextPackSummary:
+    pack_name: str
+    description: str | None
+    token_budget: int
+    path_patterns: tuple[str, ...]
+    sections: tuple[str, ...]
+    tags_filter: tuple[str, ...]
+    include_context_packs: tuple[str, ...]
+
+    def as_response(self) -> dict[str, Any]:
+        return {
+            "pack_name": self.pack_name,
+            "description": self.description,
+            "token_budget": self.token_budget,
+            "path_patterns": list(self.path_patterns),
+            "sections": list(self.sections),
+            "tags_filter": list(self.tags_filter),
+            "include_context_packs": list(self.include_context_packs),
+        }
+
+
 class IndexQueries(Protocol):
     def bm25_ranks(
         self,

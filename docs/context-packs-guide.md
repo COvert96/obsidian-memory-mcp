@@ -5,6 +5,10 @@ They let operators load recurring context in one `get_context_pack` call while
 enforcing a deterministic token budget. The default budget is 8000 tokens; a pack
 can override it with `token_budget`.
 
+When an MCP client does not already know pack names, call `list_context_packs`
+first and then call `get_context_pack` with one of the returned `pack_name`
+values.
+
 ## Example
 
 ```yaml
