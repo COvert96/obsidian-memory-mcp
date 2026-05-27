@@ -165,6 +165,7 @@ TOOL_CONTRACTS: dict[str, ToolContract] = {
         possible_errors=(
             ErrorCode.ERR_INVALID_REQUEST,
             ErrorCode.ERR_INVALID_PROJECT,
+            ErrorCode.ERR_MISSING_FILE,
             ErrorCode.ERR_GUARDRAIL_VIOLATION,
             ErrorCode.ERR_INTERNAL,
         ),
@@ -201,7 +202,7 @@ TOOL_CONTRACTS: dict[str, ToolContract] = {
             "project": "occlave",
             "proposals": [
                 {
-                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
                     "file_path": "Memory/company-summary.md",
                     "operation": "update",
                     "status": "pending",
@@ -220,7 +221,6 @@ TOOL_CONTRACTS: dict[str, ToolContract] = {
             ErrorCode.ERR_INVALID_REQUEST,
             ErrorCode.ERR_INVALID_PROJECT,
             ErrorCode.ERR_STALE_PROPOSAL,
-            ErrorCode.ERR_MISSING_FILE,
             ErrorCode.ERR_GUARDRAIL_VIOLATION,
             ErrorCode.ERR_INTERNAL,
         ),
@@ -236,6 +236,28 @@ TOOL_CONTRACTS: dict[str, ToolContract] = {
             "status": "applied",
             "written_at": "2026-05-23T10:15:00Z",
             "file_size_bytes": 128,
+        },
+    ),
+    "reject_proposal": ToolContract(
+        name="reject_proposal",
+        description="Reject a pending proposal without applying file changes.",
+        possible_errors=(
+            ErrorCode.ERR_INVALID_REQUEST,
+            ErrorCode.ERR_INVALID_PROJECT,
+            ErrorCode.ERR_STALE_PROPOSAL,
+            ErrorCode.ERR_INTERNAL,
+        ),
+        example_request={
+            "project": "occlave",
+            "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
+        },
+        example_response={
+            "project": "occlave",
+            "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
+            "file_path": "Memory/company-summary.md",
+            "operation": "update",
+            "status": "rejected",
+            "rejected_at": "2026-05-23T10:15:00Z",
         },
     ),
 }
