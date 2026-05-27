@@ -502,7 +502,7 @@ If adopted later, keep parser and index policy logic independent of ORM concerns
 
 - `src/obsidian_memory_mcp/parser.py`
 - `src/obsidian_memory_mcp/schema.py`
-- `src/obsidian_memory_mcp/indexer.py`
+- `src/obsidian_memory_mcp/indexing/service.py`
 - `src/obsidian_memory_mcp/status.py`
 - `src/obsidian_memory_mcp/search_debug.py`
 - `src/obsidian_memory_mcp/cli.py` (extended)

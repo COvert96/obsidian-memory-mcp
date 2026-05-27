@@ -5,8 +5,8 @@ from typing import Any
 
 import yaml
 
-from obsidian_memory_mcp.config.model import CONFIG_FILE_NAME, ProjectConfig
-from obsidian_memory_mcp.config.validator import (
+from obsidian_memory_mcp.config.model import ProjectConfig
+from obsidian_memory_mcp.config.validation import (
     ConfigValidationException,
     ConfigValidator,
 )
@@ -25,15 +25,18 @@ class ConfigLoader:
         if self._cached_config is not None:
             return self._cached_config
 
-        config_path = self._vault_root / CONFIG_FILE_NAME
+        config_path = self._vault_root / ProjectConfig.CONFIG_FILE_NAME
         if not config_path.exists():
             raise ConfigValidationException(
                 build_error(
                     ErrorCode.ERR_INVALID_PROJECT,
                     message=f"Config file not found at '{config_path}'.",
                     details={
-                        "field": CONFIG_FILE_NAME,
-                        "suggestion": f"Create {CONFIG_FILE_NAME} in the vault root and retry.",
+                        "field": ProjectConfig.CONFIG_FILE_NAME,
+                        "suggestion": (
+                            f"Create {ProjectConfig.CONFIG_FILE_NAME} "
+                            "in the vault root and retry."
+                        ),
                     },
                 )
             )
@@ -52,7 +55,7 @@ class ConfigLoader:
                     ErrorCode.ERR_INVALID_PROJECT,
                     message=f"Config file '{config_path}' contains malformed YAML: {error}.",
                     details={
-                        "field": CONFIG_FILE_NAME,
+                        "field": ProjectConfig.CONFIG_FILE_NAME,
                         "suggestion": "Fix the YAML syntax, then run 'mcp-memory config validate' again.",
                     },
                 )
