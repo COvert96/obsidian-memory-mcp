@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import sqlite3
 import uuid
 from collections.abc import Callable
 from contextlib import contextmanager
@@ -441,7 +442,7 @@ def _apply_file_change(proposal: Proposal, target: Path) -> int:
     if proposal.content is None:
         raise RuntimeError(f"Proposal '{proposal.proposal_id}' has no content.")
 
-    content_bytes = escape_wikilink_alias_separator(proposal.content).encode("utf-8")
+    content_bytes = proposal.content.encode("utf-8")
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = target.with_name(f".{target.name}.{uuid.uuid4().hex}.tmp")
     try:
@@ -487,7 +488,7 @@ def _utc_now() -> datetime:
 
 
 def _bootstrap_schema_once(
-    connection,
+    connection: sqlite3.Connection,
     index_db_path: Path,
     *,
     database_existed: bool,
