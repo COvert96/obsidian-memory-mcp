@@ -48,7 +48,10 @@ from obsidian_memory_mcp.server_registry import (
     load_project_registry,
 )
 from obsidian_memory_mcp.status import IndexStatus, get_index_status, list_index_errors
+from obsidian_memory_mcp.writes import WriteAuditRepository
+from obsidian_memory_mcp.writes._models import WriteAuditEntry
 
+_COMMAND_AUDIT = "audit"
 _COMMAND_CONFIG = "config"
 _COMMAND_BENCHMARK = "benchmark"
 _COMMAND_DEBUG = "debug"
@@ -68,6 +71,7 @@ _SUBCOMMAND_STATUS = "status"
 _SUBCOMMAND_VALIDATE = "validate"
 _SUBCOMMAND_RELEVANCE = "relevance"
 _SUBCOMMAND_PERFORMANCE = "performance"
+_SUBCOMMAND_WRITES = "writes"
 Transport = Literal["stdio", "sse", "streamable-http"]
 
 
@@ -98,6 +102,8 @@ def main(argv: list[str] | None = None) -> int:
         return handle_pack_command(arguments, _load_config)
     if arguments.command == _COMMAND_PROPOSALS:
         return _proposals(arguments)
+    if arguments.command == _COMMAND_AUDIT:
+        return _audit(arguments)
     if arguments.command == _COMMAND_SERVE:
         return _serve(
             transport=arguments.transport, registry_path=arguments.registry_path
@@ -371,6 +377,35 @@ def _build_argument_parser() -> argparse.ArgumentParser:
         type=int,
         default=100,
         help="Maximum audit events from each event stream.",
+    )
+
+    audit_parser = subparsers.add_parser(
+        _COMMAND_AUDIT,
+        help="Inspect the append-only write audit log.",
+    )
+    audit_subparsers = audit_parser.add_subparsers(dest="audit_command")
+    audit_writes = audit_subparsers.add_parser(
+        _SUBCOMMAND_WRITES,
+        help="List write_audit entries for a vault.",
+        usage=(
+            "mcp-memory audit writes [vault_path] "
+            "[--project NAME] [--file-path PATH] [--limit 50]"
+        ),
+    )
+    audit_writes.add_argument(
+        "vault_root",
+        nargs="?",
+        type=Path,
+        default=Path.cwd(),
+        help="Path to the Obsidian vault root (default: current directory).",
+    )
+    audit_writes.add_argument("--project", help="Filter by project name.")
+    audit_writes.add_argument("--file-path", help="Filter by target vault path.")
+    audit_writes.add_argument(
+        "--limit",
+        type=int,
+        default=50,
+        help="Maximum audit entries to display.",
     )
 
     serve_parser = subparsers.add_parser(_COMMAND_SERVE, help="Run the MCP server.")
@@ -806,6 +841,44 @@ def _proposal_audit(arguments: argparse.Namespace) -> int:
     if printed == 0:
         print("No audit records.")
     return 0
+
+
+def _audit(arguments: argparse.Namespace) -> int:
+    if arguments.audit_command == _SUBCOMMAND_WRITES:
+        return _audit_writes(arguments)
+    print("Usage: mcp-memory audit writes [vault_path] ...")
+    return 1
+
+
+def _audit_writes(arguments: argparse.Namespace) -> int:
+    config = _load_config(arguments.vault_root)
+    if config is None:
+        return 3
+    if arguments.limit < 1:
+        print("Limit must be a positive integer.")
+        return 1
+
+    entries = WriteAuditRepository(config).list(
+        project=arguments.project,
+        file_path=arguments.file_path,
+        limit=arguments.limit,
+    )
+    if not entries:
+        print("No audit entries.")
+        return 0
+
+    print("occurred_at\ttool\tproject\tfile_path\toperation\tcontent_hash")
+    for entry in entries:
+        print(_format_audit_entry(entry))
+    return 0
+
+
+def _format_audit_entry(entry: WriteAuditEntry) -> str:
+    content_hash = (entry.content_hash or "")[:12]
+    return (
+        f"{entry.occurred_at.isoformat()}\t{entry.tool}\t{entry.project}\t"
+        f"{entry.file_path}\t{entry.operation}\t{content_hash}"
+    )
 
 
 def _print_proposal(

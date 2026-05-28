@@ -6,7 +6,7 @@ import sqlite3
 from dataclasses import dataclass
 
 from obsidian_memory_mcp.config import ProjectConfig
-from obsidian_memory_mcp.indexing import discover_markdown_files
+from obsidian_memory_mcp.indexing import FileCandidate, discover_markdown_files
 from obsidian_memory_mcp.parser import PARSER_VERSION
 from obsidian_memory_mcp.schema import (
     SCHEMA_VERSION,
@@ -142,8 +142,8 @@ def list_index_errors(
         connection.close()
 
 
-def _metadata_changed(row, candidate) -> bool:
-    return (
+def _metadata_changed(row: sqlite3.Row, candidate: FileCandidate) -> bool:
+    return bool(
         row["size_bytes"] != candidate.size_bytes
         or row["mtime_ns"] != candidate.mtime_ns
     )
