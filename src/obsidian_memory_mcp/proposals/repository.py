@@ -6,9 +6,10 @@ import json
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from obsidian_memory_mcp.proposals._audit import build_event_details
 from obsidian_memory_mcp.proposals._models import (
     Proposal,
     ProposalLifecycleEvent,
@@ -159,7 +160,14 @@ class ProposalRepository:
                 )
         return len(expired_rows)
 
-    def mark_applied_if_pending(self, proposal_id: str, now: datetime) -> bool:
+    def mark_applied_if_pending(
+        self,
+        proposal_id: str,
+        now: datetime,
+        *,
+        actor: str | None = None,
+        workflow_id: str | None = None,
+    ) -> bool:
         with self.transaction():
             cursor = self._connection.execute(
                 """
@@ -177,10 +185,24 @@ class ProposalRepository:
             )
             if cursor.rowcount != 1:
                 return False
-            self._insert_event(proposal_id, "applied", now, {"status": "applied"})
+            details = build_event_details(
+                {"status": "applied"},
+                actor=actor,
+                workflow_id=workflow_id,
+            )
+            self._insert_event(proposal_id, "applied", now, details)
         return True
 
-    def mark_rejected_if_pending(self, proposal_id: str, now: datetime) -> bool:
+    def mark_rejected_if_pending(
+        self,
+        proposal_id: str,
+        now: datetime,
+        *,
+        reason: str | None = None,
+        notes: str | None = None,
+        actor: str | None = None,
+        workflow_id: str | None = None,
+    ) -> bool:
         with self.transaction():
             cursor = self._connection.execute(
                 """
@@ -197,7 +219,14 @@ class ProposalRepository:
             )
             if cursor.rowcount != 1:
                 return False
-            self._insert_event(proposal_id, "rejected", now, {"status": "rejected"})
+            details = build_event_details(
+                {"status": "rejected"},
+                reason=reason,
+                notes=notes,
+                actor=actor,
+                workflow_id=workflow_id,
+            )
+            self._insert_event(proposal_id, "rejected", now, details)
         return True
 
     def mark_expired(self, proposal_id: str, now: datetime, *, reason: str) -> bool:
@@ -241,6 +270,77 @@ class ProposalRepository:
             (proposal_id,),
         ).fetchall()
         return tuple(_event_from_row(row) for row in rows)
+
+    def list_events(
+        self,
+        *,
+        proposal_id: str | None = None,
+        limit: int = 100,
+    ) -> tuple[ProposalLifecycleEvent, ...]:
+        if limit < 1:
+            raise ValueError("Event list limit must be positive.")
+        conditions: list[str] = []
+        parameters: list[object] = []
+        if proposal_id is not None:
+            conditions.append("proposal_id = ?")
+            parameters.append(proposal_id)
+        where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        parameters.append(limit)
+        rows = self._connection.execute(
+            f"""
+            SELECT id, proposal_id, event_type, occurred_at, details
+            FROM proposal_events
+            {where_clause}
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            tuple(parameters),
+        ).fetchall()
+        return tuple(_event_from_row(row) for row in rows)
+
+    def cleanup_terminal(
+        self,
+        now: datetime,
+        *,
+        retention_days: int,
+    ) -> int:
+        cutoff = _to_iso(now - timedelta(days=retention_days))
+        member_exclusion = """
+        AND NOT EXISTS (
+            SELECT 1
+            FROM proposal_changeset_members
+            WHERE proposal_changeset_members.proposal_id = proposals.id
+        )
+        """
+        with self.transaction():
+            cursor = self._connection.execute(
+                f"""
+                DELETE FROM proposals
+                WHERE status IN (?, ?, ?)
+                  AND COALESCE(status_changed_at, applied_at, created_at) <= ?
+                  {member_exclusion}
+                """,
+                (
+                    ProposalStatus.APPLIED.value,
+                    ProposalStatus.REJECTED.value,
+                    ProposalStatus.EXPIRED.value,
+                    cutoff,
+                ),
+            )
+        return int(cursor.rowcount)
+
+    def delete_by_ids(self, proposal_ids: tuple[str, ...]) -> int:
+        if not proposal_ids:
+            return 0
+        with self.transaction():
+            removed = 0
+            for proposal_id in proposal_ids:
+                cursor = self._connection.execute(
+                    "DELETE FROM proposals WHERE id = ?",
+                    (proposal_id,),
+                )
+                removed += int(cursor.rowcount)
+        return removed
 
     def _insert_event(
         self,

@@ -66,6 +66,10 @@ class ConfigValidator:
                 "max_proposal_content_bytes",
                 ProjectConfig.DEFAULT_MAX_PROPOSAL_CONTENT_BYTES,
             ),
+            proposal_retention_days=data.get(
+                "proposal_retention_days",
+                ProjectConfig.DEFAULT_PROPOSAL_RETENTION_DAYS,
+            ),
         )
 
     @staticmethod
@@ -346,6 +350,12 @@ class ConfigValidator:
             data,
             "max_proposal_content_bytes",
             "max_proposal_content_bytes",
+            errors,
+        )
+        self._validate_optional_positive_int(
+            data,
+            "proposal_retention_days",
+            "proposal_retention_days",
             errors,
         )
 
