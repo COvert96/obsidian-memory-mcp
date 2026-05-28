@@ -41,7 +41,9 @@ def add_pack_parser(subparsers: argparse._SubParsersAction) -> None:
         SUBCOMMAND_VALIDATE,
         help="Validate one configured context pack.",
     )
-    pack_validate_parser.add_argument("pack_name", help="Context pack name to validate.")
+    pack_validate_parser.add_argument(
+        "pack_name", help="Context pack name to validate."
+    )
     pack_validate_parser.add_argument(
         "vault_root",
         nargs="?",

@@ -38,62 +38,62 @@ Phase 5A does not attempt to solve higher-level semantic workflows such as contr
 **Description:** As a tool user, I want to propose a file change without modifying the vault so an operator can review it first.
 
 **Acceptance Criteria:**
-- [ ] Tool parameters: `project` (required), `file_path` (required), `operation` (required: "create"|"update"|"delete"), `content` (required for create/update, omitted for delete)
-- [ ] Returns: `{ proposal_id: str, file_path: str, operation: str, old_hash: str | null, new_hash: str | null, ttl_seconds: int }`
-- [ ] Proposal TTL default is 3600 seconds (1 hour); configurable per project
-- [ ] Proposal is validated against write guardrails before storage
-- [ ] No disk write occurs during proposal creation
-- [ ] Old content hash is captured for update/delete proposals
-- [ ] New content hash is captured for create/update proposals
-- [ ] Performance: proposal creation completes in under 100ms for typical markdown files (<=256KB) on local disk
+- [x] Tool parameters: `project` (required), `file_path` (required), `operation` (required: "create"|"update"|"delete"), `content` (required for create/update, omitted for delete)
+- [x] Returns: `{ proposal_id: str, file_path: str, operation: str, old_hash: str | null, new_hash: str | null, ttl_seconds: int }`
+- [x] Proposal TTL default is 3600 seconds (1 hour); configurable per project
+- [x] Proposal is validated against write guardrails before storage
+- [x] No disk write occurs during proposal creation
+- [x] Old content hash is captured for update/delete proposals
+- [x] New content hash is captured for create/update proposals
+- [x] Performance: proposal creation completes in under 100ms for typical markdown files (<=256KB) on local disk
 
 ### US-5A-002: Store and query proposal metadata
 **Description:** As a developer, I need proposal metadata stored durably so proposals can be listed, validated, and approved later.
 
 **Acceptance Criteria:**
-- [ ] Proposals are stored in SQLite with fields sufficient for file path, operation, old/new hash, content, created time, expiry time, and status
-- [ ] Proposals can be queried by ID, target file, status, and created time
-- [ ] Status transitions support at least: pending, applied, rejected, expired
+- [x] Proposals are stored in SQLite with fields sufficient for file path, operation, old/new hash, content, created time, expiry time, and status
+- [x] Proposals can be queried by ID, target file, status, and created time
+- [x] Status transitions support at least: pending, applied, rejected, expired
 
 ### US-5A-003: Review pending proposals
 **Description:** As an operator, I want to list pending proposals with enough preview information to decide what to approve.
 
 **Acceptance Criteria:**
-- [ ] `list_proposals` supports filtering by status and file path
-- [ ] Results are sorted newest first
-- [ ] Results include a content preview for create/update proposals
-- [ ] Expired proposals are marked or filtered correctly before results are returned
+- [x] `list_proposals` supports filtering by status and file path
+- [x] Results are sorted newest first
+- [x] Results include a content preview for create/update proposals
+- [x] Expired proposals are marked or filtered correctly before results are returned
 
 ### US-5A-004: Approve a proposal safely
 **Description:** As an operator, I want to approve a pending proposal so it gets applied only if the target file state is still valid.
 
 **Acceptance Criteria:**
-- [ ] `approve_proposal` accepts `proposal_id`
-- [ ] Approval fails with `ERR_INVALID_REQUEST` when the proposal does not exist
-- [ ] Approval fails with `ERR_STALE_PROPOSAL` when the proposal has expired
-- [ ] Approval fails with `ERR_STALE_PROPOSAL` when the current file hash no longer matches `old_hash`
-- [ ] Approval writes atomically to disk and marks the proposal as applied on success
-- [ ] Create operations create parent directories when needed
-- [ ] Delete operations fail clearly if the target file no longer exists
+- [x] `approve_proposal` accepts `proposal_id`
+- [x] Approval fails with `ERR_INVALID_REQUEST` when the proposal does not exist
+- [x] Approval fails with `ERR_STALE_PROPOSAL` when the proposal has expired
+- [x] Approval fails with `ERR_STALE_PROPOSAL` when the current file hash no longer matches `old_hash`
+- [x] Approval writes atomically to disk and marks the proposal as applied on success
+- [x] Create operations create parent directories when needed
+- [x] Delete operations fail clearly if the target file no longer exists
 
 ### US-5A-005: Provide minimum operator CLI support
 **Description:** As an operator, I need the smallest CLI surface that lets me review, approve, and reject proposals safely.
 
 **Acceptance Criteria:**
-- [ ] `mcp-memory proposals list` shows at minimum: proposal ID, target file path, operation, status, and age
-- [ ] `mcp-memory proposals list` is available in Phase 5A
-- [ ] `mcp-memory proposals approve {proposal_id}` is available in Phase 5A
-- [ ] `mcp-memory proposals reject {proposal_id}` is available in Phase 5A (marks proposal rejected without applying it)
-- [ ] CLI approval requires explicit confirmation before applying the write
-- [ ] CLI approval shows a content preview for create/update proposals before requesting confirmation
-- [ ] Performance: approval completes in under 200ms including disk write for typical markdown files (<=256KB) on local disk
+- [x] `mcp-memory proposals list` shows at minimum: proposal ID, target file path, operation, status, and age
+- [x] `mcp-memory proposals list` is available in Phase 5A
+- [x] `mcp-memory proposals approve {proposal_id}` is available in Phase 5A
+- [x] `mcp-memory proposals reject {proposal_id}` is available in Phase 5A (marks proposal rejected without applying it)
+- [x] CLI approval requires explicit confirmation before applying the write
+- [x] CLI approval shows a content preview for create/update proposals before requesting confirmation
+- [x] Performance: approval completes in under 200ms including disk write for typical markdown files (<=256KB) on local disk
 
 ### US-5A-006: Record proposal lifecycle events
 **Description:** As an operator, I need enough lifecycle records to understand what happened to a proposal.
 
 **Acceptance Criteria:**
-- [ ] Lifecycle records capture proposal creation, approval attempt, apply success, apply rejection, and expiry
-- [ ] Records are sufficient to explain why a proposal changed state or why a file write occurred
+- [x] Lifecycle records capture proposal creation, approval attempt, apply success, apply rejection, and expiry
+- [x] Records are sufficient to explain why a proposal changed state or why a file write occurred
 
 ## Precondition
 
@@ -130,12 +130,12 @@ Phase 5A should not be built unless a concrete write workflow exists that is not
 
 ## Success Metrics
 
-- [ ] 100% of Phase 5A writes require explicit approval
-- [ ] Zero stale proposals are applied after `old_hash` mismatch
-- [ ] Proposal creation completes in under 100ms for typical markdown files (<=256KB) on local disk
-- [ ] Proposal approval completes in under 200ms including disk write for typical markdown files (<=256KB) on local disk
-- [ ] Operators can review and approve a proposal in under 10 seconds
-- [ ] Phase 5A replaces at least one real manual write workflow
+- [x] 100% of Phase 5A writes require explicit approval
+- [x] Zero stale proposals are applied after `old_hash` mismatch
+- [x] Proposal creation completes in under 100ms for typical markdown files (<=256KB) on local disk
+- [x] Proposal approval completes in under 200ms including disk write for typical markdown files (<=256KB) on local disk
+- [x] Operators can review and approve a proposal in under 10 seconds
+- [x] Phase 5A replaces at least one real manual write workflow
 
 ## Open Questions
 

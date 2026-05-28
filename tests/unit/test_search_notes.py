@@ -70,9 +70,7 @@ def test_search_notes_filters_by_all_tags_include_paths_and_exclude_paths(
         exclude_paths=["wiki/private/**"],
     )
 
-    assert [item["file_path"] for item in result["results"]] == [
-        "wiki/api/urgent.md"
-    ]
+    assert [item["file_path"] for item in result["results"]] == ["wiki/api/urgent.md"]
 
 
 def test_search_notes_path_glob_requires_separator_for_mid_path_double_star(
@@ -86,9 +84,7 @@ def test_search_notes_path_glob_requires_separator_for_mid_path_double_star(
     (vault_root / "wiki" / "sub" / "deep" / "test.md").write_text(
         "# Deep\nneedle", encoding="utf-8"
     )
-    (vault_root / "wiki" / "badtest.md").write_text(
-        "# Bad\nneedle", encoding="utf-8"
-    )
+    (vault_root / "wiki" / "badtest.md").write_text("# Bad\nneedle", encoding="utf-8")
 
     result = _service(vault_root).search(
         "needle",
@@ -117,9 +113,10 @@ def test_search_notes_supports_multi_word_and_regex_queries(vault_root: Path) ->
     multi_word = service.search("complex query", limit=10)
     regex = service.search(r"/compliance\s+evidence/", limit=10)
 
-    assert {
-        item["file_path"] for item in multi_word["results"]
-    } >= {"wiki/exact.md", "wiki/near.md"}
+    assert {item["file_path"] for item in multi_word["results"]} >= {
+        "wiki/exact.md",
+        "wiki/near.md",
+    }
     assert [item["file_path"] for item in regex["results"]] == ["wiki/exact.md"]
 
 

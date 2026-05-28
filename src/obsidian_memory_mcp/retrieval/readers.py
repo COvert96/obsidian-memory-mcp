@@ -25,15 +25,13 @@ class ReadNoteService:
         self._guardrails = guardrails
 
     def read(self, note_path: str) -> dict[str, Any]:
-        resolved_path = resolve_existing_note(
-            self._config, self._guardrails, note_path
-        )
+        resolved_path = resolve_existing_note(self._config, self._guardrails, note_path)
         raw = read_text(self._config, resolved_path)
         return {
             "file_path": resolved_path.relative_to(self._config.vault_path).as_posix(),
             "content": raw,
             "frontmatter": parse_frontmatter(raw),
-            "file_size_bytes": len(raw.encode("utf-8")),
+            "file_size_bytes": _utf8_size(raw),
         }
 
 
@@ -45,9 +43,7 @@ class ReadSectionService:
         self._guardrails = guardrails
 
     def read(self, note_path: str, heading_name: str) -> dict[str, Any]:
-        resolved_path = resolve_existing_note(
-            self._config, self._guardrails, note_path
-        )
+        resolved_path = resolve_existing_note(self._config, self._guardrails, note_path)
         raw = read_text(self._config, resolved_path)
         section = _extract_section(raw, heading_name)
         if section is None:
@@ -122,3 +118,9 @@ def _frontmatter_body_start(lines: list[str]) -> int:
         if line.strip() == "---":
             return index + 1
     return 0
+
+
+def _utf8_size(content: str) -> int:
+    if content.isascii():
+        return len(content)
+    return len(content.encode("utf-8"))

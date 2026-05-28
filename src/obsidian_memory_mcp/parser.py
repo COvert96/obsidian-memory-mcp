@@ -9,6 +9,8 @@ from typing import Any
 
 import yaml
 
+from obsidian_memory_mcp.wikilinks import iter_non_embedded_wikilinks
+
 PARSER_VERSION = "phase2-2026-05-24"
 
 TARGET_BLOCK_MIN_TOKENS = 300
@@ -17,7 +19,6 @@ HARD_BLOCK_MAX_TOKENS = 1000
 
 _HEADING_RE = re.compile(r"^(#{1,6})[ \t]+(.+?)\s*$")
 _FENCE_RE = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})")
-_WIKILINK_RE = re.compile(r"(?<!!)\[\[([^\]|]+)(?:\|([^\]]+))?\]\]")
 _MARKDOWN_TAG_RE = re.compile(r"(?<![\w/])#([A-Za-z0-9][A-Za-z0-9_/-]*)")
 _INLINE_CODE_RE = re.compile(r"`[^`]*`")
 
@@ -509,18 +510,18 @@ def _extract_wikilinks(
     vault_path: str, section: ParsedSection
 ) -> tuple[ParsedWikilink, ...]:
     links: list[ParsedWikilink] = []
-    for match in _WIKILINK_RE.finditer(section.content):
-        raw_target = match.group(1).strip()
+    for token in iter_non_embedded_wikilinks(section.content):
+        raw_target = token.target.strip()
         if _looks_like_media_target(raw_target):
             continue
-        alias = match.group(2).strip() if match.group(2) else None
+        alias = token.alias.strip() if token.alias else None
         links.append(
             ParsedWikilink(
                 vault_path=vault_path,
                 source_section_key=section.section_key,
                 target=raw_target,
                 alias=alias,
-                raw=match.group(0),
+                raw=token.raw,
             )
         )
     return tuple(links)
