@@ -9,7 +9,16 @@ from alembic.config import Config
 from sqlalchemy.engine import URL
 from sqlalchemy.exc import SAWarning
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+
+def _find_repo_root(start_path: Path) -> Path:
+    search_root = start_path if start_path.is_dir() else start_path.parent
+    for candidate in (search_root, *search_root.parents):
+        if (candidate / "alembic.ini").is_file() and (candidate / "alembic").is_dir():
+            return candidate
+    raise RuntimeError("Unable to locate repository root for Alembic tests.")
+
+
+_REPO_ROOT = _find_repo_root(Path(__file__).resolve())
 _ALEMBIC_INI = _REPO_ROOT / "alembic.ini"
 
 

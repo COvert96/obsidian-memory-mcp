@@ -9,6 +9,10 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlalchemy.engine import URL
 
+from obsidian_memory_mcp.database._alembic_compare import (
+    compare_nullable_for_primary_keys,
+    include_object_for_compare,
+)
 from obsidian_memory_mcp.database._tables import metadata  # type: ignore[import-untyped]
 
 config = context.config
@@ -18,30 +22,6 @@ if config.config_file_name is not None:
 
 # Alembic uses this metadata for autogenerate comparisons and `alembic check`.
 target_metadata = metadata
-
-
-def _include_object(
-    object_: object,
-    name: str | None,
-    type_: str,
-    reflected: bool,
-    compare_to: object | None,
-) -> bool:
-    if type_ == "table" and reflected and name is not None and name.startswith(
-        "blocks_fts"
-    ):
-        return False
-
-    # SQLite reflection reports INTEGER/TEXT primary-key columns as nullable unless
-    # NOT NULL is explicitly specified. Skip PK nullable-only diffs to keep
-    # `alembic check` focused on real schema drift.
-    if type_ == "column" and reflected and compare_to is not None:
-        reflected_is_primary_key = bool(getattr(object_, "primary_key", False))
-        metadata_is_primary_key = bool(getattr(compare_to, "primary_key", False))
-        if reflected_is_primary_key and metadata_is_primary_key:
-            return False
-
-    return True
 
 
 def _sqlalchemy_url_for_online_migrations() -> str:
@@ -77,7 +57,8 @@ def run_migrations_offline() -> None:
     context.configure(
         url=url,
         target_metadata=target_metadata,
-        include_object=_include_object,
+        include_object=include_object_for_compare,
+        compare_nullable=compare_nullable_for_primary_keys,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -110,7 +91,8 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             render_as_batch=True,
-            include_object=_include_object,
+            include_object=include_object_for_compare,
+            compare_nullable=compare_nullable_for_primary_keys,
         )
 
         with context.begin_transaction():

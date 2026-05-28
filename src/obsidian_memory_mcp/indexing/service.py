@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 import time
 from collections.abc import Mapping
@@ -34,6 +35,7 @@ from obsidian_memory_mcp.schema import bootstrap_schema
 
 DEFAULT_EXCLUDED_DIRS = frozenset({".git", ".obsidian", ".trash", ".mcp"})
 SKIPPABLE_ERROR_TYPES = frozenset({"frontmatter_parse_error"})
+LOGGER = logging.getLogger(__name__)
 
 
 def run_index(
@@ -89,7 +91,7 @@ def run_index(
                 )
                 finish_run(connection, run_id, status, stats, elapsed)
             except Exception:
-                pass
+                LOGGER.exception("Failed to persist index failure diagnostics.")
         return _result(run_id, normalized_mode.value, status, stats, elapsed)
     finally:
         if connection is not None:

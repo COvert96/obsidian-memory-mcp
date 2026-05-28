@@ -12,9 +12,6 @@ from alembic.config import Config
 from alembic.script import Script, ScriptDirectory
 from sqlalchemy.engine import URL
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_ALEMBIC_INI = _REPO_ROOT / "alembic.ini"
-
 
 class InstallState(Enum):
     LEGACY_SCHEMA = "legacy_schema"
@@ -36,11 +33,14 @@ class MigrationError(RuntimeError):
 def migrate_index_database(
     index_db_path: Path,
     *,
-    alembic_ini_path: Path = _ALEMBIC_INI,
+    alembic_ini_path: Path | None = None,
 ) -> MigrationOutcome:
     try:
         install_state = detect_install_state(index_db_path)
-        config = _alembic_config(index_db_path, alembic_ini_path)
+        config = _alembic_config(
+            index_db_path,
+            alembic_ini_path or _default_alembic_ini_path(),
+        )
 
         if install_state is InstallState.LEGACY_SCHEMA:
             command.stamp(config, "head")
@@ -82,12 +82,38 @@ def detect_install_state(index_db_path: Path) -> InstallState:
     return InstallState.VERSIONED_DATABASE
 
 
+def _default_alembic_ini_path() -> Path:
+    project_root = _find_project_root(Path(__file__).resolve())
+    return project_root / "alembic.ini"
+
+
+def _find_project_root(start_path: Path) -> Path:
+    search_root = start_path if start_path.is_dir() else start_path.parent
+    for candidate in (search_root, *search_root.parents):
+        if _has_alembic_layout(candidate):
+            return candidate
+    raise MigrationError(
+        "Unable to locate Alembic project layout (missing alembic.ini and alembic/ directory)."
+    )
+
+
+def _has_alembic_layout(candidate: Path) -> bool:
+    return (candidate / "alembic.ini").is_file() and (candidate / "alembic").is_dir()
+
+
 def _alembic_config(index_db_path: Path, alembic_ini_path: Path) -> Config:
+    alembic_ini_path = alembic_ini_path.resolve(strict=False)
     if not alembic_ini_path.exists():
         raise MigrationError(f"Alembic config file not found at '{alembic_ini_path}'.")
 
+    script_location = alembic_ini_path.parent / "alembic"
+    if not script_location.is_dir():
+        raise MigrationError(
+            f"Alembic script directory not found at '{script_location}'."
+        )
+
     config = Config(str(alembic_ini_path))
-    config.set_main_option("script_location", str(_REPO_ROOT / "alembic"))
+    config.set_main_option("script_location", str(script_location))
     config.attributes["index_db_location"] = str(index_db_path)
     config.set_main_option(
         "sqlalchemy.url",

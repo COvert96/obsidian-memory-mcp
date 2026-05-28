@@ -11,6 +11,16 @@ from obsidian_memory_mcp.schema import (
 )
 
 
+class _RollbackTrackingConnection(sqlite3.Connection):
+    def __init__(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        super().__init__(*args, **kwargs)
+        self.rollback_calls = 0
+
+    def rollback(self) -> None:
+        self.rollback_calls += 1
+        super().rollback()
+
+
 def test_schema_bootstrap_creates_required_tables_indexes_and_user_version(
     tmp_path,
 ) -> None:
@@ -89,3 +99,14 @@ def test_schema_bootstrap_rejects_unsupported_user_version(tmp_path) -> None:
 
     with pytest.raises(SchemaVersionError):
         bootstrap_schema(connection)
+
+
+def test_schema_bootstrap_does_not_rollback_externally_owned_connection(tmp_path) -> None:
+    connection = sqlite3.connect(
+        tmp_path / "index.sqlite3",
+        factory=_RollbackTrackingConnection,
+    )
+
+    bootstrap_schema(connection)
+
+    assert connection.rollback_calls == 0
