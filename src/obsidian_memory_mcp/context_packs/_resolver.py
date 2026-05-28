@@ -14,7 +14,7 @@ from obsidian_memory_mcp.config import (
     GuardrailEvaluator,
     ProjectConfig,
 )
-from obsidian_memory_mcp.context_packs.models import (
+from obsidian_memory_mcp.context_packs._models import (
     PackDocument,
     Resolution,
     ResolvedContextPack,

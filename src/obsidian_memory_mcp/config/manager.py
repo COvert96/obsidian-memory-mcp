@@ -5,7 +5,7 @@ from typing import Any
 
 import yaml
 
-from obsidian_memory_mcp.config.model import ProjectConfig
+from obsidian_memory_mcp.config._models import ProjectConfig
 from obsidian_memory_mcp.config.validation import (
     ConfigValidationException,
     ConfigValidator,

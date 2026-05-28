@@ -8,19 +8,19 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from obsidian_memory_mcp.config import ContextPackConfig, ProjectConfig
-from obsidian_memory_mcp.context_packs.budget import (
+from obsidian_memory_mcp.context_packs._budget import (
     BudgetEnforcer,
     format_documents,
     with_near_budget_warning,
 )
-from obsidian_memory_mcp.context_packs.models import (
-    ContextPackSummary,
+from obsidian_memory_mcp.context_packs._models import (
     DEFAULT_CONTEXT_PACK_TOKEN_BUDGET,
     ContextPackResult,
+    ContextPackSummary,
     IndexQueries,
     PackDocument,
 )
-from obsidian_memory_mcp.context_packs.resolver import ContextPackResolver
+from obsidian_memory_mcp.context_packs._resolver import ContextPackResolver
 from obsidian_memory_mcp.schema import connect_index_db
 from obsidian_memory_mcp.tokens import estimate_tokens
 

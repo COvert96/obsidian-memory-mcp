@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from obsidian_memory_mcp.config.model import ProjectConfig
+from obsidian_memory_mcp.config._models import ProjectConfig
 from obsidian_memory_mcp.config.validation._errors import (
     ConfigValidationError,
     ConfigValidationException,
