@@ -1,0 +1,44 @@
+# Example memory-mcp.yaml for an Obsidian-style markdown vault.
+#
+# Copy this file to {vault_root}/memory-mcp.yaml and replace vault_path with
+# the absolute path to that vault.
+# Use a POSIX-style absolute path. On Windows, either `C:/path/to/vault` or
+# `C:\\path\\to\\vault` is valid.
+
+vault_path: "/path/to/example-vault"
+index_db_location: ".mcp/memory-index.sqlite3"
+
+context_packs:
+  - name: "release-overview"
+    description: "Core project orientation and architecture notes."
+    paths:
+      - "README.md"
+      - "docs/**/*.md"
+    token_budget: 8000
+
+  - name: "memory-workflow"
+    description: "Memory proposal, approval, and supersession notes."
+    paths:
+      - "Memory/**/*.md"
+      - "wiki/memory/**/*.md"
+    token_budget: 6000
+
+write_constraints:
+  read:
+    allow:
+      - "**/*.md"
+    deny:
+      - "Private/**"
+      - ".mcp/**"
+
+  write:
+    allow:
+      - "Memory/**"
+    deny:
+      - ".mcp/**"
+
+tags_separator: ","
+max_proposal_ttl_hours: 24
+proposal_ttl_seconds: 3600
+max_proposal_content_bytes: 1048576
+proposal_retention_days: 7

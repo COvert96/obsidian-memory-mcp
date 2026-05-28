@@ -8,6 +8,7 @@ import sqlite3
 import time
 from pathlib import Path
 
+from obsidian_memory_mcp._time import duration_ms
 from obsidian_memory_mcp.config import GuardrailEvaluator, ProjectConfig
 from obsidian_memory_mcp.indexing._models import (
     FileCandidate,
@@ -64,13 +65,13 @@ def run_index(
                 force_reindex=normalized_mode is IndexMode.FULL,
             )
         status = _status_for(stats)
-        duration_ms = _duration_ms(started)
-        finish_run(connection, run_id, status, stats, duration_ms)
-        return _result(run_id, normalized_mode.value, status, stats, duration_ms)
+        elapsed = duration_ms(started)
+        finish_run(connection, run_id, status, stats, elapsed)
+        return _result(run_id, normalized_mode.value, status, stats, elapsed)
     except Exception as error:
         stats.errors += 1
         status = "failed"
-        duration_ms = _duration_ms(started)
+        elapsed = duration_ms(started)
         if run_id > 0 and connection is not None:
             try:
                 record_error(
@@ -81,10 +82,10 @@ def run_index(
                     error_type=type(error).__name__,
                     message=str(error),
                 )
-                finish_run(connection, run_id, status, stats, duration_ms)
+                finish_run(connection, run_id, status, stats, elapsed)
             except sqlite3.Error:
                 pass
-        return _result(run_id, normalized_mode.value, status, stats, duration_ms)
+        return _result(run_id, normalized_mode.value, status, stats, elapsed)
     finally:
         if connection is not None:
             connection.close()
@@ -351,10 +352,6 @@ def _join_relative(parent: str, child: str) -> str:
     if not parent:
         return child
     return f"{parent}/{child}"
-
-
-def _duration_ms(started: float) -> int:
-    return max(0, int((time.perf_counter() - started) * 1000))
 
 
 def _sha256(content: bytes) -> str:
