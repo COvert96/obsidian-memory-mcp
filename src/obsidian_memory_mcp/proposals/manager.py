@@ -87,7 +87,9 @@ class ProposalManager:
             normalized_operation, target, normalized_file_path
         )
         new_hash = (
-            _content_hash(normalized_content) if normalized_content is not None else None
+            _content_hash(normalized_content)
+            if normalized_content is not None
+            else None
         )
         ttl_seconds = self._ttl_seconds()
         created_at = self._now()
@@ -404,14 +406,16 @@ class ProposalManager:
     def _repository(self) -> Iterator[ProposalRepository]:
         database_existed = self._config.index_db_location.exists()
         connection = connect_index_db(self._config.index_db_location)
+        repository = ProposalRepository(connection)
         try:
             bootstrap_schema_once(
                 connection,
                 self._config.index_db_location,
                 database_existed=database_existed,
             )
-            yield ProposalRepository(connection)
+            yield repository
         finally:
+            repository.close()
             connection.close()
 
 

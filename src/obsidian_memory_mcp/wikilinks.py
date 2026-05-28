@@ -34,9 +34,7 @@ def escape_wikilink_alias_separator(content: str) -> str:
         delimiter_index = _first_unescaped_pipe(inner)
         if delimiter_index < 0:
             return match.group(0)
-        escaped_inner = (
-            f"{inner[:delimiter_index]}\\|{inner[delimiter_index + 1 :]}"
-        )
+        escaped_inner = f"{inner[:delimiter_index]}\\|{inner[delimiter_index + 1 :]}"
         return f"[[{escaped_inner}]]"
 
     return _WIKILINK_RE.sub(replace, content)

@@ -34,6 +34,7 @@ from obsidian_memory_mcp.changesets import (
 )
 from obsidian_memory_mcp.errors import ToolExecutionError
 from obsidian_memory_mcp.indexing import IndexMode, IndexRunResult, run_index
+from obsidian_memory_mcp.migrations import MigrationError, migrate_index_database
 from obsidian_memory_mcp.proposals import ProposalManager, ProposalStatus
 from obsidian_memory_mcp.proposals._models import Proposal
 from obsidian_memory_mcp.search_debug import (
@@ -52,6 +53,7 @@ _COMMAND_CONFIG = "config"
 _COMMAND_BENCHMARK = "benchmark"
 _COMMAND_DEBUG = "debug"
 _COMMAND_INDEX = "index"
+_COMMAND_MIGRATE = "migrate"
 _COMMAND_PROPOSALS = "proposals"
 _COMMAND_SERVE = "serve"
 _SUBCOMMAND_APPROVE = "approve"
@@ -85,6 +87,8 @@ def main(argv: list[str] | None = None) -> int:
         return _benchmark(arguments)
     if arguments.command == _COMMAND_INDEX:
         return _index(arguments)
+    if arguments.command == _COMMAND_MIGRATE:
+        return _migrate(arguments)
     if (
         arguments.command == _COMMAND_DEBUG
         and arguments.debug_command == _SUBCOMMAND_SEARCH
@@ -181,6 +185,26 @@ def _build_argument_parser() -> argparse.ArgumentParser:
         "index_args",
         nargs="*",
         help="Vault path, or one of: status {vault_path}, errors {vault_path}.",
+    )
+
+    migrate_parser = subparsers.add_parser(
+        _COMMAND_MIGRATE,
+        help="Apply Alembic schema migrations for the vault index database.",
+        usage="mcp-memory migrate [vault_path]",
+        epilog=(
+            "Auto-detect cases:\n"
+            "  - alembic_version absent and files table present: stamp head.\n"
+            "  - alembic_version absent and files table absent: upgrade head.\n"
+            "  - alembic_version table present: upgrade head (pending only)."
+        ),
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    migrate_parser.add_argument(
+        "vault_root",
+        nargs="?",
+        type=Path,
+        default=Path.cwd(),
+        help="Path to the Obsidian vault root (default: current directory).",
     )
 
     debug_parser = subparsers.add_parser(
@@ -473,6 +497,29 @@ def _index_errors(vault_root: Path) -> int:
     return 0
 
 
+def _migrate(arguments: argparse.Namespace) -> int:
+    config = _load_config(arguments.vault_root)
+    if config is None:
+        return 3
+
+    try:
+        result = migrate_index_database(config.index_db_location)
+    except MigrationError as exc:
+        print(f"Migration failed: {exc}")
+        return 1
+
+    if result.stamped_existing_schema:
+        print("Stamped existing schema as current version.")
+        return 0
+
+    if result.applied_migration_count == 0:
+        print("Already at head.")
+        return 0
+
+    print(f"Applied {result.applied_migration_count} migration(s).")
+    return 0
+
+
 def _debug_search(arguments: argparse.Namespace) -> int:
     config = _load_config(arguments.vault_root)
     if config is None:
@@ -660,7 +707,9 @@ def _proposal_reject(arguments: argparse.Namespace) -> int:
         except ToolExecutionError as exc:
             _print_tool_error("Rejection failed", exc)
             return 1
-        print(f"Rejected {proposal_result.proposal_id} for {proposal_result.file_path}.")
+        print(
+            f"Rejected {proposal_result.proposal_id} for {proposal_result.file_path}."
+        )
         return 0
 
     changesets = ChangesetManager(config)
