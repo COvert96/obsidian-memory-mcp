@@ -5,15 +5,17 @@ from __future__ import annotations
 from logging.config import fileConfig
 from pathlib import Path
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlalchemy.engine import URL
 
+from alembic import context
 from obsidian_memory_mcp.database._alembic_compare import (
     compare_nullable_for_primary_keys,
     include_object_for_compare,
 )
-from obsidian_memory_mcp.database._tables import metadata  # type: ignore[import-untyped]
+from obsidian_memory_mcp.database._tables import (
+    metadata,  # type: ignore[import-untyped]
+)
 
 config = context.config
 

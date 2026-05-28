@@ -9,7 +9,9 @@ from obsidian_memory_mcp.database._alembic_compare import (
 
 
 def test_include_object_filters_reflected_fts_table() -> None:
-    assert include_object_for_compare(object(), "blocks_fts", "table", True, None) is False
+    assert (
+        include_object_for_compare(object(), "blocks_fts", "table", True, None) is False
+    )
 
 
 def test_include_object_keeps_primary_key_columns_in_comparison() -> None:

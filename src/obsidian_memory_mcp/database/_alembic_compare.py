@@ -11,8 +11,11 @@ def include_object_for_compare(
     compare_to: object | None,
 ) -> bool:
     del object_, compare_to
-    if type_ == "table" and reflected and name is not None and name.startswith(
-        "blocks_fts"
+    if (
+        type_ == "table"
+        and reflected
+        and name is not None
+        and name.startswith("blocks_fts")
     ):
         return False
     return True

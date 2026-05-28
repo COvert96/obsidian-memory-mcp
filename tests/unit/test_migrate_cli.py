@@ -6,7 +6,9 @@ from pathlib import Path
 from obsidian_memory_mcp.cli import main
 
 
-def _write_config(vault: Path, *, index_db_location: str = "memory-index.sqlite3") -> None:
+def _write_config(
+    vault: Path, *, index_db_location: str = "memory-index.sqlite3"
+) -> None:
     vault.joinpath("memory-mcp.yaml").write_text(
         f"""
 vault_path: "{vault.as_posix()}"

@@ -4,10 +4,11 @@ import sqlite3
 import warnings
 from pathlib import Path
 
-from alembic import command
 from alembic.config import Config
 from sqlalchemy.engine import URL
 from sqlalchemy.exc import SAWarning
+
+from alembic import command
 
 
 def _find_repo_root(start_path: Path) -> Path:
@@ -124,7 +125,9 @@ def test_alembic_check_passes_after_head_is_applied(tmp_path: Path) -> None:
     assert cycle_warnings == []
 
 
-def test_initial_migration_can_run_again_when_tables_already_exist(tmp_path: Path) -> None:
+def test_initial_migration_can_run_again_when_tables_already_exist(
+    tmp_path: Path,
+) -> None:
     database_path = tmp_path / "index.sqlite3"
     config = _alembic_config(database_path)
     command.upgrade(config, "head")
