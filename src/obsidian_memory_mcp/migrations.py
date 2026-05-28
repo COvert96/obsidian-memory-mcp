@@ -7,10 +7,11 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from alembic import command
 from alembic.config import Config
 from alembic.script import Script, ScriptDirectory
 from sqlalchemy.engine import URL
+
+from alembic import command
 
 
 class InstallState(Enum):

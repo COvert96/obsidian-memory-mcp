@@ -273,9 +273,7 @@ def upgrade() -> None:
     )
     op.execute("CREATE INDEX IF NOT EXISTS idx_sections_file_id ON sections(file_id)")
     op.execute("CREATE INDEX IF NOT EXISTS idx_blocks_file_id ON blocks(file_id)")
-    op.execute(
-        "CREATE INDEX IF NOT EXISTS idx_blocks_section_id ON blocks(section_id)"
-    )
+    op.execute("CREATE INDEX IF NOT EXISTS idx_blocks_section_id ON blocks(section_id)")
     op.execute("CREATE INDEX IF NOT EXISTS idx_wikilinks_target ON wikilinks(target)")
     op.execute("CREATE INDEX IF NOT EXISTS idx_wikilinks_file_id ON wikilinks(file_id)")
     op.execute(

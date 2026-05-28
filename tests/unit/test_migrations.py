@@ -4,7 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from obsidian_memory_mcp.migrations import MigrationError, _alembic_config, _find_project_root
+from obsidian_memory_mcp.migrations import (
+    MigrationError,
+    _alembic_config,
+    _find_project_root,
+)
 
 
 def test_find_project_root_walks_up_to_repository_layout(tmp_path: Path) -> None:
@@ -27,7 +31,9 @@ def test_find_project_root_raises_when_layout_is_missing(tmp_path: Path) -> None
         _find_project_root(missing_layout_path)
 
 
-def test_alembic_config_uses_script_location_relative_to_ini_path(tmp_path: Path) -> None:
+def test_alembic_config_uses_script_location_relative_to_ini_path(
+    tmp_path: Path,
+) -> None:
     migration_root = tmp_path / "custom-layout"
     migration_root.mkdir()
     alembic_ini = migration_root / "alembic.ini"

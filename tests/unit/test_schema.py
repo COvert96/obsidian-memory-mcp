@@ -101,7 +101,9 @@ def test_schema_bootstrap_rejects_unsupported_user_version(tmp_path) -> None:
         bootstrap_schema(connection)
 
 
-def test_schema_bootstrap_does_not_rollback_externally_owned_connection(tmp_path) -> None:
+def test_schema_bootstrap_does_not_rollback_externally_owned_connection(
+    tmp_path,
+) -> None:
     connection = sqlite3.connect(
         tmp_path / "index.sqlite3",
         factory=_RollbackTrackingConnection,
