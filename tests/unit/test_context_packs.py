@@ -216,7 +216,7 @@ def test_loader_raises_budget_error_in_strict_mode(tmp_path: Path) -> None:
     assert "strict_budget=false" in error.details["suggestion"]
 
 
-def test_loader_reports_unknown_pack_as_invalid_project(tmp_path: Path) -> None:
+def test_loader_reports_unknown_pack_as_invalid_request(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     vault.mkdir()
     config = _config(vault, (ContextPackConfig(name="known", paths=("README.md",)),))
@@ -225,7 +225,7 @@ def test_loader_reports_unknown_pack_as_invalid_project(tmp_path: Path) -> None:
         ContextPackLoader(config).load("missing")
 
     error = exc_info.value.error
-    assert error.code is ErrorCode.ERR_INVALID_PROJECT
+    assert error.code is ErrorCode.ERR_INVALID_REQUEST
     assert error.details["known_context_packs"] == ["known"]
     assert error.details["closest_matches"] == []
     assert "list_context_packs" in error.details["suggestion"]
@@ -246,7 +246,7 @@ def test_loader_suggests_close_context_pack_names(tmp_path: Path) -> None:
         ContextPackLoader(config).load("overveiw")
 
     error = exc_info.value.error
-    assert error.code is ErrorCode.ERR_INVALID_PROJECT
+    assert error.code is ErrorCode.ERR_INVALID_REQUEST
     assert error.details["known_context_packs"] == ["deep-dive", "overview"]
     assert error.details["closest_matches"] == ["overview"]
 

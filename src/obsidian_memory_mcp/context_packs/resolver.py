@@ -87,7 +87,7 @@ class ContextPackResolver:
         )
         raise ToolExecutionError(
             build_error(
-                ErrorCode.ERR_INVALID_PROJECT,
+                ErrorCode.ERR_INVALID_REQUEST,
                 message=f"Context pack '{pack_name}' is not configured for this project.",
                 details={
                     "pack_name": pack_name,
