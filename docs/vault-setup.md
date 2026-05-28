@@ -23,6 +23,7 @@ Copy `docs/config-example.yaml` to the vault root as `memory-mcp.yaml`, then set
 - `write_constraints`: read/write allow and deny rules.
 - `proposal_ttl_seconds`: default proposal lifetime. Clamped by `max_proposal_ttl_hours`.
 - `max_proposal_content_bytes`: maximum UTF-8 size for stored create/update proposal content.
+- `proposal_retention_days`: retention window for applied, rejected, and expired proposal audit records.
 
 Minimum shape:
 
@@ -43,6 +44,7 @@ write_constraints:
 proposal_ttl_seconds: 3600
 max_proposal_ttl_hours: 24
 max_proposal_content_bytes: 1048576
+proposal_retention_days: 7
 ```
 
 ## 3. Validate The Config

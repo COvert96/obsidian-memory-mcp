@@ -180,6 +180,11 @@ def test_mcp_proposal_tools_cover_propose_list_and_approve(
         vault.joinpath("Memory", "from-mcp.md").read_text(encoding="utf-8")
         == "# From MCP"
     )
+    events = ProposalManager(ConfigLoader(vault).load()).events(created["proposal_id"])
+    assert any(
+        event.event_type == "applied" and event.details.get("actor") == "mcp"
+        for event in events
+    )
 
 
 def test_mcp_reject_proposal_marks_proposal_rejected(
@@ -215,6 +220,11 @@ def test_mcp_reject_proposal_marks_proposal_rejected(
     assert listed["returned_count"] == 1
     assert listed["proposals"][0]["proposal_id"] == created["proposal_id"]
     assert not vault.joinpath("Memory", "rejected.md").exists()
+    events = ProposalManager(ConfigLoader(vault).load()).events(created["proposal_id"])
+    assert any(
+        event.event_type == "rejected" and event.details.get("actor") == "mcp"
+        for event in events
+    )
 
 
 def test_mcp_approval_returns_invalid_request_for_missing_proposal(

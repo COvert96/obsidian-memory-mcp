@@ -4,20 +4,21 @@ from __future__ import annotations
 
 import hashlib
 import os
-import sqlite3
 import uuid
 from collections.abc import Callable
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from threading import Lock
 from typing import Iterator
 
 from obsidian_memory_mcp.config import GuardrailEvaluator, ProjectConfig
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
+from obsidian_memory_mcp.proposals._audit import build_event_details
+from obsidian_memory_mcp.proposals._db import bootstrap_schema_once
 from obsidian_memory_mcp.proposals._models import (
     Proposal,
     ProposalApprovalResult,
+    ProposalCleanupResult,
     ProposalCreateResult,
     ProposalLifecycleEvent,
     ProposalListItem,
@@ -26,13 +27,11 @@ from obsidian_memory_mcp.proposals._models import (
     ProposalStatus,
 )
 from obsidian_memory_mcp.proposals.repository import ProposalRepository
-from obsidian_memory_mcp.schema import bootstrap_schema, connect_index_db
+from obsidian_memory_mcp.schema import connect_index_db
 from obsidian_memory_mcp.wikilinks import escape_wikilink_alias_separator
 
 PREVIEW_MAX_CHARS = 500
 PREVIEW_ELLIPSIS = "..."
-_BOOTSTRAPPED_SCHEMA_PATHS: set[Path] = set()
-_SCHEMA_BOOTSTRAP_LOCK = Lock()
 
 
 class ProposalManager:
@@ -51,6 +50,22 @@ class ProposalManager:
 
     def create(
         self,
+        *,
+        file_path: str,
+        operation: ProposalOperation | str,
+        content: str | None = None,
+    ) -> ProposalCreateResult:
+        with self._repository() as repository:
+            return self._create_with_repository(
+                repository,
+                file_path=file_path,
+                operation=operation,
+                content=content,
+            )
+
+    def _create_with_repository(
+        self,
+        repository: ProposalRepository,
         *,
         file_path: str,
         operation: ProposalOperation | str,
@@ -87,9 +102,7 @@ class ProposalManager:
             created_at=created_at,
             expires_at=created_at + timedelta(seconds=ttl_seconds),
         )
-
-        with self._repository() as repository:
-            repository.insert(proposal)
+        repository.insert(proposal)
 
         return ProposalCreateResult(
             proposal_id=proposal.proposal_id,
@@ -132,7 +145,12 @@ class ProposalManager:
             )
         return tuple(_list_item(proposal) for proposal in proposals)
 
-    def approve(self, proposal_id: str) -> ProposalApprovalResult:
+    def approve(
+        self,
+        proposal_id: str,
+        *,
+        actor: str | None = "operator",
+    ) -> ProposalApprovalResult:
         now = self._now()
         with self._repository() as repository:
             with repository.transaction(
@@ -144,7 +162,7 @@ class ProposalManager:
                     proposal.proposal_id,
                     "approval_attempt",
                     now,
-                    {"status": proposal.status.value},
+                    build_event_details({"status": proposal.status.value}, actor=actor),
                 )
                 if proposal.status is not ProposalStatus.PENDING:
                     self._record_apply_rejection(
@@ -209,7 +227,11 @@ class ProposalManager:
                         f"Target file '{proposal.file_path}' no longer exists.",
                     ) from None
 
-                if not repository.mark_applied_if_pending(proposal.proposal_id, now):
+                if not repository.mark_applied_if_pending(
+                    proposal.proposal_id,
+                    now,
+                    actor=actor,
+                ):
                     self._record_apply_rejection(
                         repository,
                         proposal,
@@ -230,45 +252,103 @@ class ProposalManager:
             file_size_bytes=file_size_bytes,
         )
 
-    def reject(self, proposal_id: str) -> ProposalRejectionResult:
+    def reject(
+        self,
+        proposal_id: str,
+        *,
+        reason: str | None = None,
+        notes: str | None = None,
+        actor: str | None = "operator",
+    ) -> ProposalRejectionResult:
         now = self._now()
         with self._repository() as repository:
-            with repository.transaction(
-                immediate=True,
-                commit_on=(ToolExecutionError,),
-            ):
-                proposal = _fetch_proposal_or_raise(repository, proposal_id)
-                if proposal.status is not ProposalStatus.PENDING:
-                    if proposal.status is ProposalStatus.EXPIRED:
-                        raise _stale_error(proposal, "Proposal has expired.")
-                    raise _invalid_request(
-                        f"Proposal '{proposal.proposal_id}' is {proposal.status.value} "
-                        "and cannot be rejected."
-                    )
-                if now >= proposal.expires_at:
-                    repository.mark_expired(
-                        proposal.proposal_id,
-                        now,
-                        reason="ttl_elapsed",
-                    )
-                    raise _stale_error(proposal, "Proposal has expired.")
-                if not repository.mark_rejected_if_pending(proposal.proposal_id, now):
-                    raise _stale_error(
-                        proposal,
-                        "Proposal status changed during rejection.",
-                    )
+            return self._reject_with_repository(
+                repository,
+                proposal_id,
+                reason=reason,
+                notes=notes,
+                actor=actor,
+                now=now,
+            )
 
+    def _reject_with_repository(
+        self,
+        repository: ProposalRepository,
+        proposal_id: str,
+        *,
+        reason: str | None = None,
+        notes: str | None = None,
+        actor: str | None = "operator",
+        now: datetime | None = None,
+    ) -> ProposalRejectionResult:
+        now = now or self._now()
+        with repository.transaction(
+            immediate=True,
+            commit_on=(ToolExecutionError,),
+        ):
+            proposal = _fetch_proposal_or_raise(repository, proposal_id)
+            if proposal.status is not ProposalStatus.PENDING:
+                if proposal.status is ProposalStatus.EXPIRED:
+                    raise _stale_error(proposal, "Proposal has expired.")
+                raise _invalid_request(
+                    f"Proposal '{proposal.proposal_id}' is {proposal.status.value} "
+                    "and cannot be rejected."
+                )
+            if now >= proposal.expires_at:
+                repository.mark_expired(
+                    proposal.proposal_id,
+                    now,
+                    reason="ttl_elapsed",
+                )
+                raise _stale_error(proposal, "Proposal has expired.")
+            if not repository.mark_rejected_if_pending(
+                proposal.proposal_id,
+                now,
+                reason=reason,
+                notes=notes,
+                actor=actor,
+            ):
+                raise _stale_error(
+                    proposal,
+                    "Proposal status changed during rejection.",
+                )
         return ProposalRejectionResult(
             proposal_id=proposal.proposal_id,
             file_path=proposal.file_path,
             operation=proposal.operation,
             status=ProposalStatus.REJECTED,
             rejected_at=now,
+            reason=reason,
+            notes=notes,
         )
 
     def events(self, proposal_id: str) -> tuple[ProposalLifecycleEvent, ...]:
         with self._repository() as repository:
             return repository.events(proposal_id)
+
+    def audit(
+        self,
+        *,
+        proposal_id: str | None = None,
+        limit: int = 100,
+    ) -> tuple[ProposalLifecycleEvent, ...]:
+        with self._repository() as repository:
+            return repository.list_events(proposal_id=proposal_id, limit=limit)
+
+    def cleanup(self, *, retention_days: int | None = None) -> ProposalCleanupResult:
+        resolved_retention_days = retention_days or self._config.proposal_retention_days
+        now = self._now()
+        with self._repository() as repository:
+            expired_count = repository.expire_pending(now)
+            removed_count = repository.cleanup_terminal(
+                now,
+                retention_days=resolved_retention_days,
+            )
+        return ProposalCleanupResult(
+            expired_count=expired_count,
+            removed_count=removed_count,
+            retention_days=resolved_retention_days,
+        )
 
     def _old_hash_for(
         self,
@@ -325,7 +405,7 @@ class ProposalManager:
         database_existed = self._config.index_db_location.exists()
         connection = connect_index_db(self._config.index_db_location)
         try:
-            _bootstrap_schema_once(
+            bootstrap_schema_once(
                 connection,
                 self._config.index_db_location,
                 database_existed=database_existed,
@@ -485,24 +565,6 @@ def _new_proposal_id() -> str:
 
 def _utc_now() -> datetime:
     return datetime.now(UTC)
-
-
-def _bootstrap_schema_once(
-    connection: sqlite3.Connection,
-    index_db_path: Path,
-    *,
-    database_existed: bool,
-) -> None:
-    if index_db_path.name == ":memory:":
-        bootstrap_schema(connection)
-        return
-
-    cache_key = index_db_path.resolve(strict=False)
-    with _SCHEMA_BOOTSTRAP_LOCK:
-        if database_existed and cache_key in _BOOTSTRAPPED_SCHEMA_PATHS:
-            return
-        bootstrap_schema(connection)
-        _BOOTSTRAPPED_SCHEMA_PATHS.add(cache_key)
 
 
 def _invalid_request(message: str) -> ToolExecutionError:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import time
 from datetime import datetime
@@ -19,9 +20,16 @@ from obsidian_memory_mcp.cli_pack import (
     add_pack_parser,
     handle_pack_command,
 )
+from obsidian_memory_mcp.changesets import (
+    ChangesetManager,
+    ChangesetReview,
+    ChangesetStatus,
+    proposal_diff,
+)
 from obsidian_memory_mcp.errors import ToolExecutionError
 from obsidian_memory_mcp.indexing import IndexMode, IndexRunResult, run_index
 from obsidian_memory_mcp.proposals import ProposalManager, ProposalStatus
+from obsidian_memory_mcp.proposals._models import Proposal
 from obsidian_memory_mcp.search_debug import (
     DebugSearchError,
     debug_search,
@@ -40,10 +48,13 @@ _COMMAND_INDEX = "index"
 _COMMAND_PROPOSALS = "proposals"
 _COMMAND_SERVE = "serve"
 _SUBCOMMAND_APPROVE = "approve"
+_SUBCOMMAND_AUDIT = "audit"
+_SUBCOMMAND_CLEANUP = "cleanup"
 _SUBCOMMAND_ERRORS = "errors"
 _SUBCOMMAND_LIST = "list"
 _SUBCOMMAND_REJECT = "reject"
 _SUBCOMMAND_SEARCH = "search"
+_SUBCOMMAND_SHOW = "show"
 _SUBCOMMAND_STATUS = "status"
 _SUBCOMMAND_VALIDATE = "validate"
 Transport = Literal["stdio", "sse", "streamable-http"]
@@ -178,6 +189,28 @@ def _build_argument_parser() -> argparse.ArgumentParser:
         help="Maximum proposals to display.",
     )
 
+    proposal_show = proposal_subparsers.add_parser(
+        _SUBCOMMAND_SHOW,
+        help="Show a full proposal or grouped changeset.",
+        usage="mcp-memory proposals show {proposal_or_changeset_id} [vault_path] [--diff]",
+    )
+    proposal_show.add_argument(
+        "proposal_or_changeset_id",
+        help="Proposal ID or changeset ID to display.",
+    )
+    proposal_show.add_argument(
+        "vault_root",
+        nargs="?",
+        type=Path,
+        default=Path.cwd(),
+        help="Path to the Obsidian vault root (default: current directory).",
+    )
+    proposal_show.add_argument(
+        "--diff",
+        action="store_true",
+        help="Show a unified diff for every affected file.",
+    )
+
     proposal_approve = proposal_subparsers.add_parser(
         _SUBCOMMAND_APPROVE,
         help="Approve and apply a pending proposal.",
@@ -204,6 +237,62 @@ def _build_argument_parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path.cwd(),
         help="Path to the Obsidian vault root (default: current directory).",
+    )
+    proposal_reject.add_argument(
+        "--reason",
+        help="Structured rejection reason, such as duplicate or obsolete.",
+    )
+    proposal_reject.add_argument(
+        "--notes",
+        help="Operator notes recorded in the proposal audit trail.",
+    )
+
+    proposal_cleanup = proposal_subparsers.add_parser(
+        _SUBCOMMAND_CLEANUP,
+        help="Expire pending proposals and remove retained terminal records.",
+        usage="mcp-memory proposals cleanup [vault_path] [--retention-days 7] --yes",
+    )
+    proposal_cleanup.add_argument(
+        "vault_root",
+        nargs="?",
+        type=Path,
+        default=Path.cwd(),
+        help="Path to the Obsidian vault root (default: current directory).",
+    )
+    proposal_cleanup.add_argument(
+        "--retention-days",
+        type=int,
+        default=None,
+        help="Retention window for applied, rejected, and expired records.",
+    )
+    proposal_cleanup.add_argument(
+        "--yes",
+        action="store_true",
+        help="Confirm cleanup of records older than the retention window.",
+    )
+
+    proposal_audit = proposal_subparsers.add_parser(
+        _SUBCOMMAND_AUDIT,
+        help="Show proposal and changeset audit records.",
+        usage=(
+            "mcp-memory proposals audit [vault_path] "
+            "[--proposal-id id] [--changeset-id id] [--limit 100]"
+        ),
+    )
+    proposal_audit.add_argument(
+        "vault_root",
+        nargs="?",
+        type=Path,
+        default=Path.cwd(),
+        help="Path to the Obsidian vault root (default: current directory).",
+    )
+    proposal_audit.add_argument("--proposal-id", help="Filter proposal events.")
+    proposal_audit.add_argument("--changeset-id", help="Filter changeset events.")
+    proposal_audit.add_argument(
+        "--limit",
+        type=int,
+        default=100,
+        help="Maximum audit events from each event stream.",
     )
 
     serve_parser = subparsers.add_parser(_COMMAND_SERVE, help="Run the MCP server.")
@@ -331,12 +420,18 @@ def _debug_search(arguments: argparse.Namespace) -> int:
 def _proposals(arguments: argparse.Namespace) -> int:
     if arguments.proposal_command == _SUBCOMMAND_LIST:
         return _proposal_list(arguments)
+    if arguments.proposal_command == _SUBCOMMAND_SHOW:
+        return _proposal_show(arguments)
     if arguments.proposal_command == _SUBCOMMAND_APPROVE:
         return _proposal_approve(arguments)
     if arguments.proposal_command == _SUBCOMMAND_REJECT:
         return _proposal_reject(arguments)
+    if arguments.proposal_command == _SUBCOMMAND_CLEANUP:
+        return _proposal_cleanup(arguments)
+    if arguments.proposal_command == _SUBCOMMAND_AUDIT:
+        return _proposal_audit(arguments)
 
-    print("Usage: mcp-memory proposals {list|approve|reject} ...")
+    print("Usage: mcp-memory proposals {list|show|approve|reject|cleanup|audit} ...")
     return 1
 
 
@@ -369,6 +464,27 @@ def _proposal_list(arguments: argparse.Namespace) -> int:
     return 0
 
 
+def _proposal_show(arguments: argparse.Namespace) -> int:
+    config = _load_config(arguments.vault_root)
+    if config is None:
+        return 3
+
+    identifier = arguments.proposal_or_changeset_id
+    manager = ProposalManager(config)
+    proposal = manager.get(identifier)
+    if proposal is not None:
+        _print_proposal(config, proposal, include_diff=arguments.diff)
+        return 0
+
+    changesets = ChangesetManager(config)
+    changeset = changesets.get(identifier)
+    if changeset is None:
+        print(f"Proposal or changeset '{identifier}' does not exist.")
+        return 1
+    _print_changeset_review(changesets.review(identifier), include_diff=arguments.diff)
+    return 0
+
+
 def _proposal_approve(arguments: argparse.Namespace) -> int:
     config = _load_config(arguments.vault_root)
     if config is None:
@@ -376,8 +492,7 @@ def _proposal_approve(arguments: argparse.Namespace) -> int:
     manager = ProposalManager(config)
     proposal = manager.get(arguments.proposal_id)
     if proposal is None:
-        print(f"Proposal '{arguments.proposal_id}' does not exist.")
-        return 1
+        return _changeset_approve(arguments, config)
 
     print(f"Proposal: {proposal.proposal_id}")
     print(f"Path: {proposal.file_path}")
@@ -397,7 +512,7 @@ def _proposal_approve(arguments: argparse.Namespace) -> int:
         return 1
 
     try:
-        result = manager.approve(arguments.proposal_id)
+        result = manager.approve(arguments.proposal_id, actor="operator")
     except ToolExecutionError as exc:
         _print_tool_error("Approval failed", exc)
         return 1
@@ -409,18 +524,197 @@ def _proposal_approve(arguments: argparse.Namespace) -> int:
     return 0
 
 
+def _changeset_approve(
+    arguments: argparse.Namespace,
+    config: ProjectConfig,
+) -> int:
+    changesets = ChangesetManager(config)
+    changeset = changesets.get(arguments.proposal_id)
+    if changeset is None:
+        print(f"Proposal or changeset '{arguments.proposal_id}' does not exist.")
+        return 1
+
+    review = changesets.review(arguments.proposal_id)
+    _print_changeset_review(review, include_diff=True)
+    if review.status is not ChangesetStatus.PENDING:
+        print(f"Cannot approve changeset with status '{review.status.value}'.")
+        return 1
+
+    response = input("Type YES to apply this changeset: ")
+    if response != "YES":
+        print("Approval cancelled.")
+        return 1
+
+    try:
+        result = changesets.approve(arguments.proposal_id, actor="operator")
+    except ToolExecutionError as exc:
+        _print_tool_error("Approval failed", exc)
+        return 1
+
+    print(
+        f"Applied changeset {result.changeset_id} "
+        f"({len(result.applied_proposal_ids)} proposals)."
+    )
+    return 0
+
+
 def _proposal_reject(arguments: argparse.Namespace) -> int:
     config = _load_config(arguments.vault_root)
     if config is None:
         return 3
+    manager = ProposalManager(config)
+    proposal = manager.get(arguments.proposal_id)
+    if proposal is not None:
+        try:
+            proposal_result = manager.reject(
+                arguments.proposal_id,
+                reason=arguments.reason,
+                notes=arguments.notes,
+                actor="operator",
+            )
+        except ToolExecutionError as exc:
+            _print_tool_error("Rejection failed", exc)
+            return 1
+        print(f"Rejected {proposal_result.proposal_id} for {proposal_result.file_path}.")
+        return 0
+
+    changesets = ChangesetManager(config)
+    if changesets.get(arguments.proposal_id) is None:
+        print(f"Proposal or changeset '{arguments.proposal_id}' does not exist.")
+        return 1
     try:
-        result = ProposalManager(config).reject(arguments.proposal_id)
+        changeset_result = changesets.reject(
+            arguments.proposal_id,
+            reason=arguments.reason,
+            notes=arguments.notes,
+            actor="operator",
+        )
     except ToolExecutionError as exc:
         _print_tool_error("Rejection failed", exc)
         return 1
-
-    print(f"Rejected {result.proposal_id} for {result.file_path}.")
+    print(f"Rejected changeset {changeset_result.changeset_id}.")
     return 0
+
+
+def _proposal_cleanup(arguments: argparse.Namespace) -> int:
+    config = _load_config(arguments.vault_root)
+    if config is None:
+        return 3
+    retention_days = arguments.retention_days or config.proposal_retention_days
+    if retention_days < 1:
+        print("Retention days must be a positive integer.")
+        return 1
+    if not arguments.yes:
+        print(
+            "Cleanup removes terminal proposal records older than "
+            f"{retention_days} day(s). Re-run with --yes to continue."
+        )
+        return 1
+
+    changeset_result = ChangesetManager(config).cleanup(
+        retention_days=retention_days,
+    )
+    proposal_result = ProposalManager(config).cleanup(retention_days=retention_days)
+    expired_count = proposal_result.expired_count + changeset_result.expired_count
+    removed_proposals = (
+        proposal_result.removed_count + changeset_result.removed_proposals
+    )
+    print(
+        f"Cleanup expired {expired_count} pending item(s) and removed "
+        f"{removed_proposals} retained {_plural('proposal', removed_proposals)} "
+        f"older than {retention_days} day(s)."
+    )
+    if changeset_result.removed_changesets:
+        print(
+            f"Removed {changeset_result.removed_changesets} retained "
+            f"{_plural('changeset', changeset_result.removed_changesets)}."
+        )
+    return 0
+
+
+def _proposal_audit(arguments: argparse.Namespace) -> int:
+    config = _load_config(arguments.vault_root)
+    if config is None:
+        return 3
+    if arguments.proposal_id and arguments.changeset_id:
+        print("Use either --proposal-id or --changeset-id, not both.")
+        return 1
+
+    printed = 0
+    if arguments.changeset_id is None:
+        proposal_events = ProposalManager(config).audit(
+            proposal_id=arguments.proposal_id,
+            limit=arguments.limit,
+        )
+        for proposal_event in proposal_events:
+            print(
+                f"proposal\t{proposal_event.proposal_id}\t"
+                f"{proposal_event.event_type}\t"
+                f"{proposal_event.occurred_at.isoformat()}\t"
+                f"{json.dumps(proposal_event.details, sort_keys=True)}"
+            )
+        printed += len(proposal_events)
+
+    if arguments.proposal_id is None:
+        changeset_events = ChangesetManager(config).audit(
+            changeset_id=arguments.changeset_id,
+            limit=arguments.limit,
+        )
+        for changeset_event in changeset_events:
+            print(
+                f"changeset\t{changeset_event.changeset_id}\t"
+                f"{changeset_event.event_type}\t"
+                f"{changeset_event.occurred_at.isoformat()}\t"
+                f"{json.dumps(changeset_event.details, sort_keys=True)}"
+            )
+        printed += len(changeset_events)
+
+    if printed == 0:
+        print("No audit records.")
+    return 0
+
+
+def _print_proposal(
+    config: ProjectConfig,
+    proposal: Proposal,
+    *,
+    include_diff: bool,
+) -> None:
+    print(f"Proposal: {proposal.proposal_id}")
+    print(f"Path: {proposal.file_path}")
+    print(f"Operation: {proposal.operation.value}")
+    print(f"Status: {proposal.status.value}")
+    print(f"Created: {proposal.created_at.isoformat()}")
+    print(f"Expires: {proposal.expires_at.isoformat()}")
+    if proposal.content is not None:
+        print("Content:")
+        print(proposal.content)
+    if include_diff:
+        print("Diff:")
+        diff = proposal_diff(config, proposal)
+        print(diff or "(no diff)")
+
+
+def _print_changeset_review(
+    review: ChangesetReview,
+    *,
+    include_diff: bool,
+) -> None:
+    print(f"Changeset: {review.changeset_id}")
+    print(f"Title: {review.title}")
+    print(f"Status: {review.status.value}")
+    print("Files:")
+    for file in review.files:
+        print(f"- {file.file_path} ({file.operation.value}, {file.proposal_id})")
+        if file.preview is not None:
+            print(file.preview)
+        if include_diff:
+            print("Diff:")
+            print(file.diff or "(no diff)")
+
+
+def _plural(word: str, count: int) -> str:
+    return word if count == 1 else f"{word}s"
 
 
 def _load_config(vault_root: Path) -> ProjectConfig | None:

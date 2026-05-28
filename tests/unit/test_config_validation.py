@@ -78,6 +78,7 @@ max_proposal_ttl_hours: 12
     assert loaded.max_proposal_ttl_hours == 12
     assert loaded.proposal_ttl_seconds == 3600
     assert loaded.max_proposal_content_bytes == 1024 * 1024
+    assert loaded.proposal_retention_days == 7
 
 
 def test_loader_reports_missing_config_with_actionable_error(tmp_path: Path) -> None:
@@ -134,6 +135,7 @@ def test_validator_reports_wrong_types_with_actual_values(tmp_path: Path) -> Non
     data["max_proposal_ttl_hours"] = "soon"
     data["proposal_ttl_seconds"] = 0
     data["max_proposal_content_bytes"] = "large"
+    data["proposal_retention_days"] = 0
 
     errors = ConfigValidator().collect_errors(data)
 
@@ -144,6 +146,7 @@ def test_validator_reports_wrong_types_with_actual_values(tmp_path: Path) -> Non
         "max_proposal_ttl_hours",
         "proposal_ttl_seconds",
         "max_proposal_content_bytes",
+        "proposal_retention_days",
     }
     assert any("Got 'prd'" in error.message for error in errors)
     assert any("expected type" in error.suggestion for error in errors)

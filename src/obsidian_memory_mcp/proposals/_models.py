@@ -109,15 +109,22 @@ class ProposalRejectionResult:
     operation: ProposalOperation
     status: ProposalStatus
     rejected_at: datetime
+    reason: str | None = None
+    notes: str | None = None
 
     def as_response(self) -> dict[str, Any]:
-        return {
+        response = {
             "proposal_id": self.proposal_id,
             "file_path": self.file_path,
             "operation": self.operation.value,
             "status": self.status.value,
             "rejected_at": _isoformat(self.rejected_at),
         }
+        if self.reason is not None:
+            response["reason"] = self.reason
+        if self.notes is not None:
+            response["notes"] = self.notes
+        return response
 
 
 @dataclass(frozen=True)
@@ -127,6 +134,22 @@ class ProposalLifecycleEvent:
     event_type: str
     occurred_at: datetime
     details: dict[str, Any]
+
+    def as_response(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "proposal_id": self.proposal_id,
+            "event_type": self.event_type,
+            "occurred_at": _isoformat(self.occurred_at),
+            "details": self.details,
+        }
+
+
+@dataclass(frozen=True)
+class ProposalCleanupResult:
+    expired_count: int
+    removed_count: int
+    retention_days: int
 
 
 def _isoformat(value: datetime) -> str:
