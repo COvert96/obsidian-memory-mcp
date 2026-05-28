@@ -119,14 +119,7 @@ def test_loader_ignores_markdown_headings_inside_nested_fenced_code(
     vault = tmp_path / "vault"
     vault.mkdir()
     (vault / "code.md").write_text(
-        "# Real\n"
-        "```md\n"
-        "````python\n"
-        "# Fake\n"
-        "```\n"
-        "Still real.\n"
-        "# Next\n"
-        "Done.\n",
+        "# Real\n```md\n````python\n# Fake\n```\nStill real.\n# Next\nDone.\n",
         encoding="utf-8",
     )
     config = _config(
@@ -163,7 +156,9 @@ def test_loader_does_not_warn_stale_when_indexed_at_matches_mtime_ns(
 
     result = ContextPackLoader(config).load("fresh")
 
-    assert not any("modified since last index" in warning for warning in result.warnings)
+    assert not any(
+        "modified since last index" in warning for warning in result.warnings
+    )
 
 
 def test_loader_reports_missing_files_missing_sections_and_stale_files(
@@ -183,7 +178,9 @@ def test_loader_reports_missing_files_missing_sections_and_stale_files(
             ),
         ),
     )
-    _insert_indexed_file(config, "docs/stale.md", indexed_at="1970-01-01T00:00:00+00:00")
+    _insert_indexed_file(
+        config, "docs/stale.md", indexed_at="1970-01-01T00:00:00+00:00"
+    )
 
     result = ContextPackLoader(config).load("ops")
 

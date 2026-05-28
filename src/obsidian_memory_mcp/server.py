@@ -11,6 +11,7 @@ propagate naturally to FastMCP, which converts them to
 
 from __future__ import annotations
 
+from pathlib import PurePosixPath
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -21,6 +22,8 @@ from obsidian_memory_mcp.config import (
     load_project_config,
 )
 from obsidian_memory_mcp.context_packs import ContextPackLoader
+from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
+from obsidian_memory_mcp.proposals import ProposalManager
 from obsidian_memory_mcp.retrieval import (
     ReadNoteService,
     ReadSectionService,
@@ -129,6 +132,102 @@ def list_context_packs(project: str) -> dict[str, Any]:
     }
 
 
+@mcp.tool()
+def propose_memory_update(
+    project: str,
+    file_path: str,
+    operation: str,
+    content: str | None = None,
+) -> dict[str, Any]:
+    """Propose a write to a file in the `Memory/` directory.
+
+    This is step 1 of a two-step workflow: call this tool to create a
+    proposal, then call `approve_proposal` with the returned `proposal_id`
+    to apply the change to disk.  The file is not modified until approval.
+
+    Use `list_context_packs` first to discover the correct `project` name.
+    Only files under `Memory/` are accepted — paths starting with anything
+    else (e.g. `wiki/`) are rejected with a guardrail error.
+
+    Args:
+        project: Project name from the server registry — use the same value
+            returned by `list_context_packs` (e.g. "occlave").
+        file_path: Vault-relative path that must begin with `Memory/`
+            (for example, `Memory/company-summary.md`).
+        operation: One of "create" (target must not exist), "update"
+            (target must already exist), or "delete".
+        content: Full file content for create/update; omit for delete.
+            Prefer focused, concise notes — very large content (> 8 KB)
+            should be split into multiple smaller Memory files.
+    """
+    _require_memory_path(file_path)
+    config = _project_config(project)
+    result = ProposalManager(config).create(
+        file_path=file_path,
+        operation=operation,
+        content=content,
+    )
+    return {"project": project, **result.as_response()}
+
+
+@mcp.tool()
+def list_proposals(
+    project: str,
+    status: str | None = "pending",
+    file_path: str | None = None,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """List proposal metadata with status and optional file-path filters.
+
+    Args:
+        project: Project name as defined in the server registry.
+        status: Optional proposal status filter. Defaults to pending.
+        file_path: Optional vault-relative proposal target path.
+        limit: Maximum number of proposals to return.
+    """
+    config = _project_config(project)
+    proposals = ProposalManager(config).list(
+        status=status,
+        file_path=file_path,
+        limit=limit,
+    )
+    return {
+        "project": project,
+        "proposals": [proposal.as_response() for proposal in proposals],
+        "returned_count": len(proposals),
+    }
+
+
+@mcp.tool()
+def approve_proposal(project: str, proposal_id: str) -> dict[str, Any]:
+    """Apply a pending proposal to disk (step 2 of the write workflow).
+
+    Call this immediately after `propose_memory_update` succeeds to
+    commit the change.  The file is only written when this call returns
+    status "applied".
+
+    Args:
+        project: Project name — same value used in `propose_memory_update`.
+        proposal_id: The `proposal_id` returned by `propose_memory_update`.
+    """
+    config = _project_config(project)
+    result = ProposalManager(config).approve(proposal_id)
+    return {"project": project, **result.as_response()}
+
+
+@mcp.tool()
+def reject_proposal(project: str, proposal_id: str) -> dict[str, Any]:
+    """Discard a pending proposal without writing any file.
+
+    Args:
+        project: Project name — same value used in `propose_memory_update`.
+        proposal_id: The `proposal_id` returned by `propose_memory_update`.
+    """
+    config = _project_config(project)
+    result = ProposalManager(config).reject(proposal_id)
+    return {"project": project, **result.as_response()}
+
+
 def _project_config(project: str) -> ProjectConfig:
     registry = load_project_registry()
     return load_project_config(registry.resolve(project))
@@ -136,3 +235,20 @@ def _project_config(project: str) -> ProjectConfig:
 
 def _make_context_pack_loader(config: ProjectConfig) -> ContextPackLoader:
     return ContextPackLoader(config)
+
+
+def _require_memory_path(file_path: str) -> None:
+    normalized_path = file_path.replace("\\", "/").strip()
+    path = PurePosixPath(normalized_path)
+    if len(path.parts) >= 2 and path.parts[0] == "Memory":
+        return
+    raise ToolExecutionError(
+        build_error(
+            ErrorCode.ERR_INVALID_REQUEST,
+            message=(
+                "propose_memory_update only supports files under 'Memory/'. "
+                f"Received '{file_path}'."
+            ),
+            details={"file_path": file_path, "required_prefix": "Memory/"},
+        )
+    )

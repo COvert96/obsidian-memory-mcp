@@ -21,6 +21,12 @@ from obsidian_memory_mcp.indexing import (
 from obsidian_memory_mcp.indexing import repository as indexing_repository
 from obsidian_memory_mcp.indexing import service as indexing_service
 from obsidian_memory_mcp.indexing._models import FileCandidate
+from obsidian_memory_mcp.proposals import (
+    ProposalManager,
+    ProposalOperation,
+    ProposalStatus,
+)
+from obsidian_memory_mcp.proposals import repository as proposal_repository
 from obsidian_memory_mcp.retrieval import (
     ReadNoteService,
     ReadSectionService,
@@ -43,6 +49,8 @@ def test_project_config_defaults_are_owned_by_the_model() -> None:
     assert ProjectConfig.CONFIG_FILE_NAME == "memory-mcp.yaml"
     assert ProjectConfig.DEFAULT_TAGS_SEPARATOR == ","
     assert ProjectConfig.DEFAULT_MAX_PROPOSAL_TTL_HOURS == 24
+    assert ProjectConfig.DEFAULT_PROPOSAL_TTL_SECONDS == 3600
+    assert ProjectConfig.DEFAULT_MAX_PROPOSAL_CONTENT_BYTES == 1024 * 1024
 
 
 def test_indexing_features_are_grouped_under_indexing_package() -> None:
@@ -61,6 +69,13 @@ def test_retrieval_features_are_grouped_under_retrieval_package() -> None:
     assert SearchService is not None
     assert retrieval_readers is not None
     assert retrieval_search is not None
+
+
+def test_proposal_features_are_grouped_under_proposals_package() -> None:
+    assert ProposalManager is not None
+    assert ProposalOperation.CREATE == "create"
+    assert ProposalStatus.PENDING == "pending"
+    assert proposal_repository is not None
 
 
 def test_config_validation_features_are_grouped_under_validation_package() -> None:
