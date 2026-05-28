@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from obsidian_memory_mcp.cli import main
+from obsidian_memory_mcp.changesets import ChangesetManager, FileMutation
 from obsidian_memory_mcp.config import AccessConstraints, AccessPolicy, ProjectConfig
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError
 from obsidian_memory_mcp.proposals import (
@@ -395,6 +396,118 @@ def test_cli_lists_approves_and_rejects_proposals_with_confirmation(
     assert not vault.joinpath("Memory", "cli-rejected.md").exists()
 
 
+def test_cli_shows_diff_records_rejection_notes_and_cleans_up_by_retention(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    _write_config(vault)
+    manager = ProposalManager(_config(vault), id_factory=_sequential_ids())
+    rejected = manager.create(
+        file_path="Memory/reject-with-notes.md",
+        operation="create",
+        content="# Reject\ncandidate",
+    )
+    old_clock = FrozenClock(datetime(2000, 1, 1, tzinfo=UTC))
+    old_manager = ProposalManager(
+        _config(vault),
+        clock=old_clock.now,
+        id_factory=lambda: "proposal-old",
+    )
+    old = old_manager.create(
+        file_path="Memory/old-rejected.md",
+        operation="create",
+        content="# Old",
+    )
+    old_manager.reject(old.proposal_id, reason="duplicate", notes="aged out")
+    monkeypatch.chdir(vault)
+
+    show_exit = main(["proposals", "show", rejected.proposal_id, "--diff"])
+    rejected_exit = main(
+        [
+            "proposals",
+            "reject",
+            rejected.proposal_id,
+            "--reason",
+            "duplicate",
+            "--notes",
+            "Replaced by Memory/current.md",
+        ]
+    )
+    audit_exit = main(["proposals", "audit", "--proposal-id", rejected.proposal_id])
+    cleanup_exit = main(
+        ["proposals", "cleanup", "--yes", "--retention-days", "7"]
+    )
+    output = capsys.readouterr().out
+
+    assert show_exit == 0
+    assert rejected_exit == 0
+    assert audit_exit == 0
+    assert cleanup_exit == 0
+    assert "Diff:" in output
+    assert "+# Reject" in output
+    assert "duplicate" in output
+    assert "Replaced by Memory/current.md" in output
+    assert "removed 1 retained proposal" in output
+    assert ProposalManager(_config(vault)).get(old.proposal_id) is None
+
+
+def test_cli_approves_and_rejects_changesets(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    vault = tmp_path / "vault"
+    (vault / "Memory").mkdir(parents=True)
+    _write_config(vault)
+    create_manager = ChangesetManager(
+        _config(vault),
+        id_factory=lambda: "changeset-approve",
+        proposal_id_factory=_sequential_ids(),
+    )
+    approve_changeset = create_manager.create(
+        title="Apply grouped create",
+        mutations=(
+            FileMutation("Memory/a.md", "create", "# A"),
+            FileMutation("Memory/b.md", "create", "# B"),
+        ),
+    )
+    reject_changeset = ChangesetManager(
+        _config(vault),
+        id_factory=lambda: "changeset-reject",
+        proposal_id_factory=_prefixed_ids("reject"),
+    ).create(
+        title="Reject grouped create",
+        mutations=(
+            FileMutation("Memory/c.md", "create", "# C"),
+            FileMutation("Memory/d.md", "create", "# D"),
+        ),
+    )
+    monkeypatch.chdir(vault)
+    monkeypatch.setattr("builtins.input", lambda _prompt: "YES")
+
+    approved_exit = main(["proposals", "approve", approve_changeset.changeset_id])
+    rejected_exit = main(
+        [
+            "proposals",
+            "reject",
+            reject_changeset.changeset_id,
+            "--reason",
+            "duplicate",
+        ]
+    )
+    output = capsys.readouterr().out
+
+    assert approved_exit == 0
+    assert rejected_exit == 0
+    assert "Applied changeset changeset-approve" in output
+    assert "Rejected changeset changeset-reject" in output
+    assert vault.joinpath("Memory", "a.md").read_text(encoding="utf-8") == "# A"
+    assert not vault.joinpath("Memory", "c.md").exists()
+
+
 def _sequential_ids():
     count = 0
 
@@ -402,5 +515,16 @@ def _sequential_ids():
         nonlocal count
         count += 1
         return f"proposal-{count:04d}"
+
+    return next_id
+
+
+def _prefixed_ids(prefix: str):
+    count = 0
+
+    def next_id() -> str:
+        nonlocal count
+        count += 1
+        return f"{prefix}-{count:04d}"
 
     return next_id
