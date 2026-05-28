@@ -222,9 +222,10 @@ __marimo__/
 .claude/worktrees/
 
 # Agent Outputs
-plans/
-code-review/
-acceptance/
+docs/plans/
+docs/code-review/
+docs/acceptance/
+docs/prd/
 
 # Local MCP
 memory-mcp-server.yaml
