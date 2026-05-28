@@ -63,4 +63,5 @@ def test_metadata_create_all_is_idempotent(tmp_path: Path) -> None:
         "proposal_changesets",
         "proposal_changeset_members",
         "proposal_changeset_events",
+        "write_audit",
     }.issubset(table_names)
