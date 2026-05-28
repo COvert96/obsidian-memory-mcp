@@ -106,6 +106,109 @@ def test_memory_supersession_rejects_nested_frontmatter_metadata(
     assert "frontmatter" in exc_info.value.error.message
 
 
+def test_memory_supersession_rejects_non_memory_path_for_old_file(
+    tmp_path: Path,
+) -> None:
+    vault = tmp_path / "vault"
+    (vault / "Memory").mkdir(parents=True)
+    workflow = MemorySupersessionWorkflow(_config(vault))
+
+    with pytest.raises(ToolExecutionError) as exc_info:
+        workflow.propose_supersession(
+            superseded_file_path="wiki/old-note.md",
+            new_file_path="Memory/new-note.md",
+            new_content="# New",
+        )
+
+    assert exc_info.value.error.code is ErrorCode.ERR_INVALID_REQUEST
+    assert "Memory/" in exc_info.value.error.message
+
+
+def test_memory_supersession_rejects_non_memory_path_for_new_file(
+    tmp_path: Path,
+) -> None:
+    vault = tmp_path / "vault"
+    (vault / "Memory").mkdir(parents=True)
+    vault.joinpath("Memory", "old.md").write_text("# Old", encoding="utf-8")
+    workflow = MemorySupersessionWorkflow(_config(vault))
+
+    with pytest.raises(ToolExecutionError) as exc_info:
+        workflow.propose_supersession(
+            superseded_file_path="Memory/old.md",
+            new_file_path="wiki/new-note.md",
+            new_content="# New",
+        )
+
+    assert exc_info.value.error.code is ErrorCode.ERR_INVALID_REQUEST
+    assert "Memory/" in exc_info.value.error.message
+
+
+def test_memory_supersession_raises_when_superseded_file_does_not_exist(
+    tmp_path: Path,
+) -> None:
+    vault = tmp_path / "vault"
+    (vault / "Memory").mkdir(parents=True)
+    workflow = MemorySupersessionWorkflow(_config(vault))
+
+    with pytest.raises(ToolExecutionError) as exc_info:
+        workflow.propose_supersession(
+            superseded_file_path="Memory/does-not-exist.md",
+            new_file_path="Memory/successor.md",
+            new_content="# Successor",
+        )
+
+    assert exc_info.value.error.code is ErrorCode.ERR_MISSING_FILE
+
+
+def test_memory_supersession_raises_when_successor_file_already_exists(
+    tmp_path: Path,
+) -> None:
+    vault = tmp_path / "vault"
+    (vault / "Memory").mkdir(parents=True)
+    vault.joinpath("Memory", "prior.md").write_text("# Prior", encoding="utf-8")
+    vault.joinpath("Memory", "successor.md").write_text(
+        "# Successor already here", encoding="utf-8"
+    )
+    workflow = MemorySupersessionWorkflow(_config(vault))
+
+    with pytest.raises(ToolExecutionError) as exc_info:
+        workflow.propose_supersession(
+            superseded_file_path="Memory/prior.md",
+            new_file_path="Memory/successor.md",
+            new_content="# Successor new content",
+        )
+
+    assert exc_info.value.error.code is ErrorCode.ERR_INVALID_REQUEST
+    assert "already exists" in exc_info.value.error.message
+
+
+def test_memory_supersession_merges_frontmatter_into_note_without_existing_frontmatter(
+    tmp_path: Path,
+) -> None:
+    vault = tmp_path / "vault"
+    (vault / "Memory").mkdir(parents=True)
+    prior = vault / "Memory" / "bare.md"
+    prior.write_text("# Bare Note\nNo frontmatter here.", encoding="utf-8")
+    workflow = MemorySupersessionWorkflow(_config(vault))
+
+    proposed = workflow.propose_supersession(
+        superseded_file_path="Memory/bare.md",
+        new_file_path="Memory/bare-v2.md",
+        new_content="# Bare Note v2\nUpdated content.",
+    )
+    workflow.approve(proposed.changeset_id)
+
+    old_text = prior.read_text(encoding="utf-8")
+    new_text = vault.joinpath("Memory", "bare-v2.md").read_text(encoding="utf-8")
+
+    assert "status: superseded" in old_text
+    assert "superseded_by: Memory/bare-v2.md" in old_text
+    assert "# Bare Note" in old_text
+    assert "status: active" in new_text
+    assert "supersedes:" in new_text
+    assert "# Bare Note v2" in new_text
+
+
 def _sequential_ids():
     count = 0
 
