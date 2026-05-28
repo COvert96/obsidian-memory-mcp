@@ -34,7 +34,8 @@ class ProjectConfig:
     DEFAULT_TAGS_SEPARATOR: ClassVar[str] = ","
     DEFAULT_MAX_PROPOSAL_TTL_HOURS: ClassVar[int] = 24
     DEFAULT_PROPOSAL_TTL_SECONDS: ClassVar[int] = 3600
-    DEFAULT_MAX_PROPOSAL_CONTENT_BYTES: ClassVar[int] = 1024 * 1024
+    DEFAULT_MAX_WRITE_CONTENT_BYTES: ClassVar[int] = 1024 * 1024
+    DEFAULT_MAX_PROPOSAL_CONTENT_BYTES: ClassVar[int] = 1024 * 1024  # deprecated alias
     DEFAULT_PROPOSAL_RETENTION_DAYS: ClassVar[int] = 7
 
     vault_path: Path
@@ -44,7 +45,7 @@ class ProjectConfig:
     tags_separator: str = DEFAULT_TAGS_SEPARATOR
     max_proposal_ttl_hours: int = DEFAULT_MAX_PROPOSAL_TTL_HOURS
     proposal_ttl_seconds: int = DEFAULT_PROPOSAL_TTL_SECONDS
-    max_proposal_content_bytes: int = DEFAULT_MAX_PROPOSAL_CONTENT_BYTES
+    max_write_content_bytes: int = DEFAULT_MAX_WRITE_CONTENT_BYTES
     proposal_retention_days: int = DEFAULT_PROPOSAL_RETENTION_DAYS
 
 

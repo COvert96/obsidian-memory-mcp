@@ -9,6 +9,7 @@ from typing import Any
 
 class ErrorCode(str, Enum):
     ERR_CONTEXT_EXCEEDS_BUDGET = "ERR_CONTEXT_EXCEEDS_BUDGET"
+    ERR_FILE_EXISTS = "ERR_FILE_EXISTS"
     ERR_GUARDRAIL_VIOLATION = "ERR_GUARDRAIL_VIOLATION"
     ERR_INTERNAL = "ERR_INTERNAL"
     ERR_INVALID_PROJECT = "ERR_INVALID_PROJECT"
@@ -94,6 +95,13 @@ ERROR_CATALOG: dict[ErrorCode, ErrorDefinition] = {
         recovery_suggestion=(
             "Use a smaller pack, disable strict budgeting, or remove files until the estimate fits."
         ),
+    ),
+    ErrorCode.ERR_FILE_EXISTS: ErrorDefinition(
+        message_template=(
+            "File '{file_path}' already exists. Use write_memory or write_note only for new files; "
+            "call update_memory or update_note to modify an existing file."
+        ),
+        recovery_suggestion="Verify the path or use the appropriate update tool.",
     ),
     ErrorCode.ERR_INTERNAL: ErrorDefinition(
         message_template="The server encountered an unexpected internal error.",
