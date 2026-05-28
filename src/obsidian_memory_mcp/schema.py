@@ -5,8 +5,8 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 3
-SUPPORTED_SCHEMA_VERSIONS = frozenset({0, 2, SCHEMA_VERSION})
+SCHEMA_VERSION = 4
+SUPPORTED_SCHEMA_VERSIONS = frozenset({0, 2, 3, SCHEMA_VERSION})
 
 
 class SchemaVersionError(RuntimeError):
@@ -189,6 +189,44 @@ def bootstrap_schema(connection: sqlite3.Connection) -> None:
             ON proposals(created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_proposal_events_proposal_id
             ON proposal_events(proposal_id, id);
+
+        CREATE TABLE IF NOT EXISTS proposal_changesets (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            description TEXT,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            status_changed_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS proposal_changeset_members (
+            changeset_id TEXT NOT NULL,
+            proposal_id TEXT NOT NULL,
+            ordinal INTEGER NOT NULL,
+            role TEXT NOT NULL DEFAULT 'member',
+            PRIMARY KEY (changeset_id, proposal_id),
+            FOREIGN KEY(changeset_id) REFERENCES proposal_changesets(id) ON DELETE CASCADE,
+            FOREIGN KEY(proposal_id) REFERENCES proposals(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS proposal_changeset_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            changeset_id TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            occurred_at TEXT NOT NULL,
+            details TEXT NOT NULL,
+            FOREIGN KEY(changeset_id) REFERENCES proposal_changesets(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_proposal_changesets_status_created
+            ON proposal_changesets(status, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_proposal_changeset_members_changeset
+            ON proposal_changeset_members(changeset_id, ordinal);
+        CREATE INDEX IF NOT EXISTS idx_proposal_changeset_members_proposal
+            ON proposal_changeset_members(proposal_id);
+        CREATE INDEX IF NOT EXISTS idx_proposal_changeset_events_changeset_id
+            ON proposal_changeset_events(changeset_id, id);
         """
     )
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")

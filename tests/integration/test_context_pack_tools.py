@@ -101,5 +101,5 @@ def test_get_context_pack_surfaces_invalid_pack_and_budget_errors(
     with pytest.raises(ToolError) as budget_error:
         _call("get_context_pack", {"project": "sample", "pack_name": "tiny"})
 
-    assert ErrorCode.ERR_INVALID_PROJECT.value in str(missing_pack.value)
+    assert ErrorCode.ERR_INVALID_REQUEST.value in str(missing_pack.value)
     assert ErrorCode.ERR_CONTEXT_EXCEEDS_BUDGET.value in str(budget_error.value)
