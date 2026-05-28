@@ -36,7 +36,9 @@ def engine_for(path: Path | str) -> Engine:
     )
 
     @event.listens_for(engine, "connect")
-    def _configure_sqlite_pragmas(dbapi_connection: object, connection_record: object) -> None:  # noqa: ARG001
+    def _configure_sqlite_pragmas(
+        dbapi_connection: object, connection_record: object
+    ) -> None:  # noqa: ARG001
         if not isinstance(dbapi_connection, _DBAPIConnectionProtocol):
             raise TypeError("Expected DBAPI connection with cursor().")
         cursor = dbapi_connection.cursor()
