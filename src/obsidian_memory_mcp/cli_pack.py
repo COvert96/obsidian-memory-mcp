@@ -7,6 +7,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
+from obsidian_memory_mcp._time import duration_ms
 from obsidian_memory_mcp.config import ProjectConfig
 from obsidian_memory_mcp.context_packs import ContextPackLoader, ContextPackResult
 from obsidian_memory_mcp.errors import ToolExecutionError
@@ -115,7 +116,7 @@ def _pack_list(vault_root: Path, load_config: ConfigLoaderFn) -> int:
         )
         exit_code = max(exit_code, _pack_exit_code(result))
 
-    print(f"Duration ms: {_duration_ms(started)}")
+    print(f"Duration ms: {duration_ms(started)}")
     return exit_code
 
 
@@ -138,7 +139,7 @@ def _pack_validate(
             print(f"  {suggestion}")
         return 1
 
-    _print_context_pack_summary(result, duration_ms=_duration_ms(started))
+    _print_context_pack_summary(result, duration_ms=duration_ms(started))
     if result.tag_filtered_files:
         print("Tag-filtered files:")
         for path in result.tag_filtered_files:
@@ -171,7 +172,7 @@ def _pack_load(
         return 1
 
     print(result.content, end="" if result.content.endswith("\n") else "\n")
-    _print_context_pack_summary(result, duration_ms=_duration_ms(started))
+    _print_context_pack_summary(result, duration_ms=duration_ms(started))
     if result.missing_files:
         return 1
     if result.warnings:
@@ -226,7 +227,3 @@ def _pack_exit_code(result: ContextPackResult) -> int:
     ):
         return 2
     return 0
-
-
-def _duration_ms(started: float) -> int:
-    return max(0, int((time.perf_counter() - started) * 1000))
