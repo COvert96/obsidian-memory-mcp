@@ -83,6 +83,9 @@ def _sqlalchemy_connection(
         "sqlite+pysqlite://",
         creator=lambda: proxy,
         poolclass=StaticPool,
+        pool_reset_on_return=None,
+        isolation_level="AUTOCOMMIT",
+        skip_autocommit_rollback=True,
     )
     sa_connection = engine.connect()
 
