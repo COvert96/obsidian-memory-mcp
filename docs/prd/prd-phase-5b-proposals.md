@@ -44,36 +44,36 @@ Phase 5B may include:
 **Description:** As an operator, I need to approve one workflow transition even when correctness requires modifying more than one file.
 
 **Acceptance Criteria:**
-- [ ] A higher-level proposal model can represent more than one file mutation as one logical approval
-- [ ] Approval applies all file mutations atomically enough for the workflow, or fails without leaving the workflow half-applied
-- [ ] Review output shows all affected files before approval
+- [x] A higher-level proposal model can represent more than one file mutation as one logical approval
+- [x] Approval applies all file mutations atomically enough for the workflow, or fails without leaving the workflow half-applied
+- [x] Review output shows all affected files before approval
 
 ### US-5B-002: Supersede contradictory memory safely
 **Description:** As an operator using agent-managed `Memory/`, I need contradictory updates to preserve history instead of silently replacing the previous source of truth.
 
 **Acceptance Criteria:**
-- [ ] The workflow distinguishes file-state conflicts from semantic contradictions
-- [ ] When a new memory item supersedes an existing one, the prior memory is archived or marked superseded rather than silently overwritten
-- [ ] The new active memory note records the relationship to the superseded note
-- [ ] The supersession transition is reviewable and approvable as one logical workflow
-- [ ] MVP for this phase may require explicit identification of the contradicted memory; automatic contradiction detection is not required
+- [x] The workflow distinguishes file-state conflicts from semantic contradictions
+- [x] When a new memory item supersedes an existing one, the prior memory is archived or marked superseded rather than silently overwritten
+- [x] The new active memory note records the relationship to the superseded note
+- [x] The supersession transition is reviewable and approvable as one logical workflow
+- [x] MVP for this phase may require explicit identification of the contradicted memory; automatic contradiction detection is not required
 
 ### US-5B-003: Provide richer operator review tools
 **Description:** As an operator, I need better inspection and management tools once proposal volume or workflow complexity exceeds the minimal Phase 5A CLI.
 
 **Acceptance Criteria:**
-- [ ] `mcp-memory proposals show` can display a full proposal or grouped changeset
-- [ ] If implemented in Phase 5B, `mcp-memory proposals reject` supports structured reason/notes in addition to the baseline reject behavior from Phase 5A
-- [ ] `mcp-memory proposals cleanup` can remove or finalize expired proposals according to retention policy
-- [ ] Diff-oriented review is available when preview-only output is insufficient
+- [x] `mcp-memory proposals show` can display a full proposal or grouped changeset
+- [x] If implemented in Phase 5B, `mcp-memory proposals reject` supports structured reason/notes in addition to the baseline reject behavior from Phase 5A
+- [x] `mcp-memory proposals cleanup` can remove or finalize expired proposals according to retention policy
+- [x] Diff-oriented review is available when preview-only output is insufficient
 
 ### US-5B-004: Provide richer audit visibility
 **Description:** As an operator, I need richer audit visibility when proposal history becomes an operational concern.
 
 **Acceptance Criteria:**
-- [ ] Audit records can be queried separately from the primary proposal list
-- [ ] Audit output is sufficient to reconstruct who approved what workflow and when
-- [ ] Retention policy is explicit rather than implicit
+- [x] Audit records can be queried separately from the primary proposal list
+- [x] Audit output is sufficient to reconstruct who approved what workflow and when
+- [x] Retention policy is explicit rather than implicit
 
 ## Functional Requirements
 
@@ -99,10 +99,10 @@ Phase 5B may include:
 
 ## Success Metrics
 
-- [ ] Contradictory memory is never silently overwritten in supported supersession workflows
-- [ ] Operators can review one grouped change as one logical decision
-- [ ] Historical memory records remain traceable after supersession
-- [ ] Phase 5B features are only built when Phase 5A proves insufficient for real workflows
+- [x] Contradictory memory is never silently overwritten in supported supersession workflows
+- [x] Operators can review one grouped change as one logical decision
+- [x] Historical memory records remain traceable after supersession
+- [x] Phase 5B features are only built when Phase 5A proves insufficient for real workflows
 
 ## Open Questions
 

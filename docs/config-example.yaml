@@ -55,3 +55,6 @@ write_constraints:
 
 tags_separator: ","
 max_proposal_ttl_hours: 24
+proposal_ttl_seconds: 3600
+max_proposal_content_bytes: 1048576
+proposal_retention_days: 7

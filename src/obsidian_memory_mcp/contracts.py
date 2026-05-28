@@ -253,6 +253,8 @@ TOOL_CONTRACTS: dict[str, ToolContract] = {
         example_request={
             "project": "occlave",
             "proposal_id": "550e8400-e29b-41d4-a716-446655440000",
+            "reason": "duplicate",
+            "notes": "Superseded by a grouped memory changeset.",
         },
         example_response={
             "project": "occlave",
@@ -261,6 +263,7 @@ TOOL_CONTRACTS: dict[str, ToolContract] = {
             "operation": "update",
             "status": "rejected",
             "rejected_at": "2026-05-23T10:15:00Z",
+            "reason": "duplicate",
         },
     ),
 }
