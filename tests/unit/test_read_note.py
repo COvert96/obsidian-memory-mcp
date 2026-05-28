@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import time
 from pathlib import Path
 
@@ -29,7 +30,28 @@ def test_read_note_returns_exact_content_frontmatter_size_and_special_path(
         "content": content,
         "frontmatter": {"type": "concept", "tags": ["api"]},
         "file_size_bytes": len(content.encode("utf-8")),
+        "content_hash": hashlib.sha256(note.read_bytes()).hexdigest(),
     }
+
+
+def test_read_note_content_hash_is_raw_byte_hash_for_crlf_file(
+    vault_root: Path,
+) -> None:
+    """The hash is over raw bytes, so CRLF files differ from their LF text."""
+    note = vault_root / "wiki" / "crlf.md"
+    raw_bytes = b"# Title\r\nLine one.\r\n"
+    note.write_bytes(raw_bytes)
+
+    result = _service(vault_root).read("wiki/crlf.md")
+
+    assert isinstance(result["content_hash"], str)
+    assert len(result["content_hash"]) == 64
+    assert result["content_hash"] == hashlib.sha256(raw_bytes).hexdigest()
+    # read_text normalizes CRLF -> LF, so hashing the decoded text would NOT match.
+    assert (
+        result["content_hash"]
+        != hashlib.sha256(str(result["content"]).encode("utf-8")).hexdigest()
+    )
 
 
 def test_read_note_raises_missing_file(vault_root: Path) -> None:

@@ -29,7 +29,7 @@ from obsidian_memory_mcp.retrieval import (
     SearchService,
 )
 from obsidian_memory_mcp.server_registry import load_project_registry
-from obsidian_memory_mcp.writes import WriteService
+from obsidian_memory_mcp.writes import WriteAuditRepository, WriteService
 from obsidian_memory_mcp.writes._service import is_memory_path, require_memory_path
 
 mcp = FastMCP("obsidian-memory-mcp")
@@ -255,7 +255,10 @@ def write_memory(project: str, file_path: str, content: str) -> dict[str, Any]:
     """
     require_memory_path(file_path, "write_memory")
     config = _project_config(project)
-    result = WriteService(config).create(file_path, content)
+    result = _write_service(config, tool="write_memory", project=project).create(
+        file_path,
+        content,
+    )
     return {"project": project, **result.as_response()}
 
 
@@ -272,25 +275,101 @@ def write_note(project: str, file_path: str, content: str) -> dict[str, Any]:
             (for example, `wiki/concepts/new-note.md`).
         content: Full file content to write.
     """
-    if is_memory_path(file_path):
-        raise ToolExecutionError(
-            build_error(
-                ErrorCode.ERR_INVALID_REQUEST,
-                message=(
-                    "write_note does not support files under 'Memory/'. "
-                    f"Received '{file_path}'. Use write_memory for memory files."
-                ),
-                details={"file_path": file_path, "forbidden_prefix": "Memory/"},
-            )
-        )
+    _require_non_memory_path(file_path, "write_note")
     config = _project_config(project)
-    result = WriteService(config).create(file_path, content)
+    result = _write_service(config, tool="write_note", project=project).create(
+        file_path,
+        content,
+    )
+    return {"project": project, **result.as_response()}
+
+
+@mcp.tool()
+def update_memory(
+    project: str,
+    file_path: str,
+    content: str,
+    expected_hash: str | None = None,
+) -> dict[str, Any]:
+    """Overwrite an existing file under Memory/ directly.
+
+    The file must already exist — use `write_memory` to create one. To guard
+    against a concurrent change, pass the `content_hash` returned by the most
+    recent `read_note` as `expected_hash`; the write is rejected with
+    `ERR_HASH_MISMATCH` if the file changed since.
+
+    Args:
+        project: Project name from the server registry.
+        file_path: Vault-relative path that must begin with `Memory/`.
+        content: Full replacement file content.
+        expected_hash: Optional content_hash from read_note for conflict detection.
+    """
+    require_memory_path(file_path, "update_memory")
+    config = _project_config(project)
+    result = _write_service(config, tool="update_memory", project=project).update(
+        file_path,
+        content,
+        expected_hash,
+    )
+    return {"project": project, **result.as_response()}
+
+
+@mcp.tool()
+def update_note(
+    project: str,
+    file_path: str,
+    content: str,
+    expected_hash: str | None = None,
+) -> dict[str, Any]:
+    """Overwrite an existing vault note at any config-allowed path outside Memory/.
+
+    Paths under `Memory/` are rejected — use `update_memory` instead. The file
+    must already exist. Pass the `content_hash` from the most recent `read_note`
+    as `expected_hash` to reject concurrent changes with `ERR_HASH_MISMATCH`.
+
+    Args:
+        project: Project name from the server registry.
+        file_path: Vault-relative path outside `Memory/`.
+        content: Full replacement file content.
+        expected_hash: Optional content_hash from read_note for conflict detection.
+    """
+    _require_non_memory_path(file_path, "update_note")
+    config = _project_config(project)
+    result = _write_service(config, tool="update_note", project=project).update(
+        file_path,
+        content,
+        expected_hash,
+    )
     return {"project": project, **result.as_response()}
 
 
 def _project_config(project: str) -> ProjectConfig:
     registry = load_project_registry()
     return load_project_config(registry.resolve(project))
+
+
+def _write_service(config: ProjectConfig, *, tool: str, project: str) -> WriteService:
+    return WriteService(
+        config,
+        audit=WriteAuditRepository(config),
+        tool=tool,
+        project=project,
+    )
+
+
+def _require_non_memory_path(file_path: str, tool_name: str) -> None:
+    if not is_memory_path(file_path):
+        return
+    raise ToolExecutionError(
+        build_error(
+            ErrorCode.ERR_INVALID_REQUEST,
+            message=(
+                f"{tool_name} does not support files under 'Memory/'. "
+                f"Received '{file_path}'. Use the matching memory tool instead."
+            ),
+            details={"file_path": file_path, "forbidden_prefix": "Memory/"},
+        )
+    )
 
 
 def _make_context_pack_loader(config: ProjectConfig) -> ContextPackLoader:

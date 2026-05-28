@@ -12,7 +12,7 @@ Successful tools return JSON content through MCP. Error responses are surfaced b
 
 Request fields: `project` string, `note_path` vault-relative markdown path.
 
-Response fields: `project`, `file_path`, `content`, `frontmatter`, `file_size_bytes`.
+Response fields: `project`, `file_path`, `content`, `frontmatter`, `file_size_bytes`, `content_hash`. `content_hash` is the SHA-256 of the raw file bytes; pass it as `expected_hash` to `update_memory` or `update_note` for optimistic-lock conflict detection.
 
 Possible errors: `ERR_INVALID_REQUEST`, `ERR_INVALID_PROJECT`, `ERR_MISSING_FILE`, `ERR_GUARDRAIL_VIOLATION`, `ERR_INTERNAL`.
 
@@ -131,6 +131,44 @@ Possible errors: `ERR_INVALID_REQUEST`, `ERR_INVALID_PROJECT`, `ERR_STALE_PROPOS
   "notes": "Covered by a grouped changeset."
 }
 ```
+
+## update_memory
+
+Request fields: `project`, `file_path` (must begin with `Memory/`), `content`, optional `expected_hash`.
+
+Response fields: `project`, `file_path`, `operation`, `content_hash`, `file_size_bytes`, `written_at`.
+
+The target file must already exist. When `expected_hash` is supplied and no longer matches the on-disk content, the call is rejected with `ERR_HASH_MISMATCH` and nothing is written.
+
+Possible errors: `ERR_INVALID_REQUEST`, `ERR_INVALID_PROJECT`, `ERR_MISSING_FILE`, `ERR_GUARDRAIL_VIOLATION`, `ERR_HASH_MISMATCH`, `ERR_INTERNAL`.
+
+```json
+{
+  "project": "sample",
+  "file_path": "Memory/release-note.md",
+  "content": "# Release Note\nRevised memory.\n",
+  "expected_hash": "3c7b5f1d2a7e4cb68f4b33d20c342f87df8af3f8f0dcbcb3552f7c8f35ea1887"
+}
+```
+
+## update_note
+
+Request fields: `project`, `file_path` (any config-allowed path outside `Memory/`), `content`, optional `expected_hash`. Use `update_memory` for `Memory/` files.
+
+Response fields and error codes are identical to `update_memory`.
+
+```json
+{
+  "project": "sample",
+  "file_path": "wiki/concepts/compliance-as-code.md",
+  "content": "# Compliance as Code\nRevised.\n",
+  "expected_hash": "3c7b5f1d2a7e4cb68f4b33d20c342f87df8af3f8f0dcbcb3552f7c8f35ea1887"
+}
+```
+
+## audit writes (CLI)
+
+`mcp-memory audit writes [vault_path] [--project NAME] [--file-path PATH] [--limit 50]` prints the append-only write log as a table: `occurred_at | tool | project | file_path | operation | content_hash[:12]`. Every successful `write_memory`, `write_note`, `update_memory`, and `update_note` call appends one row.
 
 ## Workflows
 

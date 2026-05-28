@@ -7,13 +7,18 @@ from typing import Any
 
 from obsidian_memory_mcp.config import GuardrailEvaluator, ProjectConfig
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
+from obsidian_memory_mcp.hashing import sha256_bytes
 from obsidian_memory_mcp.markdown_parser import (
     MarkdownHeading,
     find_headings,
     matching_heading,
     section_end_index,
 )
-from obsidian_memory_mcp.retrieval._io import read_text, resolve_existing_note
+from obsidian_memory_mcp.retrieval._io import (
+    read_bytes,
+    read_text,
+    resolve_existing_note,
+)
 from obsidian_memory_mcp.vault import parse_frontmatter
 
 
@@ -27,11 +32,15 @@ class ReadNoteService:
     def read(self, note_path: str) -> dict[str, Any]:
         resolved_path = resolve_existing_note(self._config, self._guardrails, note_path)
         raw = read_text(self._config, resolved_path)
+        # content_hash is the SHA-256 of the raw bytes, not the newline-normalized
+        # text, so it matches WriteService.update()'s on-disk hash for CRLF files.
+        content_hash = sha256_bytes(read_bytes(self._config, resolved_path))
         return {
             "file_path": resolved_path.relative_to(self._config.vault_path).as_posix(),
             "content": raw,
             "frontmatter": parse_frontmatter(raw),
             "file_size_bytes": _utf8_size(raw),
+            "content_hash": content_hash,
         }
 
 

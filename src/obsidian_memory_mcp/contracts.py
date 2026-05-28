@@ -43,6 +43,9 @@ TOOL_CONTRACTS: dict[str, ToolContract] = {
             "content": "---\ntype: concept\n---\n# Compliance as Code\n...",
             "frontmatter": {"type": "concept"},
             "file_size_bytes": 412,
+            "content_hash": (
+                "3c7b5f1d2a7e4cb68f4b33d20c342f87df8af3f8f0dcbcb3552f7c8f35ea1887"
+            ),
         },
     ),
     "read_section": ToolContract(
@@ -317,6 +320,75 @@ TOOL_CONTRACTS: dict[str, ToolContract] = {
             "operation": "create",
             "content_hash": "bef4b0b23bc6e4fcbf64cfd9d3405fceea27191c0b37db114d4e62ebccb8eaf7",
             "file_size_bytes": 96,
+            "written_at": "2026-05-28T10:00:00+00:00",
+        },
+    ),
+    "update_memory": ToolContract(
+        name="update_memory",
+        description=(
+            "Overwrite an existing file under Memory/ directly. Fails if the file "
+            "does not exist. Pass the content_hash from read_note as expected_hash "
+            "to reject concurrent changes."
+        ),
+        possible_errors=(
+            ErrorCode.ERR_INVALID_REQUEST,
+            ErrorCode.ERR_INVALID_PROJECT,
+            ErrorCode.ERR_MISSING_FILE,
+            ErrorCode.ERR_GUARDRAIL_VIOLATION,
+            ErrorCode.ERR_HASH_MISMATCH,
+            ErrorCode.ERR_INTERNAL,
+        ),
+        example_request={
+            "project": "occlave",
+            "file_path": "Memory/company-summary.md",
+            "content": "# Company Summary\nUpdated content.",
+            "expected_hash": (
+                "3c7b5f1d2a7e4cb68f4b33d20c342f87df8af3f8f0dcbcb3552f7c8f35ea1887"
+            ),
+        },
+        example_response={
+            "project": "occlave",
+            "file_path": "Memory/company-summary.md",
+            "operation": "update",
+            "content_hash": (
+                "bef4b0b23bc6e4fcbf64cfd9d3405fceea27191c0b37db114d4e62ebccb8eaf7"
+            ),
+            "file_size_bytes": 128,
+            "written_at": "2026-05-28T10:00:00+00:00",
+        },
+    ),
+    "update_note": ToolContract(
+        name="update_note",
+        description=(
+            "Overwrite an existing vault note at any config-allowed path outside "
+            "Memory/. Fails if the file does not exist. Use update_memory for "
+            "Memory/ files. Pass the content_hash from read_note as expected_hash "
+            "to reject concurrent changes."
+        ),
+        possible_errors=(
+            ErrorCode.ERR_INVALID_REQUEST,
+            ErrorCode.ERR_INVALID_PROJECT,
+            ErrorCode.ERR_MISSING_FILE,
+            ErrorCode.ERR_GUARDRAIL_VIOLATION,
+            ErrorCode.ERR_HASH_MISMATCH,
+            ErrorCode.ERR_INTERNAL,
+        ),
+        example_request={
+            "project": "occlave",
+            "file_path": "wiki/concepts/compliance-as-code.md",
+            "content": "# Compliance as Code\nRevised content.",
+            "expected_hash": (
+                "3c7b5f1d2a7e4cb68f4b33d20c342f87df8af3f8f0dcbcb3552f7c8f35ea1887"
+            ),
+        },
+        example_response={
+            "project": "occlave",
+            "file_path": "wiki/concepts/compliance-as-code.md",
+            "operation": "update",
+            "content_hash": (
+                "bef4b0b23bc6e4fcbf64cfd9d3405fceea27191c0b37db114d4e62ebccb8eaf7"
+            ),
+            "file_size_bytes": 102,
             "written_at": "2026-05-28T10:00:00+00:00",
         },
     ),

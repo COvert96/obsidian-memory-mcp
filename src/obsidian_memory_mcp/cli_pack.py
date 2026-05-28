@@ -19,7 +19,9 @@ SUBCOMMAND_VALIDATE = "validate"
 ConfigLoaderFn = Callable[[Path], ProjectConfig | None]
 
 
-def add_pack_parser(subparsers: argparse._SubParsersAction) -> None:
+def add_pack_parser(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
     pack_parser = subparsers.add_parser(
         COMMAND_PACK,
         help="List, validate, and load configured context packs.",

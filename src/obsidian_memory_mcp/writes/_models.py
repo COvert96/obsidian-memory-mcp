@@ -1,4 +1,4 @@
-"""WriteResult — the return value of WriteService.create()."""
+"""Domain models for the direct-write path — no SQLAlchemy imports."""
 
 from __future__ import annotations
 
@@ -23,3 +23,19 @@ class WriteResult:
             "file_size_bytes": self.file_size_bytes,
             "written_at": self.written_at.isoformat(),
         }
+
+
+@dataclass(frozen=True)
+class WriteAuditEntry:
+    """One append-only row in the write_audit log.
+
+    `supersedes` is always None in Phase 8b; Phase 8c populates it.
+    """
+
+    occurred_at: datetime
+    tool: str
+    project: str
+    file_path: str
+    operation: str
+    content_hash: str | None
+    supersedes: str | None = None

@@ -11,6 +11,7 @@ class ErrorCode(str, Enum):
     ERR_CONTEXT_EXCEEDS_BUDGET = "ERR_CONTEXT_EXCEEDS_BUDGET"
     ERR_FILE_EXISTS = "ERR_FILE_EXISTS"
     ERR_GUARDRAIL_VIOLATION = "ERR_GUARDRAIL_VIOLATION"
+    ERR_HASH_MISMATCH = "ERR_HASH_MISMATCH"
     ERR_INTERNAL = "ERR_INTERNAL"
     ERR_INVALID_PROJECT = "ERR_INVALID_PROJECT"
     ERR_INVALID_REQUEST = "ERR_INVALID_REQUEST"
@@ -102,6 +103,16 @@ ERROR_CATALOG: dict[ErrorCode, ErrorDefinition] = {
             "call update_memory or update_note to modify an existing file."
         ),
         recovery_suggestion="Verify the path or use the appropriate update tool.",
+    ),
+    ErrorCode.ERR_HASH_MISMATCH: ErrorDefinition(
+        message_template=(
+            "File '{file_path}' has changed since you last read it. Call read_note "
+            "to get the current content_hash before retrying the update."
+        ),
+        recovery_suggestion=(
+            "Call read_note to get the current content_hash, then retry with the "
+            "updated expected_hash."
+        ),
     ),
     ErrorCode.ERR_INTERNAL: ErrorDefinition(
         message_template="The server encountered an unexpected internal error.",

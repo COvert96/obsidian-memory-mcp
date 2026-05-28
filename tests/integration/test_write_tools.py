@@ -184,3 +184,135 @@ def test_write_note_fails_when_file_already_exists(vault: Path) -> None:
 
     assert ErrorCode.ERR_FILE_EXISTS.value in str(exc_info.value)
     assert (vault / "wiki" / "existing.md").read_text(encoding="utf-8") == "original"
+
+
+# ---------------------------------------------------------------------------
+# update_memory
+# ---------------------------------------------------------------------------
+
+
+def test_update_memory_overwrites_without_expected_hash(vault: Path) -> None:
+    target = vault / "Memory" / "summary.md"
+    target.write_text("# Old", encoding="utf-8")
+
+    result = _call(
+        "update_memory",
+        {"project": "sample", "file_path": "Memory/summary.md", "content": "# New"},
+    )
+
+    assert target.read_text(encoding="utf-8") == "# New"
+    assert result["operation"] == "update"
+    assert result["file_path"] == "Memory/summary.md"
+
+
+def test_update_memory_accepts_matching_hash_from_read_note(vault: Path) -> None:
+    target = vault / "Memory" / "summary.md"
+    target.write_text("# Original\nbody", encoding="utf-8")
+
+    read_back = _call(
+        "read_note", {"project": "sample", "note_path": "Memory/summary.md"}
+    )
+    result = _call(
+        "update_memory",
+        {
+            "project": "sample",
+            "file_path": "Memory/summary.md",
+            "content": "# Revised",
+            "expected_hash": read_back["content_hash"],
+        },
+    )
+
+    assert result["operation"] == "update"
+    assert target.read_text(encoding="utf-8") == "# Revised"
+
+
+def test_update_memory_rejects_stale_hash_after_disk_change(vault: Path) -> None:
+    target = vault / "Memory" / "summary.md"
+    target.write_text("# Original", encoding="utf-8")
+    read_back = _call(
+        "read_note", {"project": "sample", "note_path": "Memory/summary.md"}
+    )
+    # Mutate on disk after reading, so the captured hash is now stale.
+    target.write_text("# Changed underneath", encoding="utf-8")
+
+    with pytest.raises(ToolError) as exc_info:
+        _call(
+            "update_memory",
+            {
+                "project": "sample",
+                "file_path": "Memory/summary.md",
+                "content": "# Attempted",
+                "expected_hash": read_back["content_hash"],
+            },
+        )
+
+    assert ErrorCode.ERR_HASH_MISMATCH.value in str(exc_info.value)
+    assert target.read_text(encoding="utf-8") == "# Changed underneath"
+
+
+def test_update_memory_missing_file_raises(vault: Path) -> None:
+    with pytest.raises(ToolError) as exc_info:
+        _call(
+            "update_memory",
+            {
+                "project": "sample",
+                "file_path": "Memory/absent.md",
+                "content": "content",
+            },
+        )
+
+    assert ErrorCode.ERR_MISSING_FILE.value in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# update_note
+# ---------------------------------------------------------------------------
+
+
+def test_update_note_overwrites_existing_note_outside_memory(vault: Path) -> None:
+    target = vault / "wiki" / "concept.md"
+    target.write_text("# Concept v1", encoding="utf-8")
+
+    result = _call(
+        "update_note",
+        {
+            "project": "sample",
+            "file_path": "wiki/concept.md",
+            "content": "# Concept v2",
+        },
+    )
+
+    assert target.read_text(encoding="utf-8") == "# Concept v2"
+    assert result["operation"] == "update"
+
+
+def test_update_note_rejects_memory_path(vault: Path) -> None:
+    (vault / "Memory" / "note.md").write_text("x", encoding="utf-8")
+
+    with pytest.raises(ToolError) as exc_info:
+        _call(
+            "update_note",
+            {"project": "sample", "file_path": "Memory/note.md", "content": "y"},
+        )
+
+    assert ErrorCode.ERR_INVALID_REQUEST.value in str(exc_info.value)
+
+
+def test_read_note_hash_round_trips_through_update_for_crlf_file(vault: Path) -> None:
+    """US-005 success metric: a CRLF file's read_note hash is accepted by update."""
+    target = vault / "Memory" / "crlf.md"
+    target.write_bytes(b"# Title\r\nbody line\r\n")
+
+    read_back = _call("read_note", {"project": "sample", "note_path": "Memory/crlf.md"})
+    result = _call(
+        "update_memory",
+        {
+            "project": "sample",
+            "file_path": "Memory/crlf.md",
+            "content": "# Replaced",
+            "expected_hash": read_back["content_hash"],
+        },
+    )
+
+    assert result["operation"] == "update"
+    assert target.read_text(encoding="utf-8") == "# Replaced"

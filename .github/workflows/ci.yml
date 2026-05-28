@@ -38,7 +38,7 @@ jobs:
         run: uv run ruff check
 
       - name: Run mypy
-        run: uv run mypy src
+        run: uv run mypy --strict src
 
       - name: Run full test suite with coverage
         run: >
