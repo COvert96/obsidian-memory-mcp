@@ -211,12 +211,17 @@ def approve_proposal(project: str, proposal_id: str) -> dict[str, Any]:
         proposal_id: The `proposal_id` returned by `propose_memory_update`.
     """
     config = _project_config(project)
-    result = ProposalManager(config).approve(proposal_id)
+    result = ProposalManager(config).approve(proposal_id, actor="mcp")
     return {"project": project, **result.as_response()}
 
 
 @mcp.tool()
-def reject_proposal(project: str, proposal_id: str) -> dict[str, Any]:
+def reject_proposal(
+    project: str,
+    proposal_id: str,
+    reason: str | None = None,
+    notes: str | None = None,
+) -> dict[str, Any]:
     """Discard a pending proposal without writing any file.
 
     Args:
@@ -224,7 +229,12 @@ def reject_proposal(project: str, proposal_id: str) -> dict[str, Any]:
         proposal_id: The `proposal_id` returned by `propose_memory_update`.
     """
     config = _project_config(project)
-    result = ProposalManager(config).reject(proposal_id)
+    result = ProposalManager(config).reject(
+        proposal_id,
+        reason=reason,
+        notes=notes,
+        actor="mcp",
+    )
     return {"project": project, **result.as_response()}
 
 
