@@ -7,6 +7,13 @@ name = "obsidian-memory-mcp"
 version = "0.1.0"
 description = "MCP SDK-based server for guarded Obsidian memory access"
 readme = "README.md"
+license = "Apache-2.0"
+authors = [
+	{ name = "Obsidian Memory MCP contributors" },
+]
+maintainers = [
+	{ name = "Obsidian Memory MCP contributors" },
+]
 requires-python = ">=3.12"
 dependencies = [
 	"mcp>=1.27.1",
@@ -14,14 +21,23 @@ dependencies = [
 	"tiktoken>=0.13.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/COvert96/obsidian-memory-mcp"
+Repository = "https://github.com/COvert96/obsidian-memory-mcp"
+Issues = "https://github.com/COvert96/obsidian-memory-mcp/issues"
+Documentation = "https://github.com/COvert96/obsidian-memory-mcp/blob/main/README.md"
+Changelog = "https://github.com/COvert96/obsidian-memory-mcp/blob/main/CHANGELOG.md"
+
 [project.scripts]
 mcp-memory = "obsidian_memory_mcp.cli:main"
 obsidian-memory-tokens = "obsidian_memory_mcp.tokens:main"
 
 [dependency-groups]
 dev = [
+	"anyio>=4.13.0",
 	"mypy>=2.1.0",
 	"pytest>=8.4.0",
+	"pytest-cov>=7.0.0",
 	"ruff>=0.15.14",
 	"types-pyyaml>=6.0.12.20260518",
 ]
