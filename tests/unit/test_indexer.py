@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import sqlite3
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -237,3 +238,33 @@ def test_unexpected_error_marks_run_failed_instead_of_leaving_it_running(
     assert result.status == "failed"
     assert row["status"] == "failed"
     assert row["finished_at"] is not None
+
+
+def test_cleanup_failures_are_logged_when_failure_recording_breaks(
+    index_config,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    note = index_config.vault_path / "wiki" / "alpha.md"
+    note.write_text("# Alpha\nbody", encoding="utf-8")
+
+    def fail_replace(*args, **kwargs):  # noqa: ANN002, ANN003
+        raise KeyError("missing section")
+
+    def fail_record_error(*args, **kwargs):  # noqa: ANN002, ANN003
+        raise TypeError("bad payload")
+
+    monkeypatch.setattr(
+        "obsidian_memory_mcp.indexing.service.replace_file_index", fail_replace
+    )
+    monkeypatch.setattr(
+        "obsidian_memory_mcp.indexing.service.record_error", fail_record_error
+    )
+    logger = Mock()
+    monkeypatch.setattr("obsidian_memory_mcp.indexing.service.LOGGER", logger)
+
+    result = run_index(index_config, mode=IndexMode.FULL)
+
+    assert result.status == "failed"
+    logger.exception.assert_called_once_with(
+        "Failed to persist index failure diagnostics."
+    )

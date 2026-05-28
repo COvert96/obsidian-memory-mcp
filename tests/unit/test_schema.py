@@ -11,6 +11,16 @@ from obsidian_memory_mcp.schema import (
 )
 
 
+class _RollbackTrackingConnection(sqlite3.Connection):
+    def __init__(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        super().__init__(*args, **kwargs)
+        self.rollback_calls = 0
+
+    def rollback(self) -> None:
+        self.rollback_calls += 1
+        super().rollback()
+
+
 def test_schema_bootstrap_creates_required_tables_indexes_and_user_version(
     tmp_path,
 ) -> None:
@@ -39,6 +49,12 @@ def test_schema_bootstrap_creates_required_tables_indexes_and_user_version(
         "blocks",
         "wikilinks",
         "index_errors",
+        "proposals",
+        "proposal_events",
+        "proposal_changesets",
+        "proposal_changeset_members",
+        "proposal_changeset_events",
+        "write_audit",
         "blocks_fts",
     }.issubset(tables)
     assert {
@@ -60,9 +76,39 @@ def test_schema_creation_is_idempotent(tmp_path) -> None:
     assert connection.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
 
 
+def test_schema_bootstrap_preserves_files_error_foreign_keys(tmp_path) -> None:
+    connection = sqlite3.connect(tmp_path / "index.sqlite3")
+
+    bootstrap_schema(connection)
+
+    files_foreign_keys = {
+        str(row[2]) for row in connection.execute("PRAGMA foreign_key_list('files')")
+    }
+    index_error_foreign_keys = {
+        str(row[2])
+        for row in connection.execute("PRAGMA foreign_key_list('index_errors')")
+    }
+
+    assert "index_errors" in files_foreign_keys
+    assert "files" in index_error_foreign_keys
+
+
 def test_schema_bootstrap_rejects_unsupported_user_version(tmp_path) -> None:
     connection = sqlite3.connect(tmp_path / "index.sqlite3")
     connection.execute("PRAGMA user_version = 999")
 
     with pytest.raises(SchemaVersionError):
         bootstrap_schema(connection)
+
+
+def test_schema_bootstrap_does_not_rollback_externally_owned_connection(
+    tmp_path,
+) -> None:
+    connection = sqlite3.connect(
+        tmp_path / "index.sqlite3",
+        factory=_RollbackTrackingConnection,
+    )
+
+    bootstrap_schema(connection)
+
+    assert connection.rollback_calls == 0

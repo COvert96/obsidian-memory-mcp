@@ -12,7 +12,9 @@ FIXTURE_SOURCE = Path(__file__).parents[1] / "fixtures" / "sample-vault"
 BENCHMARK_QUERIES = Path(__file__).parents[1] / "benchmarks" / "benchmark-queries.yaml"
 
 
-def test_sample_vault_relevance_benchmark_meets_release_threshold(tmp_path: Path) -> None:
+def test_sample_vault_relevance_benchmark_meets_release_threshold(
+    tmp_path: Path,
+) -> None:
     vault = tmp_path / "sample-vault"
     shutil.copytree(FIXTURE_SOURCE, vault)
     vault.joinpath(".mcp").mkdir()
@@ -39,4 +41,3 @@ write_constraints:
 
     assert report.total_queries >= 20
     assert report.accuracy >= 0.80, report.as_text()
-

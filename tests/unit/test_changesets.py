@@ -32,7 +32,9 @@ def test_changeset_reviews_and_approves_multiple_file_mutations_as_one_unit(
 ) -> None:
     vault = tmp_path / "vault"
     (vault / "Memory").mkdir(parents=True)
-    vault.joinpath("Memory", "existing.md").write_text("# Existing\nold", encoding="utf-8")
+    vault.joinpath("Memory", "existing.md").write_text(
+        "# Existing\nold", encoding="utf-8"
+    )
     manager = ChangesetManager(
         _config(vault),
         clock=lambda: datetime(2026, 5, 28, 12, 0, tzinfo=UTC),
@@ -74,8 +76,7 @@ def test_changeset_reviews_and_approves_multiple_file_mutations_as_one_unit(
         "# New\ncontent"
     )
     assert {
-        proposal.status
-        for proposal in manager.proposals(created.changeset_id)
+        proposal.status for proposal in manager.proposals(created.changeset_id)
     } == {ProposalStatus.APPLIED}
     assert any(
         event.event_type == "changeset_applied"
@@ -156,7 +157,9 @@ def test_changeset_cleanup_removes_terminal_changesets_and_member_proposals(
     assert result.removed_proposals == 2
     assert cleanup_manager.get(created.changeset_id) is None
     proposal_manager = ProposalManager(_config(vault))
-    assert all(proposal_manager.get(proposal_id) is None for proposal_id in proposal_ids)
+    assert all(
+        proposal_manager.get(proposal_id) is None for proposal_id in proposal_ids
+    )
 
 
 def test_changeset_reject_marks_changeset_and_member_proposals_rejected(

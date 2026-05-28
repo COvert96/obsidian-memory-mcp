@@ -236,7 +236,9 @@ def _parse_query(raw: object) -> BenchmarkQuery:
 
 def _parse_expected(raw: object, query_id: str) -> ExpectedSearchResult:
     if not isinstance(raw, dict):
-        raise ValueError(f"Benchmark query '{query_id}' expected result must be a mapping.")
+        raise ValueError(
+            f"Benchmark query '{query_id}' expected result must be a mapping."
+        )
     return ExpectedSearchResult(
         path=_required_string(raw, "path"),
         section=_optional_string(raw, "section"),
@@ -265,5 +267,3 @@ def _string_list(raw: dict[str, object], key: str) -> list[str]:
     if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
         raise ValueError(f"Benchmark filter '{key}' must be a list of strings.")
     return value
-
-
