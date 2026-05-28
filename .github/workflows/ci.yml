@@ -40,5 +40,14 @@ jobs:
       - name: Run mypy
         run: uv run mypy src
 
-      - name: Run unit tests
-        run: uv run pytest tests/unit
+      - name: Run full test suite with coverage
+        run: >
+          uv run pytest
+          --cov=obsidian_memory_mcp
+          --cov-report=term-missing
+          --cov-report=xml
+          --cov-fail-under=80
+          tests
+
+      - name: Run release gate
+        run: uv run pytest tests/release

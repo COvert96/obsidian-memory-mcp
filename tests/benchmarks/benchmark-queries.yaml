@@ -1,0 +1,199 @@
+# Deterministic relevance benchmark set for tests/fixtures/sample-vault.
+# Update expected results whenever fixture content changes.
+queries:
+  - id: compliance-definition
+    query: "compliance"
+    expected:
+      - path: "wiki/concepts/compliance-as-code.md"
+        section: "Definition"
+    explanation: "The compliance concept note defines controls as executable rules."
+
+  - id: compliance-evidence-pipeline
+    query: "evidence"
+    expected:
+      - path: "wiki/concepts/compliance-as-code.md"
+        section: "Evidence Pipeline"
+    explanation: "The evidence pipeline section describes audit evidence collection."
+
+  - id: retrieval-tools-read-note
+    query: "read_note"
+    expected:
+      - path: "wiki/api/retrieval-tools.md"
+        section: "Read Note"
+    explanation: "The retrieval API reference documents the read_note behavior."
+
+  - id: search-notes-filters
+    query: "paths tags"
+    expected:
+      - path: "wiki/api/search-notes-api.md"
+        section: "Filter Parameters"
+    explanation: "The search API file describes path, exclude path, and tag filters."
+
+  - id: bm25-ranking
+    query: "BM25 scoring ranked results"
+    expected:
+      - path: "wiki/api/search-notes-api.md"
+        section: "BM25 Scoring"
+      - path: "wiki/architecture/fts-search-design.md"
+        section: "Ranking and Scoring"
+    explanation: "Both the API and architecture notes describe BM25 ranking."
+
+  - id: sqlite-fts-design
+    query: "SQLite FTS5"
+    expected:
+      - path: "wiki/architecture/fts-search-design.md"
+        section: "Virtual Table Structure"
+    explanation: "The FTS design note is the primary reference for SQLite FTS5."
+
+  - id: indexing-frontmatter
+    query: "frontmatter"
+    expected:
+      - path: "wiki/architecture/indexing-pipeline.md"
+        section: "Parsing Phase"
+    explanation: "The indexing pipeline note covers parsing and extraction phases."
+
+  - id: incremental-indexing
+    query: "incremental"
+    expected:
+      - path: "wiki/architecture/indexing-pipeline.md"
+        section: "Incremental Indexing"
+      - path: "wiki/operations/incremental-indexing.md"
+        section: "Overview"
+    explanation: "Incremental indexing is documented in architecture and operations notes."
+
+  - id: config-validation
+    query: "validation"
+    expected:
+      - path: "wiki/architecture/config-schema.md"
+        section: "Validation Rules"
+      - path: "wiki/operations/troubleshooting-guide.md"
+        section: "Missing Required Fields"
+    explanation: "Config schema and troubleshooting notes discuss validation."
+
+  - id: context-pack-budget
+    query: "strict budget"
+    expected:
+      - path: "wiki/concepts/token-budgets.md"
+        section: "Strict vs Soft Mode"
+      - path: "wiki/api/context-pack-api.md"
+        section: "Strict Budget Mode"
+    explanation: "Token budget behavior is described in concept and API notes."
+
+  - id: list-context-packs
+    query: "list_context_packs context pack metadata"
+    expected:
+      - path: "wiki/api/context-pack-api.md"
+        section: "list_context_packs Tool"
+    explanation: "The context pack API note documents listing pack metadata."
+
+  - id: proposal-state-machine
+    query: "pending applied rejected expired state machine"
+    expected:
+      - path: "wiki/architecture/proposal-workflow.md"
+        section: "State Machine"
+      - path: "memory-workflow/proposal-lifecycle.md"
+        section: "States Overview"
+    explanation: "Proposal state transitions appear in architecture and lifecycle notes."
+
+  - id: propose-memory-update
+    query: "propose_memory_update file_path operation content"
+    expected:
+      - path: "wiki/api/propose-memory-update.md"
+        section: "Request Parameters"
+    explanation: "The propose_memory_update API reference lists request fields."
+
+  - id: proposal-approval-conflict
+    query: "hash conflict"
+    expected:
+      - path: "wiki/api/approve-reject-proposal.md"
+        section: "Conflict Detection"
+      - path: "memory-workflow/approval-process.md"
+        section: "Hash Conflict Handling"
+    explanation: "Approval conflict behavior is documented in API and workflow notes."
+
+  - id: audit-trail-events
+    query: "audit trail"
+    expected:
+      - path: "memory-workflow/audit-trail.md"
+        section: "Audit Event Schema"
+    explanation: "The audit trail note defines audit event content."
+
+  - id: memory-supersession
+    query: "supersession"
+    expected:
+      - path: "wiki/concepts/memory-supersession.md"
+        section: "How It Works"
+      - path: "memory-workflow/supersession-examples.md"
+        section: "Basic Supersession"
+    explanation: "Supersession is covered by the concept note and examples."
+
+  - id: changeset-atomic-approval
+    query: "changeset"
+    expected:
+      - path: "wiki/concepts/changeset-workflow.md"
+        section: "Atomic Approval"
+      - path: "memory-workflow/changeset-examples.md"
+        section: "Step 3 - Approve"
+    explanation: "Changeset docs describe grouped approval and rollback behavior."
+
+  - id: vault-boundaries
+    query: "path normalization"
+    expected:
+      - path: "wiki/concepts/vault-boundaries.md"
+        section: "Path Normalization"
+    explanation: "The vault boundaries concept explains path safety and guardrails."
+
+  - id: mcp-handshake
+    query: "initialize handshake"
+    expected:
+      - path: "wiki/architecture/mcp-integration.md"
+        section: "Initialize Handshake"
+    explanation: "The MCP integration note documents handshake and discovery."
+
+  - id: troubleshooting-startup
+    query: "server registry not found startup"
+    expected:
+      - path: "wiki/operations/troubleshooting-guide.md"
+        section: "Server Registry Not Found"
+    explanation: "Startup troubleshooting covers missing server registry files."
+
+  - id: path-filter-api-only
+    query: "filter parameters"
+    filters:
+      paths: ["wiki/api/**"]
+    expected:
+      - path: "wiki/api/search-notes-api.md"
+        section: "Filter Parameters"
+    explanation: "With API path filters, search filter documentation should be returned."
+
+  - id: tag-filter-compliance-api
+    query: "compliance"
+    filters:
+      tags: ["urgent", "api"]
+    expected:
+      - path: "wiki/concepts/compliance-as-code.md"
+        section: "Definition"
+    explanation: "The tag filter narrows results to the compliance note with both urgent and api tags."
+
+  - id: exclude-private-compliance
+    query: "compliance"
+    filters:
+      exclude_paths: ["wiki/private/**"]
+    expected:
+      - path: "wiki/concepts/compliance-as-code.md"
+        section: "Definition"
+    explanation: "The private fixture note is excluded, leaving public compliance material."
+
+  - id: special-file-path
+    query: "special filenames"
+    expected:
+      - path: "wiki/special/Name With Spaces & Symbols (v1).md"
+        section: "Special File"
+    explanation: "The special path fixture validates spaces and symbols in file names."
+
+  - id: archive-deprecated-api
+    query: "deprecated endpoints"
+    expected:
+      - path: "archive/deprecated-api-v1.md"
+        section: "Migration Path"
+    explanation: "The deprecated API archive file covers endpoint migration."

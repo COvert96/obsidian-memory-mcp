@@ -15,6 +15,12 @@ from obsidian_memory_mcp.config import (
     ConfigValidationException,
     ProjectConfig,
 )
+from obsidian_memory_mcp.benchmarks import (
+    RELEASE_RELEVANCE_THRESHOLD,
+    evaluate_relevance_benchmark,
+    measure_performance_baseline,
+    report_as_json,
+)
 from obsidian_memory_mcp.cli_pack import (
     COMMAND_PACK,
     add_pack_parser,
@@ -43,6 +49,7 @@ from obsidian_memory_mcp.server_registry import (
 from obsidian_memory_mcp.status import IndexStatus, get_index_status, list_index_errors
 
 _COMMAND_CONFIG = "config"
+_COMMAND_BENCHMARK = "benchmark"
 _COMMAND_DEBUG = "debug"
 _COMMAND_INDEX = "index"
 _COMMAND_PROPOSALS = "proposals"
@@ -57,6 +64,8 @@ _SUBCOMMAND_SEARCH = "search"
 _SUBCOMMAND_SHOW = "show"
 _SUBCOMMAND_STATUS = "status"
 _SUBCOMMAND_VALIDATE = "validate"
+_SUBCOMMAND_RELEVANCE = "relevance"
+_SUBCOMMAND_PERFORMANCE = "performance"
 Transport = Literal["stdio", "sse", "streamable-http"]
 
 
@@ -72,6 +81,8 @@ def main(argv: list[str] | None = None) -> int:
         and arguments.config_command == _SUBCOMMAND_VALIDATE
     ):
         return _validate_config(arguments.vault_root)
+    if arguments.command == _COMMAND_BENCHMARK:
+        return _benchmark(arguments)
     if arguments.command == _COMMAND_INDEX:
         return _index(arguments)
     if (
@@ -106,6 +117,49 @@ def _build_argument_parser() -> argparse.ArgumentParser:
     )
     validate_parser.add_argument(
         "vault_root", type=Path, help="Path to the Obsidian vault root."
+    )
+
+    benchmark_parser = subparsers.add_parser(
+        _COMMAND_BENCHMARK,
+        help="Run deterministic release benchmarks.",
+    )
+    benchmark_subparsers = benchmark_parser.add_subparsers(dest="benchmark_command")
+    relevance_parser = benchmark_subparsers.add_parser(
+        _SUBCOMMAND_RELEVANCE,
+        help="Measure top-k search relevance against benchmark queries.",
+        usage=(
+            "mcp-memory benchmark relevance {vault_path} "
+            "[--queries tests/benchmarks/benchmark-queries.yaml]"
+        ),
+    )
+    relevance_parser.add_argument("vault_root", type=Path)
+    relevance_parser.add_argument(
+        "--queries",
+        type=Path,
+        default=Path("tests/benchmarks/benchmark-queries.yaml"),
+        help="Benchmark query YAML file.",
+    )
+    relevance_parser.add_argument("--top-k", type=int, default=3)
+    relevance_parser.add_argument(
+        "--min-accuracy",
+        type=float,
+        default=RELEASE_RELEVANCE_THRESHOLD,
+        help="Minimum passing top-k accuracy.",
+    )
+    relevance_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON output.",
+    )
+    performance_parser = benchmark_subparsers.add_parser(
+        _SUBCOMMAND_PERFORMANCE,
+        help="Measure fixture-based performance baseline timings.",
+    )
+    performance_parser.add_argument("vault_root", type=Path)
+    performance_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON output.",
     )
 
     index_parser = subparsers.add_parser(
@@ -324,6 +378,37 @@ def _validate_config(vault_root: Path) -> int:
         return 1
 
     print(f"Config is valid: {config.vault_path}")
+    return 0
+
+
+def _benchmark(arguments: argparse.Namespace) -> int:
+    if arguments.benchmark_command == _SUBCOMMAND_RELEVANCE:
+        return _benchmark_relevance(arguments)
+    if arguments.benchmark_command == _SUBCOMMAND_PERFORMANCE:
+        return _benchmark_performance(arguments)
+    print("Usage: mcp-memory benchmark {relevance|performance} ...")
+    return 1
+
+
+def _benchmark_relevance(arguments: argparse.Namespace) -> int:
+    config = _load_config(arguments.vault_root)
+    if config is None:
+        return 3
+    report = evaluate_relevance_benchmark(
+        config,
+        arguments.queries,
+        top_k=arguments.top_k,
+    )
+    print(report_as_json(report) if arguments.json else report.as_text())
+    return 0 if report.accuracy >= arguments.min_accuracy else 1
+
+
+def _benchmark_performance(arguments: argparse.Namespace) -> int:
+    config = _load_config(arguments.vault_root)
+    if config is None:
+        return 3
+    baseline = measure_performance_baseline(config)
+    print(report_as_json(baseline) if arguments.json else baseline.as_text())
     return 0
 
 
@@ -788,10 +873,6 @@ def _exit_code_for_index_result(result: IndexRunResult) -> int:
     if result.status == "success_with_errors":
         return 2
     return 0
-
-
-def _duration_ms(started: float) -> int:
-    return max(0, int((time.perf_counter() - started) * 1000))
 
 
 def _utc_now() -> float:
