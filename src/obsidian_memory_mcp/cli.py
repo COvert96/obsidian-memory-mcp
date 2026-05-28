@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
@@ -20,6 +21,7 @@ from obsidian_memory_mcp.cli_pack import (
 )
 from obsidian_memory_mcp.errors import ToolExecutionError
 from obsidian_memory_mcp.indexing import IndexMode, IndexRunResult, run_index
+from obsidian_memory_mcp.proposals import ProposalManager, ProposalStatus
 from obsidian_memory_mcp.search_debug import (
     DebugSearchError,
     debug_search,
@@ -35,8 +37,12 @@ from obsidian_memory_mcp.status import IndexStatus, get_index_status, list_index
 _COMMAND_CONFIG = "config"
 _COMMAND_DEBUG = "debug"
 _COMMAND_INDEX = "index"
+_COMMAND_PROPOSALS = "proposals"
 _COMMAND_SERVE = "serve"
+_SUBCOMMAND_APPROVE = "approve"
 _SUBCOMMAND_ERRORS = "errors"
+_SUBCOMMAND_LIST = "list"
+_SUBCOMMAND_REJECT = "reject"
 _SUBCOMMAND_SEARCH = "search"
 _SUBCOMMAND_STATUS = "status"
 _SUBCOMMAND_VALIDATE = "validate"
@@ -64,6 +70,8 @@ def main(argv: list[str] | None = None) -> int:
         return _debug_search(arguments)
     if arguments.command == COMMAND_PACK:
         return handle_pack_command(arguments, _load_config)
+    if arguments.command == _COMMAND_PROPOSALS:
+        return _proposals(arguments)
     if arguments.command == _COMMAND_SERVE:
         return _serve(
             transport=arguments.transport, registry_path=arguments.registry_path
@@ -138,6 +146,65 @@ def _build_argument_parser() -> argparse.ArgumentParser:
     )
 
     add_pack_parser(subparsers)
+
+    proposals_parser = subparsers.add_parser(
+        _COMMAND_PROPOSALS,
+        help="Review, approve, and reject guarded write proposals.",
+    )
+    proposal_subparsers = proposals_parser.add_subparsers(dest="proposal_command")
+    proposal_list = proposal_subparsers.add_parser(
+        _SUBCOMMAND_LIST,
+        help="List proposals for a vault.",
+        usage="mcp-memory proposals list [vault_path] [--status pending] [--file-path Memory/note.md]",
+    )
+    proposal_list.add_argument(
+        "vault_root",
+        nargs="?",
+        type=Path,
+        default=Path.cwd(),
+        help="Path to the Obsidian vault root (default: current directory).",
+    )
+    proposal_list.add_argument(
+        "--status",
+        choices=tuple(status.value for status in ProposalStatus),
+        default=ProposalStatus.PENDING.value,
+        help="Filter by proposal status.",
+    )
+    proposal_list.add_argument("--file-path", help="Filter by target vault path.")
+    proposal_list.add_argument(
+        "--limit",
+        type=int,
+        default=50,
+        help="Maximum proposals to display.",
+    )
+
+    proposal_approve = proposal_subparsers.add_parser(
+        _SUBCOMMAND_APPROVE,
+        help="Approve and apply a pending proposal.",
+        usage="mcp-memory proposals approve {proposal_id} [vault_path]",
+    )
+    proposal_approve.add_argument("proposal_id", help="Proposal ID to approve.")
+    proposal_approve.add_argument(
+        "vault_root",
+        nargs="?",
+        type=Path,
+        default=Path.cwd(),
+        help="Path to the Obsidian vault root (default: current directory).",
+    )
+
+    proposal_reject = proposal_subparsers.add_parser(
+        _SUBCOMMAND_REJECT,
+        help="Reject a pending proposal without applying it.",
+        usage="mcp-memory proposals reject {proposal_id} [vault_path]",
+    )
+    proposal_reject.add_argument("proposal_id", help="Proposal ID to reject.")
+    proposal_reject.add_argument(
+        "vault_root",
+        nargs="?",
+        type=Path,
+        default=Path.cwd(),
+        help="Path to the Obsidian vault root (default: current directory).",
+    )
 
     serve_parser = subparsers.add_parser(_COMMAND_SERVE, help="Run the MCP server.")
     serve_parser.add_argument(
@@ -261,6 +328,101 @@ def _debug_search(arguments: argparse.Namespace) -> int:
     return 0
 
 
+def _proposals(arguments: argparse.Namespace) -> int:
+    if arguments.proposal_command == _SUBCOMMAND_LIST:
+        return _proposal_list(arguments)
+    if arguments.proposal_command == _SUBCOMMAND_APPROVE:
+        return _proposal_approve(arguments)
+    if arguments.proposal_command == _SUBCOMMAND_REJECT:
+        return _proposal_reject(arguments)
+
+    print("Usage: mcp-memory proposals {list|approve|reject} ...")
+    return 1
+
+
+def _proposal_list(arguments: argparse.Namespace) -> int:
+    config = _load_config(arguments.vault_root)
+    if config is None:
+        return 3
+    try:
+        proposals = ProposalManager(config).list(
+            status=arguments.status,
+            file_path=arguments.file_path,
+            limit=arguments.limit,
+        )
+    except ToolExecutionError as exc:
+        _print_tool_error("Failed to list proposals", exc)
+        return 1
+
+    if not proposals:
+        print("No proposals.")
+        return 0
+
+    now = _utc_now()
+    print("ID\tPath\tOperation\tStatus\tAge")
+    for proposal in proposals:
+        print(
+            f"{proposal.proposal_id}\t{proposal.file_path}\t"
+            f"{proposal.operation.value}\t{proposal.status.value}\t"
+            f"{_format_age(now, proposal.created_at)}"
+        )
+    return 0
+
+
+def _proposal_approve(arguments: argparse.Namespace) -> int:
+    config = _load_config(arguments.vault_root)
+    if config is None:
+        return 3
+    manager = ProposalManager(config)
+    proposal = manager.get(arguments.proposal_id)
+    if proposal is None:
+        print(f"Proposal '{arguments.proposal_id}' does not exist.")
+        return 1
+
+    print(f"Proposal: {proposal.proposal_id}")
+    print(f"Path: {proposal.file_path}")
+    print(f"Operation: {proposal.operation.value}")
+    print(f"Status: {proposal.status.value}")
+    if proposal.content is not None:
+        print("Preview:")
+        print(proposal.content[:500])
+
+    if proposal.status is not ProposalStatus.PENDING:
+        print(f"Cannot approve proposal with status '{proposal.status.value}'.")
+        return 1
+
+    response = input("Type YES to apply this proposal: ")
+    if response != "YES":
+        print("Approval cancelled.")
+        return 1
+
+    try:
+        result = manager.approve(arguments.proposal_id)
+    except ToolExecutionError as exc:
+        _print_tool_error("Approval failed", exc)
+        return 1
+
+    print(
+        f"Applied {result.proposal_id} to {result.file_path} "
+        f"({result.file_size_bytes} bytes)."
+    )
+    return 0
+
+
+def _proposal_reject(arguments: argparse.Namespace) -> int:
+    config = _load_config(arguments.vault_root)
+    if config is None:
+        return 3
+    try:
+        result = ProposalManager(config).reject(arguments.proposal_id)
+    except ToolExecutionError as exc:
+        _print_tool_error("Rejection failed", exc)
+        return 1
+
+    print(f"Rejected {result.proposal_id} for {result.file_path}.")
+    return 0
+
+
 def _load_config(vault_root: Path) -> ProjectConfig | None:
     try:
         return ConfigLoader(vault_root).load()
@@ -277,6 +439,13 @@ def _load_config(vault_root: Path) -> ProjectConfig | None:
         if suggestion:
             print(f"  {suggestion}")
         return None
+
+
+def _print_tool_error(prefix: str, exc: ToolExecutionError) -> None:
+    print(f"{prefix}: {exc.error.message}")
+    suggestion = exc.error.details.get("suggestion")
+    if suggestion:
+        print(f"  {suggestion}")
 
 
 def _confirm_full_reindex() -> bool:
@@ -329,6 +498,21 @@ def _exit_code_for_index_result(result: IndexRunResult) -> int:
 
 def _duration_ms(started: float) -> int:
     return max(0, int((time.perf_counter() - started) * 1000))
+
+
+def _utc_now() -> float:
+    return time.time()
+
+
+def _format_age(now_seconds: float, created_at: datetime) -> str:
+    age_seconds = max(0, int(now_seconds - created_at.timestamp()))
+    if age_seconds < 60:
+        return f"{age_seconds}s"
+    if age_seconds < 3600:
+        return f"{age_seconds // 60}m"
+    if age_seconds < 86400:
+        return f"{age_seconds // 3600}h"
+    return f"{age_seconds // 86400}d"
 
 
 def _serve(*, transport: Transport, registry_path: Path | None) -> int:
