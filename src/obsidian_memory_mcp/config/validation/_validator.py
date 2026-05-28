@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -62,10 +63,7 @@ class ConfigValidator:
                 "proposal_ttl_seconds",
                 ProjectConfig.DEFAULT_PROPOSAL_TTL_SECONDS,
             ),
-            max_proposal_content_bytes=data.get(
-                "max_proposal_content_bytes",
-                ProjectConfig.DEFAULT_MAX_PROPOSAL_CONTENT_BYTES,
-            ),
+            max_write_content_bytes=_resolve_max_write_content_bytes(data),
             proposal_retention_days=data.get(
                 "proposal_retention_days",
                 ProjectConfig.DEFAULT_PROPOSAL_RETENTION_DAYS,
@@ -348,6 +346,12 @@ class ConfigValidator:
         )
         self._validate_optional_positive_int(
             data,
+            "max_write_content_bytes",
+            "max_write_content_bytes",
+            errors,
+        )
+        self._validate_optional_positive_int(
+            data,
             "max_proposal_content_bytes",
             "max_proposal_content_bytes",
             errors,
@@ -421,6 +425,20 @@ class ConfigValidator:
         value = container[key]
         if not isinstance(value, int) or value <= 0:
             errors.append(_type_error(field_path, "a positive integer", value))
+
+
+def _resolve_max_write_content_bytes(data: dict[str, Any]) -> int:
+    if "max_write_content_bytes" in data:
+        return int(data["max_write_content_bytes"])
+    if "max_proposal_content_bytes" in data:
+        warnings.warn(
+            "Config key 'max_proposal_content_bytes' is deprecated; "
+            "rename it to 'max_write_content_bytes'.",
+            DeprecationWarning,
+            stacklevel=4,
+        )
+        return int(data["max_proposal_content_bytes"])
+    return ProjectConfig.DEFAULT_MAX_WRITE_CONTENT_BYTES
 
 
 def _type_error(field: str, expected: str, actual: Any) -> ConfigValidationError:

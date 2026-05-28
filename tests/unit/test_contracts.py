@@ -16,6 +16,8 @@ EXPECTED_TOOL_NAMES = {
     "read_section",
     "reject_proposal",
     "search_notes",
+    "write_memory",
+    "write_note",
 }
 
 

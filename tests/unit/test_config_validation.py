@@ -77,7 +77,7 @@ max_proposal_ttl_hours: 12
     assert loaded.tags_separator == "|"
     assert loaded.max_proposal_ttl_hours == 12
     assert loaded.proposal_ttl_seconds == 3600
-    assert loaded.max_proposal_content_bytes == 1024 * 1024
+    assert loaded.max_write_content_bytes == 1024 * 1024
     assert loaded.proposal_retention_days == 7
 
 

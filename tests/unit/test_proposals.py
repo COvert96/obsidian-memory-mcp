@@ -47,7 +47,7 @@ def _config(
         ),
         max_proposal_ttl_hours=max_ttl_hours,
         proposal_ttl_seconds=ttl_seconds,
-        max_proposal_content_bytes=max_content_bytes,
+        max_write_content_bytes=max_content_bytes,
     )
 
 

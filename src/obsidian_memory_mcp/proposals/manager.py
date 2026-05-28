@@ -79,7 +79,7 @@ class ProposalManager:
         _validate_content(
             normalized_operation,
             normalized_content,
-            max_content_bytes=self._config.max_proposal_content_bytes,
+            max_content_bytes=self._config.max_write_content_bytes,
         )
         target = self._guardrails.check_write(file_path)
         normalized_file_path = self._relative_path(target)

@@ -11,7 +11,6 @@ propagate naturally to FastMCP, which converts them to
 
 from __future__ import annotations
 
-from pathlib import PurePosixPath
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -30,6 +29,8 @@ from obsidian_memory_mcp.retrieval import (
     SearchService,
 )
 from obsidian_memory_mcp.server_registry import load_project_registry
+from obsidian_memory_mcp.writes import WriteService
+from obsidian_memory_mcp.writes._service import is_memory_path, require_memory_path
 
 mcp = FastMCP("obsidian-memory-mcp")
 
@@ -160,7 +161,7 @@ def propose_memory_update(
             Prefer focused, concise notes — very large content (> 8 KB)
             should be split into multiple smaller Memory files.
     """
-    _require_memory_path(file_path)
+    require_memory_path(file_path, "propose_memory_update")
     config = _project_config(project)
     result = ProposalManager(config).create(
         file_path=file_path,
@@ -238,6 +239,55 @@ def reject_proposal(
     return {"project": project, **result.as_response()}
 
 
+@mcp.tool()
+def write_memory(project: str, file_path: str, content: str) -> dict[str, Any]:
+    """Create a new file under Memory/ directly without a staging step.
+
+    Use `list_context_packs` first to discover the correct `project` name.
+    The file must not already exist — use the appropriate update tool to
+    modify an existing memory file.
+
+    Args:
+        project: Project name from the server registry.
+        file_path: Vault-relative path that must begin with `Memory/`
+            (for example, `Memory/company-summary.md`).
+        content: Full file content to write.
+    """
+    require_memory_path(file_path, "write_memory")
+    config = _project_config(project)
+    result = WriteService(config).create(file_path, content)
+    return {"project": project, **result.as_response()}
+
+
+@mcp.tool()
+def write_note(project: str, file_path: str, content: str) -> dict[str, Any]:
+    """Create a new vault note at any config-allowed path outside Memory/.
+
+    Use this tool for non-memory notes. Paths under `Memory/` are rejected —
+    use `write_memory` instead. The file must not already exist.
+
+    Args:
+        project: Project name from the server registry.
+        file_path: Vault-relative path outside `Memory/`
+            (for example, `wiki/concepts/new-note.md`).
+        content: Full file content to write.
+    """
+    if is_memory_path(file_path):
+        raise ToolExecutionError(
+            build_error(
+                ErrorCode.ERR_INVALID_REQUEST,
+                message=(
+                    "write_note does not support files under 'Memory/'. "
+                    f"Received '{file_path}'. Use write_memory for memory files."
+                ),
+                details={"file_path": file_path, "forbidden_prefix": "Memory/"},
+            )
+        )
+    config = _project_config(project)
+    result = WriteService(config).create(file_path, content)
+    return {"project": project, **result.as_response()}
+
+
 def _project_config(project: str) -> ProjectConfig:
     registry = load_project_registry()
     return load_project_config(registry.resolve(project))
@@ -245,20 +295,3 @@ def _project_config(project: str) -> ProjectConfig:
 
 def _make_context_pack_loader(config: ProjectConfig) -> ContextPackLoader:
     return ContextPackLoader(config)
-
-
-def _require_memory_path(file_path: str) -> None:
-    normalized_path = file_path.replace("\\", "/").strip()
-    path = PurePosixPath(normalized_path)
-    if len(path.parts) >= 2 and path.parts[0] == "Memory":
-        return
-    raise ToolExecutionError(
-        build_error(
-            ErrorCode.ERR_INVALID_REQUEST,
-            message=(
-                "propose_memory_update only supports files under 'Memory/'. "
-                f"Received '{file_path}'."
-            ),
-            details={"file_path": file_path, "required_prefix": "Memory/"},
-        )
-    )

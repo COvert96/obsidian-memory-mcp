@@ -266,6 +266,60 @@ TOOL_CONTRACTS: dict[str, ToolContract] = {
             "reason": "duplicate",
         },
     ),
+    "write_memory": ToolContract(
+        name="write_memory",
+        description=(
+            "Create a new file under Memory/ directly without a staging step. "
+            "Fails if the file already exists."
+        ),
+        possible_errors=(
+            ErrorCode.ERR_INVALID_REQUEST,
+            ErrorCode.ERR_INVALID_PROJECT,
+            ErrorCode.ERR_GUARDRAIL_VIOLATION,
+            ErrorCode.ERR_FILE_EXISTS,
+            ErrorCode.ERR_INTERNAL,
+        ),
+        example_request={
+            "project": "sample",
+            "file_path": "Memory/company-summary.md",
+            "content": "# Company Summary\nInitial content.",
+        },
+        example_response={
+            "project": "sample",
+            "file_path": "Memory/company-summary.md",
+            "operation": "create",
+            "content_hash": "3c7b5f1d2a7e4cb68f4b33d20c342f87df8af3f8f0dcbcb3552f7c8f35ea1887",
+            "file_size_bytes": 128,
+            "written_at": "2026-05-28T10:00:00+00:00",
+        },
+    ),
+    "write_note": ToolContract(
+        name="write_note",
+        description=(
+            "Create a new vault note at any config-allowed path outside Memory/. "
+            "Fails if the file already exists. Use write_memory for Memory/ files."
+        ),
+        possible_errors=(
+            ErrorCode.ERR_INVALID_REQUEST,
+            ErrorCode.ERR_INVALID_PROJECT,
+            ErrorCode.ERR_GUARDRAIL_VIOLATION,
+            ErrorCode.ERR_FILE_EXISTS,
+            ErrorCode.ERR_INTERNAL,
+        ),
+        example_request={
+            "project": "sample",
+            "file_path": "wiki/concepts/new-concept.md",
+            "content": "# New Concept\nContent here.",
+        },
+        example_response={
+            "project": "sample",
+            "file_path": "wiki/concepts/new-concept.md",
+            "operation": "create",
+            "content_hash": "bef4b0b23bc6e4fcbf64cfd9d3405fceea27191c0b37db114d4e62ebccb8eaf7",
+            "file_size_bytes": 96,
+            "written_at": "2026-05-28T10:00:00+00:00",
+        },
+    ),
 }
 
 # Derived from TOOL_CONTRACTS - no separate list to maintain.
