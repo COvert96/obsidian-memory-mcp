@@ -6,7 +6,7 @@ import re
 from dataclasses import replace
 
 from obsidian_memory_mcp.config import ContextPackConfig
-from obsidian_memory_mcp.context_packs.models import (
+from obsidian_memory_mcp.context_packs._models import (
     ContextPackResult,
     IndexQueries,
     PackDocument,

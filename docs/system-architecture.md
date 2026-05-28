@@ -22,6 +22,19 @@ The MVP release exposes 9 MCP tools:
 
 The MCP server layer in `src/obsidian_memory_mcp/server.py` is an adapter. It resolves the project registry, loads vault config, and delegates to domain services. Business rules live in config validation, guardrails, indexing, retrieval, context pack, proposal, changeset, and token modules. SQLite and filesystem access are details kept behind repository/service functions.
 
+## Package Layout Convention
+
+Domain packages follow one convention so public vs internal API boundaries are visible in the tree:
+
+- `__init__.py` is the package public API and defines `__all__` exports.
+- Shared domain data shapes live in `_models.py`.
+- Internal implementation modules are underscore-prefixed.
+- Persistence modules are named `repository.py`.
+- Orchestration modules are named `service.py` (function-oriented) or `manager.py` (stateful class-oriented).
+- Dependencies inside a package flow from orchestration and persistence toward models, not the reverse.
+
+Recent cleanup aligned `config/` and `context_packs/` with this convention (`_models.py` modules plus curated package-level re-exports).
+
 ## Configuration
 
 Each vault has a `memory-mcp.yaml` file. `ConfigLoader` validates required fields, absolute vault paths, derived index locations, context pack definitions, proposal settings, and read/write guardrails. A server-level registry maps MCP `project` names to vault roots.

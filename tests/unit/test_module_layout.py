@@ -6,12 +6,13 @@ from obsidian_memory_mcp.config import (
     ConfigValidator,
     ProjectConfig,
 )
-from obsidian_memory_mcp.config.validation import _errors, _parsers, _validator
-from obsidian_memory_mcp.context_packs import ContextPackLoader, ContextPackResult
-from obsidian_memory_mcp.context_packs.budget import BudgetEnforcer
-from obsidian_memory_mcp.context_packs.loader import SqliteIndexQueries
-from obsidian_memory_mcp.context_packs.models import DEFAULT_CONTEXT_PACK_TOKEN_BUDGET
-from obsidian_memory_mcp.context_packs.resolver import ContextPackResolver
+from obsidian_memory_mcp.context_packs import (
+    DEFAULT_CONTEXT_PACK_TOKEN_BUDGET,
+    ContextPackLoader,
+    ContextPackResult,
+    ContextPackSummary,
+    SqliteIndexQueries,
+)
 from obsidian_memory_mcp.indexing import (
     IndexMode,
     IndexRunResult,
@@ -39,8 +40,7 @@ from obsidian_memory_mcp.retrieval import search as retrieval_search
 def test_context_pack_features_are_grouped_under_context_packs_package() -> None:
     assert ContextPackLoader is not None
     assert ContextPackResult is not None
-    assert BudgetEnforcer is not None
-    assert ContextPackResolver is not None
+    assert ContextPackSummary is not None
     assert SqliteIndexQueries is not None
     assert DEFAULT_CONTEXT_PACK_TOKEN_BUDGET > 0
 
@@ -82,6 +82,3 @@ def test_config_validation_features_are_grouped_under_validation_package() -> No
     assert ConfigValidator is not None
     assert ConfigValidationError is not None
     assert ConfigValidationException is not None
-    assert _validator is not None
-    assert _parsers is not None
-    assert _errors is not None

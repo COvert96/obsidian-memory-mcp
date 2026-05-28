@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from obsidian_memory_mcp.config.model import AccessPolicy, ProjectConfig
+from obsidian_memory_mcp.config._models import AccessPolicy, ProjectConfig
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
 from obsidian_memory_mcp.paths import normalize_vault_path
 

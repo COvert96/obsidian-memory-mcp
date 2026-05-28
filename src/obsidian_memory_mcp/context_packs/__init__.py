@@ -1,14 +1,14 @@
 """Public API for context-pack loading and validation flows."""
 
-from obsidian_memory_mcp.context_packs.loader import (
-    ContextPackLoader,
-    SqliteIndexQueries,
-)
-from obsidian_memory_mcp.context_packs.models import (
-    ContextPackSummary,
+from obsidian_memory_mcp.context_packs._models import (
     DEFAULT_CONTEXT_PACK_TOKEN_BUDGET,
     ContextPackResult,
+    ContextPackSummary,
     IndexQueries,
+)
+from obsidian_memory_mcp.context_packs.manager import (
+    ContextPackLoader,
+    SqliteIndexQueries,
 )
 
 __all__ = [

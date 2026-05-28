@@ -1,6 +1,5 @@
-from obsidian_memory_mcp.config.guardrails import GuardrailEvaluator
-from obsidian_memory_mcp.config.loader import ConfigLoader, load_project_config
-from obsidian_memory_mcp.config.model import (
+from obsidian_memory_mcp.config._guardrails import GuardrailEvaluator
+from obsidian_memory_mcp.config._models import (
     AccessConstraints,
     AccessPolicy,
     ContextPackConfig,
@@ -8,6 +7,7 @@ from obsidian_memory_mcp.config.model import (
     WriteConstraints,
     WritePolicy,
 )
+from obsidian_memory_mcp.config.manager import ConfigLoader, load_project_config
 from obsidian_memory_mcp.config.validation import (
     ConfigValidationError,
     ConfigValidationException,
