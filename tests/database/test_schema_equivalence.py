@@ -195,6 +195,17 @@ CREATE INDEX IF NOT EXISTS idx_proposal_changeset_members_proposal
     ON proposal_changeset_members(proposal_id);
 CREATE INDEX IF NOT EXISTS idx_proposal_changeset_events_changeset_id
     ON proposal_changeset_events(changeset_id, id);
+
+CREATE TABLE IF NOT EXISTS write_audit (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    occurred_at TEXT NOT NULL,
+    tool TEXT NOT NULL,
+    project TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    content_hash TEXT,
+    supersedes TEXT
+);
 """
 
 

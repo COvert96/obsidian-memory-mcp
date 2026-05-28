@@ -51,7 +51,12 @@ files = Table(
     Column("indexed_at", Text, nullable=False),
     Column("deleted_at", Text, nullable=True),
     Column("last_run_id", Integer, ForeignKey("index_runs.id"), nullable=True),
-    Column("last_error_id", Integer, ForeignKey("index_errors.id"), nullable=True),
+    Column(
+        "last_error_id",
+        Integer,
+        ForeignKey("index_errors.id", use_alter=True),
+        nullable=True,
+    ),
     sqlite_autoincrement=True,
 )
 
@@ -211,6 +216,20 @@ proposal_changeset_events = Table(
     Column("event_type", Text, nullable=False),
     Column("occurred_at", Text, nullable=False),
     Column("details", Text, nullable=False),
+    sqlite_autoincrement=True,
+)
+
+write_audit = Table(
+    "write_audit",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("occurred_at", Text, nullable=False),
+    Column("tool", Text, nullable=False),
+    Column("project", Text, nullable=False),
+    Column("file_path", Text, nullable=False),
+    Column("operation", Text, nullable=False),
+    Column("content_hash", Text, nullable=True),
+    Column("supersedes", Text, nullable=True),
     sqlite_autoincrement=True,
 )
 
