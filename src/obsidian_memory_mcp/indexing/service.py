@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import os
-import sqlite3
 import time
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any, cast
 
 from obsidian_memory_mcp._time import duration_ms
 from obsidian_memory_mcp.config import GuardrailEvaluator, ProjectConfig
+from obsidian_memory_mcp.database import get_connection
 from obsidian_memory_mcp.indexing._models import (
     FileCandidate,
     IndexMode,
@@ -28,7 +30,7 @@ from obsidian_memory_mcp.indexing.repository import (
     update_metadata_for_unchanged_file,
 )
 from obsidian_memory_mcp.parser import PARSER_VERSION, parse_markdown_bytes
-from obsidian_memory_mcp.schema import bootstrap_schema, connect_index_db
+from obsidian_memory_mcp.schema import bootstrap_schema
 
 DEFAULT_EXCLUDED_DIRS = frozenset({".git", ".obsidian", ".trash", ".mcp"})
 SKIPPABLE_ERROR_TYPES = frozenset({"frontmatter_parse_error"})
@@ -44,14 +46,17 @@ def run_index(
     normalized_mode = IndexMode(mode)
     stats = _RunStats()
     run_id = -1
-    connection: sqlite3.Connection | None = None
+    connection = None
 
     try:
-        connection = connect_index_db(config.index_db_location)
+        connection = get_connection(config.index_db_location)
         bootstrap_schema(connection)
         run_id = insert_run(connection, normalized_mode.value, parser_version)
         candidates = discover_markdown_files(config)
-        file_rows = fetch_files_by_path(connection)
+        file_rows = cast(
+            dict[str, Mapping[str, object]], fetch_files_by_path(connection)
+        )
+        connection.commit()
         stats.files_seen = len(candidates)
         _process_deleted_files(connection, run_id, candidates, file_rows, stats)
         for candidate in candidates:
@@ -83,7 +88,7 @@ def run_index(
                     message=str(error),
                 )
                 finish_run(connection, run_id, status, stats, elapsed)
-            except sqlite3.Error:
+            except Exception:
                 pass
         return _result(run_id, normalized_mode.value, status, stats, elapsed)
     finally:
@@ -126,10 +131,10 @@ def read_file_bytes(path: Path) -> bytes:
 
 
 def _process_deleted_files(
-    connection: sqlite3.Connection,
+    connection: Any,
     run_id: int,
     candidates: tuple[FileCandidate, ...],
-    file_rows: dict[str, sqlite3.Row],
+    file_rows: dict[str, Mapping[str, object]],
     stats: _RunStats,
 ) -> None:
     candidate_paths = {candidate.vault_path for candidate in candidates}
@@ -142,10 +147,10 @@ def _process_deleted_files(
 
 
 def _process_candidate(
-    connection: sqlite3.Connection,
+    connection: Any,
     run_id: int,
     candidate: FileCandidate,
-    existing_file: sqlite3.Row | None,
+    existing_file: Mapping[str, object] | None,
     stats: _RunStats,
     *,
     parser_version: str,
@@ -163,12 +168,10 @@ def _process_candidate(
             candidate,
             run_id,
             parser_version=parser_version,
-            file_hash=existing_file["file_hash"] if existing_file else None,
-            raw_content_hash=existing_file["raw_content_hash"]
-            if existing_file
-            else None,
+            file_hash=_row_optional_str(existing_file, "file_hash"),
+            raw_content_hash=_row_optional_str(existing_file, "raw_content_hash"),
             normalized_content_hash=(
-                existing_file["normalized_content_hash"] if existing_file else None
+                _row_optional_str(existing_file, "normalized_content_hash")
             ),
             error_type=type(error).__name__,
             message=str(error),
@@ -182,12 +185,12 @@ def _process_candidate(
         not force_reindex
         and existing_file is not None
         and existing_file["deleted_at"] is None
-        and existing_file["parser_version"] == parser_version
-        and existing_file["file_hash"] == file_hash
+        and str(existing_file["parser_version"]) == parser_version
+        and _row_optional_str(existing_file, "file_hash") == file_hash
         and _can_skip_existing_error(existing_file)
     ):
         update_metadata_for_unchanged_file(
-            connection, existing_file["id"], candidate, run_id
+            connection, _row_int(existing_file, "id"), candidate, run_id
         )
         stats.files_skipped += 1
         return
@@ -207,7 +210,7 @@ def _process_candidate(
             file_hash=file_hash,
             raw_content_hash=file_hash,
             normalized_content_hash=(
-                existing_file["normalized_content_hash"] if existing_file else None
+                _row_optional_str(existing_file, "normalized_content_hash")
             ),
             error_type=type(error).__name__,
             message=str(error),
@@ -234,32 +237,44 @@ def _process_candidate(
 
 
 def _is_stat_fresh(
-    row: sqlite3.Row | None,
+    row: Mapping[str, object] | None,
     candidate: FileCandidate,
     parser_version: str,
 ) -> bool:
     return bool(
         row is not None
         and row["deleted_at"] is None
-        and row["vault_path"] == candidate.vault_path
-        and row["size_bytes"] == candidate.size_bytes
-        and row["mtime_ns"] == candidate.mtime_ns
-        and row["parser_version"] == parser_version
+        and str(row["vault_path"]) == candidate.vault_path
+        and _row_int(row, "size_bytes") == candidate.size_bytes
+        and _row_int(row, "mtime_ns") == candidate.mtime_ns
+        and str(row["parser_version"]) == parser_version
         and _can_skip_existing_error(row)
     )
 
 
-def _can_skip_existing_error(row: sqlite3.Row) -> bool:
+def _can_skip_existing_error(row: Mapping[str, object]) -> bool:
     if row["last_error_id"] is None:
         return True
     return _last_error_type(row) in SKIPPABLE_ERROR_TYPES
 
 
-def _last_error_type(row: sqlite3.Row) -> str | None:
+def _last_error_type(row: Mapping[str, object]) -> str | None:
     try:
-        return row["last_error_type"]
+        value = row["last_error_type"]
+        return str(value) if value is not None else None
     except (IndexError, KeyError):
         return None
+
+
+def _row_int(row: Mapping[str, object], field: str) -> int:
+    return _coerce_int(row[field])
+
+
+def _row_optional_str(row: Mapping[str, object] | None, field: str) -> str | None:
+    if row is None:
+        return None
+    value = row[field]
+    return str(value) if value is not None else None
 
 
 def _status_for(stats: _RunStats) -> str:
@@ -356,3 +371,13 @@ def _join_relative(parent: str, child: str) -> str:
 
 def _sha256(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
+
+
+def _coerce_int(value: object) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        return int(value)
+    raise TypeError(f"Expected int-compatible value, received {type(value).__name__}.")

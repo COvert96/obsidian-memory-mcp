@@ -1,12 +1,25 @@
-"""SQLite write helpers for the markdown index."""
+"""SQLAlchemy Core write helpers for the markdown index."""
 
 from __future__ import annotations
 
 import json
-import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from sqlalchemy import delete, insert, select, text, update
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.engine import Connection, CursorResult, RowMapping
+
+from obsidian_memory_mcp.database._tables import (
+    blocks,
+    files,
+    index_errors,
+    index_runs,
+    sections,
+    wikilinks,
+)
 from obsidian_memory_mcp.indexing._models import (
     FileCandidate,
     _FileIndexError,
@@ -18,14 +31,14 @@ if TYPE_CHECKING:
 
 
 def replace_file_index(
-    connection: sqlite3.Connection,
+    connection: Connection,
     run_id: int,
     candidate: FileCandidate,
     parsed: ParsedNote,
     *,
     file_error: _FileIndexError | None = None,
 ) -> int:
-    with connection:
+    with _transaction(connection):
         file_id = _upsert_file_metadata(
             connection,
             candidate,
@@ -56,7 +69,7 @@ def replace_file_index(
 
 
 def record_file_failure(
-    connection: sqlite3.Connection,
+    connection: Connection,
     candidate: FileCandidate,
     run_id: int,
     *,
@@ -67,7 +80,7 @@ def record_file_failure(
     error_type: str,
     message: str,
 ) -> int:
-    with connection:
+    with _transaction(connection):
         file_id = _upsert_file_metadata(
             connection,
             candidate,
@@ -91,42 +104,42 @@ def record_file_failure(
 
 
 def update_metadata_for_unchanged_file(
-    connection: sqlite3.Connection,
+    connection: Connection,
     file_id: int,
     candidate: FileCandidate,
     run_id: int,
 ) -> None:
-    with connection:
+    with _transaction(connection):
         connection.execute(
-            """
-            UPDATE files
-            SET size_bytes = ?, mtime_ns = ?, indexed_at = ?, deleted_at = NULL, last_run_id = ?
-            WHERE id = ?
-            """,
-            (candidate.size_bytes, candidate.mtime_ns, _now_iso(), run_id, file_id),
+            update(files)
+            .where(files.c.id == file_id)
+            .values(
+                size_bytes=candidate.size_bytes,
+                mtime_ns=candidate.mtime_ns,
+                indexed_at=_now_iso(),
+                deleted_at=None,
+                last_run_id=run_id,
+            )
         )
 
 
-def tombstone_file(
-    connection: sqlite3.Connection, run_id: int, vault_path: str
-) -> None:
-    row = _fetch_file(connection, vault_path)
-    if row is None:
-        return
-    with connection:
-        _delete_derived_rows(connection, int(row["id"]))
+def tombstone_file(connection: Connection, run_id: int, vault_path: str) -> None:
+    with _transaction(connection):
+        row = _fetch_file(connection, vault_path)
+        if row is None:
+            return
+        file_id = _coerce_int(row["id"])
+        _delete_derived_rows(connection, file_id)
+        now = _now_iso()
         connection.execute(
-            """
-            UPDATE files
-            SET deleted_at = ?, indexed_at = ?, last_run_id = ?
-            WHERE id = ?
-            """,
-            (_now_iso(), _now_iso(), run_id, int(row["id"])),
+            update(files)
+            .where(files.c.id == file_id)
+            .values(deleted_at=now, indexed_at=now, last_run_id=run_id)
         )
 
 
 def record_error(
-    connection: sqlite3.Connection,
+    connection: Connection,
     *,
     run_id: int,
     file_id: int | None,
@@ -134,7 +147,7 @@ def record_error(
     error_type: str,
     message: str,
 ) -> int:
-    with connection:
+    with _transaction(connection):
         return _insert_error(
             connection,
             run_id=run_id,
@@ -145,99 +158,86 @@ def record_error(
         )
 
 
-def fetch_files_by_path(connection: sqlite3.Connection) -> dict[str, sqlite3.Row]:
-    return {
-        row["vault_path"]: row
-        for row in connection.execute(
-            """
-            SELECT files.*, index_errors.error_type AS last_error_type
-            FROM files
-            LEFT JOIN index_errors ON index_errors.id = files.last_error_id
-            """
+def fetch_files_by_path(connection: Connection) -> dict[str, RowMapping]:
+    statement = (
+        select(files, index_errors.c.error_type.label("last_error_type"))
+        .select_from(
+            files.outerjoin(index_errors, index_errors.c.id == files.c.last_error_id)
         )
-    }
+        .order_by(files.c.vault_path)
+    )
+    rows = connection.execute(statement).mappings()
+    return {str(row["vault_path"]): row for row in rows}
 
 
-def insert_run(connection: sqlite3.Connection, mode: str, parser_version: str) -> int:
-    with connection:
-        cursor = connection.execute(
-            """
-            INSERT INTO index_runs (mode, status, started_at, parser_version)
-            VALUES (?, 'running', ?, ?)
-            """,
-            (mode, _now_iso(), parser_version),
+def insert_run(connection: Connection, mode: str, parser_version: str) -> int:
+    with _transaction(connection):
+        result = connection.execute(
+            insert(index_runs).values(
+                mode=mode,
+                status="running",
+                started_at=_now_iso(),
+                parser_version=parser_version,
+            )
         )
-    return _last_insert_id(cursor, "index run insert")
+    return _last_insert_id(result, "index run insert")
 
 
 def finish_run(
-    connection: sqlite3.Connection,
+    connection: Connection,
     run_id: int,
     status: str,
     stats: _RunStats,
     duration_ms: int,
 ) -> None:
-    with connection:
+    with _transaction(connection):
         connection.execute(
-            """
-            UPDATE index_runs
-            SET status = ?, finished_at = ?, files_seen = ?, files_processed = ?,
-                files_skipped = ?, files_deleted = ?, files_failed = ?,
-                sections_indexed = ?, blocks_indexed = ?, errors = ?, duration_ms = ?
-            WHERE id = ?
-            """,
-            (
-                status,
-                _now_iso(),
-                stats.files_seen,
-                stats.files_processed,
-                stats.files_skipped,
-                stats.files_deleted,
-                stats.files_failed,
-                stats.sections_indexed,
-                stats.blocks_indexed,
-                stats.errors,
-                duration_ms,
-                run_id,
-            ),
+            update(index_runs)
+            .where(index_runs.c.id == run_id)
+            .values(
+                status=status,
+                finished_at=_now_iso(),
+                files_seen=stats.files_seen,
+                files_processed=stats.files_processed,
+                files_skipped=stats.files_skipped,
+                files_deleted=stats.files_deleted,
+                files_failed=stats.files_failed,
+                sections_indexed=stats.sections_indexed,
+                blocks_indexed=stats.blocks_indexed,
+                errors=stats.errors,
+                duration_ms=duration_ms,
+            )
         )
 
 
 def _insert_sections(
-    connection: sqlite3.Connection,
+    connection: Connection,
     file_id: int,
     parsed: ParsedNote,
 ) -> dict[str, int]:
     section_ids: dict[str, int] = {}
     for section in parsed.sections:
-        cursor = connection.execute(
-            """
-            INSERT INTO sections (
-                file_id, vault_path, section_key, section_path, heading, heading_slug,
-                heading_ordinal, level, content_hash, start_line, end_line
+        result = connection.execute(
+            insert(sections).values(
+                file_id=file_id,
+                vault_path=section.vault_path,
+                section_key=section.section_key,
+                section_path=section.section_path,
+                heading=section.heading,
+                heading_slug=section.heading_slug,
+                heading_ordinal=section.heading_ordinal,
+                level=section.level,
+                content_hash=section.content_hash,
+                start_line=section.start_line,
+                end_line=section.end_line,
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                file_id,
-                section.vault_path,
-                section.section_key,
-                section.section_path,
-                section.heading,
-                section.heading_slug,
-                section.heading_ordinal,
-                section.level,
-                section.content_hash,
-                section.start_line,
-                section.end_line,
-            ),
         )
-        section_ids[section.section_key] = _last_insert_id(cursor, "section insert")
+        section_ids[section.section_key] = _last_insert_id(result, "section insert")
     return section_ids
 
 
 def _insert_blocks(
-    connection: sqlite3.Connection,
+    connection: Connection,
     file_id: int,
     section_ids: dict[str, int],
     parsed: ParsedNote,
@@ -246,48 +246,44 @@ def _insert_blocks(
         section_id = section_ids[block.section_key]
         tags_json = json.dumps(list(block.tags), separators=(",", ":"))
         connection.execute(
-            """
-            INSERT INTO blocks (
-                file_id, section_id, vault_path, section_key, section_path, block_key,
-                heading, content, content_hash, token_count_estimate, ordinal, tags
+            insert(blocks).values(
+                file_id=file_id,
+                section_id=section_id,
+                vault_path=block.vault_path,
+                section_key=block.section_key,
+                section_path=block.section_path,
+                block_key=block.block_key,
+                heading=block.heading,
+                content=block.content,
+                content_hash=block.content_hash,
+                token_count_estimate=block.token_count_estimate,
+                ordinal=block.ordinal,
+                tags=tags_json,
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                file_id,
-                section_id,
-                block.vault_path,
-                block.section_key,
-                block.section_path,
-                block.block_key,
-                block.heading,
-                block.content,
-                block.content_hash,
-                block.token_count_estimate,
-                block.ordinal,
-                tags_json,
-            ),
         )
+        # FTS5 virtual-table write stays as raw SQL text by design.
         connection.execute(
-            """
-            INSERT INTO blocks_fts (
-                block_key, vault_path, section_path, heading, content, tags
-            )
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                block.block_key,
-                block.vault_path,
-                block.section_path,
-                block.heading or "",
-                block.content,
-                " ".join(block.tags),
+            text(
+                """
+                INSERT INTO blocks_fts (
+                    block_key, vault_path, section_path, heading, content, tags
+                )
+                VALUES (:block_key, :vault_path, :section_path, :heading, :content, :tags)
+                """
             ),
+            {
+                "block_key": block.block_key,
+                "vault_path": block.vault_path,
+                "section_path": block.section_path,
+                "heading": block.heading or "",
+                "content": block.content,
+                "tags": " ".join(block.tags),
+            },
         )
 
 
 def _insert_wikilinks(
-    connection: sqlite3.Connection,
+    connection: Connection,
     file_id: int,
     section_ids: dict[str, int],
     parsed: ParsedNote,
@@ -295,26 +291,20 @@ def _insert_wikilinks(
     for wikilink in parsed.wikilinks:
         section_id = section_ids[wikilink.source_section_key]
         connection.execute(
-            """
-            INSERT INTO wikilinks (
-                file_id, section_id, vault_path, section_key, target, alias, raw
+            insert(wikilinks).values(
+                file_id=file_id,
+                section_id=section_id,
+                vault_path=wikilink.vault_path,
+                section_key=wikilink.source_section_key,
+                target=wikilink.target,
+                alias=wikilink.alias,
+                raw=wikilink.raw,
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                file_id,
-                section_id,
-                wikilink.vault_path,
-                wikilink.source_section_key,
-                wikilink.target,
-                wikilink.alias,
-                wikilink.raw,
-            ),
         )
 
 
 def _upsert_file_metadata(
-    connection: sqlite3.Connection,
+    connection: Connection,
     candidate: FileCandidate,
     run_id: int,
     *,
@@ -324,63 +314,61 @@ def _upsert_file_metadata(
     normalized_content_hash: str | None,
     clear_error: bool,
 ) -> int:
-    last_error_sql = "NULL" if clear_error else "last_error_id"
+    update_values: dict[str, Any] = {
+        "size_bytes": candidate.size_bytes,
+        "mtime_ns": candidate.mtime_ns,
+        "file_hash": file_hash,
+        "raw_content_hash": raw_content_hash,
+        "normalized_content_hash": normalized_content_hash,
+        "parser_version": parser_version,
+        "indexed_at": _now_iso(),
+        "deleted_at": None,
+        "last_run_id": run_id,
+        "last_error_id": None if clear_error else files.c.last_error_id,
+    }
+    statement = sqlite_insert(files).values(
+        vault_path=candidate.vault_path,
+        size_bytes=candidate.size_bytes,
+        mtime_ns=candidate.mtime_ns,
+        file_hash=file_hash,
+        raw_content_hash=raw_content_hash,
+        normalized_content_hash=normalized_content_hash,
+        parser_version=parser_version,
+        indexed_at=_now_iso(),
+        deleted_at=None,
+        last_run_id=run_id,
+        last_error_id=None,
+    )
     connection.execute(
-        f"""
-        INSERT INTO files (
-            vault_path, size_bytes, mtime_ns, file_hash, raw_content_hash,
-            normalized_content_hash, parser_version, indexed_at, deleted_at,
-            last_run_id, last_error_id
+        statement.on_conflict_do_update(
+            index_elements=[files.c.vault_path],
+            set_=update_values,
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL)
-        ON CONFLICT(vault_path) DO UPDATE SET
-            size_bytes = excluded.size_bytes,
-            mtime_ns = excluded.mtime_ns,
-            file_hash = excluded.file_hash,
-            raw_content_hash = excluded.raw_content_hash,
-            normalized_content_hash = excluded.normalized_content_hash,
-            parser_version = excluded.parser_version,
-            indexed_at = excluded.indexed_at,
-            deleted_at = NULL,
-            last_run_id = excluded.last_run_id,
-            last_error_id = {last_error_sql}
-        """,
-        (
-            candidate.vault_path,
-            candidate.size_bytes,
-            candidate.mtime_ns,
-            file_hash,
-            raw_content_hash,
-            normalized_content_hash,
-            parser_version,
-            _now_iso(),
-            run_id,
-        ),
     )
     row = _fetch_file(connection, candidate.vault_path)
     if row is None:
         raise RuntimeError(f"Failed to upsert file row for {candidate.vault_path}.")
-    return int(row["id"])
+    return _coerce_int(row["id"])
 
 
-def _delete_derived_rows(connection: sqlite3.Connection, file_id: int) -> None:
-    block_keys = [
-        row["block_key"]
-        for row in connection.execute(
-            "SELECT block_key FROM blocks WHERE file_id = ?", (file_id,)
-        )
-    ]
-    connection.executemany(
-        "DELETE FROM blocks_fts WHERE block_key = ?",
-        ((block_key,) for block_key in block_keys),
+def _delete_derived_rows(connection: Connection, file_id: int) -> None:
+    block_key_rows = connection.execute(
+        select(blocks.c.block_key).where(blocks.c.file_id == file_id)
     )
-    connection.execute("DELETE FROM wikilinks WHERE file_id = ?", (file_id,))
-    connection.execute("DELETE FROM blocks WHERE file_id = ?", (file_id,))
-    connection.execute("DELETE FROM sections WHERE file_id = ?", (file_id,))
+    block_keys = [str(row[0]) for row in block_key_rows]
+    if block_keys:
+        # FTS5 virtual-table write stays as raw SQL text by design.
+        connection.execute(
+            text("DELETE FROM blocks_fts WHERE block_key = :block_key"),
+            [{"block_key": block_key} for block_key in block_keys],
+        )
+    connection.execute(delete(wikilinks).where(wikilinks.c.file_id == file_id))
+    connection.execute(delete(blocks).where(blocks.c.file_id == file_id))
+    connection.execute(delete(sections).where(sections.c.file_id == file_id))
 
 
 def _insert_error(
-    connection: sqlite3.Connection,
+    connection: Connection,
     *,
     run_id: int,
     file_id: int | None,
@@ -388,35 +376,56 @@ def _insert_error(
     error_type: str,
     message: str,
 ) -> int:
-    cursor = connection.execute(
-        """
-        INSERT INTO index_errors (run_id, file_id, vault_path, error_type, message, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-        """,
-        (run_id, file_id, vault_path, error_type, message, _now_iso()),
+    result = connection.execute(
+        insert(index_errors).values(
+            run_id=run_id,
+            file_id=file_id,
+            vault_path=vault_path,
+            error_type=error_type,
+            message=message,
+            created_at=_now_iso(),
+        )
     )
-    return _last_insert_id(cursor, "index error insert")
+    return _last_insert_id(result, "index error insert")
 
 
-def _set_file_error(
-    connection: sqlite3.Connection, file_id: int, error_id: int
-) -> None:
+def _set_file_error(connection: Connection, file_id: int, error_id: int) -> None:
     connection.execute(
-        "UPDATE files SET last_error_id = ? WHERE id = ?", (error_id, file_id)
+        update(files).where(files.c.id == file_id).values(last_error_id=error_id)
     )
 
 
-def _fetch_file(connection: sqlite3.Connection, vault_path: str) -> sqlite3.Row | None:
+def _fetch_file(connection: Connection, vault_path: str) -> RowMapping | None:
     return connection.execute(
-        "SELECT * FROM files WHERE vault_path = ?", (vault_path,)
-    ).fetchone()
+        select(files).where(files.c.vault_path == vault_path)
+    ).mappings().first()
 
 
-def _last_insert_id(cursor: sqlite3.Cursor, operation: str) -> int:
-    if cursor.lastrowid is None:
+def _last_insert_id(result: CursorResult[object], operation: str) -> int:
+    primary_key = result.inserted_primary_key
+    if not primary_key or primary_key[0] is None:
         raise RuntimeError(f"SQLite did not return lastrowid for {operation}.")
-    return cursor.lastrowid
+    return _coerce_int(primary_key[0])
+
+
+@contextmanager
+def _transaction(connection: Connection) -> Iterator[None]:
+    if connection.in_transaction():
+        yield
+        return
+    with connection.begin():
+        yield
 
 
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _coerce_int(value: object) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        return int(value)
+    raise TypeError(f"Expected int-compatible value, received {type(value).__name__}.")
