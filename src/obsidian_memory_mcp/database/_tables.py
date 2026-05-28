@@ -59,7 +59,9 @@ sections = Table(
     "sections",
     metadata,
     Column("id", Integer, primary_key=True),
-    Column("file_id", Integer, ForeignKey("files.id", ondelete="CASCADE"), nullable=False),
+    Column(
+        "file_id", Integer, ForeignKey("files.id", ondelete="CASCADE"), nullable=False
+    ),
     Column("vault_path", Text, nullable=False),
     Column("section_key", Text, nullable=False, unique=True),
     Column("section_path", Text, nullable=False),
@@ -77,7 +79,9 @@ blocks = Table(
     "blocks",
     metadata,
     Column("id", Integer, primary_key=True),
-    Column("file_id", Integer, ForeignKey("files.id", ondelete="CASCADE"), nullable=False),
+    Column(
+        "file_id", Integer, ForeignKey("files.id", ondelete="CASCADE"), nullable=False
+    ),
     Column(
         "section_id",
         Integer,
@@ -101,7 +105,9 @@ wikilinks = Table(
     "wikilinks",
     metadata,
     Column("id", Integer, primary_key=True),
-    Column("file_id", Integer, ForeignKey("files.id", ondelete="CASCADE"), nullable=False),
+    Column(
+        "file_id", Integer, ForeignKey("files.id", ondelete="CASCADE"), nullable=False
+    ),
     Column(
         "section_id",
         Integer,

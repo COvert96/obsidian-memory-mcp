@@ -143,8 +143,12 @@ class ProposalRepository:
         if file_path is not None:
             statement = statement.where(proposals.c.file_path == file_path)
         if created_after is not None:
-            statement = statement.where(proposals.c.created_at >= _to_iso(created_after))
-        statement = statement.order_by(proposals.c.created_at.desc(), proposals.c.id.desc())
+            statement = statement.where(
+                proposals.c.created_at >= _to_iso(created_after)
+            )
+        statement = statement.order_by(
+            proposals.c.created_at.desc(), proposals.c.id.desc()
+        )
         statement = statement.limit(limit)
         rows = self._connection.execute(statement).mappings().all()
         return tuple(_proposal_from_row(row) for row in rows)

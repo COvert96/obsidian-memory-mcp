@@ -396,9 +396,11 @@ def _set_file_error(connection: Connection, file_id: int, error_id: int) -> None
 
 
 def _fetch_file(connection: Connection, vault_path: str) -> RowMapping | None:
-    return connection.execute(
-        select(files).where(files.c.vault_path == vault_path)
-    ).mappings().first()
+    return (
+        connection.execute(select(files).where(files.c.vault_path == vault_path))
+        .mappings()
+        .first()
+    )
 
 
 def _last_insert_id(result: CursorResult[object], operation: str) -> int:

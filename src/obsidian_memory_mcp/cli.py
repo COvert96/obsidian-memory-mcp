@@ -660,7 +660,9 @@ def _proposal_reject(arguments: argparse.Namespace) -> int:
         except ToolExecutionError as exc:
             _print_tool_error("Rejection failed", exc)
             return 1
-        print(f"Rejected {proposal_result.proposal_id} for {proposal_result.file_path}.")
+        print(
+            f"Rejected {proposal_result.proposal_id} for {proposal_result.file_path}."
+        )
         return 0
 
     changesets = ChangesetManager(config)

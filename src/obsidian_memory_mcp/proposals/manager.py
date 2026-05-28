@@ -87,7 +87,9 @@ class ProposalManager:
             normalized_operation, target, normalized_file_path
         )
         new_hash = (
-            _content_hash(normalized_content) if normalized_content is not None else None
+            _content_hash(normalized_content)
+            if normalized_content is not None
+            else None
         )
         ttl_seconds = self._ttl_seconds()
         created_at = self._now()

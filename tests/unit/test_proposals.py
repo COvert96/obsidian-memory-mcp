@@ -123,9 +123,7 @@ def test_create_and_approve_escape_wikilink_alias_separator_before_write(
     )
 
     stored = manager.get(proposal.proposal_id)
-    expected_content = (
-        "| Link |\n| --- |\n| [[World/Reference/Helious\\|Helious]] |"
-    )
+    expected_content = "| Link |\n| --- |\n| [[World/Reference/Helious\\|Helious]] |"
 
     assert stored is not None
     assert stored.content == expected_content
@@ -437,9 +435,7 @@ def test_cli_shows_diff_records_rejection_notes_and_cleans_up_by_retention(
         ]
     )
     audit_exit = main(["proposals", "audit", "--proposal-id", rejected.proposal_id])
-    cleanup_exit = main(
-        ["proposals", "cleanup", "--yes", "--retention-days", "7"]
-    )
+    cleanup_exit = main(["proposals", "cleanup", "--yes", "--retention-days", "7"])
     output = capsys.readouterr().out
 
     assert show_exit == 0

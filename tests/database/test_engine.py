@@ -25,7 +25,9 @@ def test_engine_for_file_sets_wal_mode_on_multiple_checkouts(tmp_path: Path) -> 
     engine = engine_for(tmp_path / "index.sqlite3")
 
     with engine.connect() as first_connection:
-        first_mode = first_connection.exec_driver_sql("PRAGMA journal_mode").scalar_one()
+        first_mode = first_connection.exec_driver_sql(
+            "PRAGMA journal_mode"
+        ).scalar_one()
     with engine.connect() as second_connection:
         second_mode = second_connection.exec_driver_sql(
             "PRAGMA journal_mode"

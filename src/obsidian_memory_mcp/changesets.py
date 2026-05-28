@@ -219,7 +219,9 @@ class ChangesetManager:
         with self._repositories() as (proposal_repository, changesets):
             changeset = _fetch_changeset_or_raise(changesets, changeset_id)
             proposals = _fetch_member_proposals(proposal_repository, changeset)
-            files = tuple(_review_file(self._config, proposal) for proposal in proposals)
+            files = tuple(
+                _review_file(self._config, proposal) for proposal in proposals
+            )
             return ChangesetReview(
                 changeset_id=changeset.changeset_id,
                 title=changeset.title,
@@ -244,7 +246,9 @@ class ChangesetManager:
                     changeset_id,
                     "changeset_approval_attempt",
                     now,
-                    build_event_details({"status": changeset.status.value}, actor=actor),
+                    build_event_details(
+                        {"status": changeset.status.value}, actor=actor
+                    ),
                 )
                 self._validate_changeset_pending(changeset, now)
                 prepared = tuple(
@@ -427,9 +431,7 @@ class ChangesetManager:
             raise ToolExecutionError(
                 build_error(
                     ErrorCode.ERR_STALE_PROPOSAL,
-                    message=(
-                        f"Changeset '{changeset.changeset_id}' has expired."
-                    ),
+                    message=(f"Changeset '{changeset.changeset_id}' has expired."),
                     details={
                         "changeset_id": changeset.changeset_id,
                         "conflict_type": "file_state",
@@ -444,7 +446,9 @@ class ChangesetManager:
         return now.astimezone(UTC)
 
     @contextmanager
-    def _repositories(self) -> Iterator[tuple[ProposalRepository, "_ChangesetRepository"]]:
+    def _repositories(
+        self,
+    ) -> Iterator[tuple[ProposalRepository, "_ChangesetRepository"]]:
         database_existed = self._config.index_db_location.exists()
         connection = connect_index_db(self._config.index_db_location)
         proposal_repository = ProposalRepository(connection)
@@ -707,8 +711,12 @@ def _review_file(config: ProjectConfig, proposal: Proposal) -> ChangesetReviewFi
 
 def proposal_diff(config: ProjectConfig, proposal: Proposal) -> str:
     target = config.vault_path / proposal.file_path
-    current = "" if proposal.operation is ProposalOperation.CREATE else _read_text(target)
-    proposed = "" if proposal.operation is ProposalOperation.DELETE else proposal.content
+    current = (
+        "" if proposal.operation is ProposalOperation.CREATE else _read_text(target)
+    )
+    proposed = (
+        "" if proposal.operation is ProposalOperation.DELETE else proposal.content
+    )
     proposed = proposed or ""
     lines = difflib.unified_diff(
         current.splitlines(),
