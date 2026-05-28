@@ -1,4 +1,4 @@
-# PRD: Phase 6 - GitHub Open Source Release Readiness
+﻿# PRD: Phase 6 - GitHub Open Source Release Readiness
 
 ## Introduction
 
@@ -72,20 +72,20 @@ the release scope beyond GitHub:
 benchmark questions so I can measure search relevance.
 
 **Acceptance Criteria:**
-- [ ] Fixture vault exists in `tests/fixtures/sample-vault/` with 30-50+
+- [x] Fixture vault exists in `tests/fixtures/sample-vault/` with 30-50+
       markdown files covering API, architecture, compliance, operations, and
       memory workflow topics.
-- [ ] Fixture files include multiple heading levels, YAML frontmatter, tags,
+- [x] Fixture files include multiple heading levels, YAML frontmatter, tags,
       wikilinks, internal references, special characters, and path edge cases.
-- [ ] Benchmark question set exists at `tests/benchmarks/benchmark-queries.yaml`
+- [x] Benchmark question set exists at `tests/benchmarks/benchmark-queries.yaml`
       with 20-30 queries and expected top-3 results.
-- [ ] Each benchmark query includes query text, expected file paths, expected
+- [x] Each benchmark query includes query text, expected file paths, expected
       section or block when relevant, and a short relevance explanation.
-- [ ] Queries cover single terms, multi-term phrases, specific topics, path/tag
+- [x] Queries cover single terms, multi-term phrases, specific topics, path/tag
       filters, and known edge cases.
-- [ ] Automated benchmark runner evaluates all queries and reports pass/fail per
+- [x] Automated benchmark runner evaluates all queries and reports pass/fail per
       query, top-3 accuracy, and aggregate accuracy.
-- [ ] Benchmark expected results are understood to be deterministic for a fixed
+- [x] Benchmark expected results are understood to be deterministic for a fixed
       fixture vault. Updating fixture content requires updating expected results;
       this is expected and not a test design flaw.
 
@@ -95,22 +95,22 @@ benchmark questions so I can measure search relevance.
 not break release-critical behavior.
 
 **Acceptance Criteria:**
-- [ ] CI runs on pull requests and pushes to `main`.
-- [ ] CI runs `uv run ruff check`, `uv run mypy src`, and
+- [x] CI runs on pull requests and pushes to `main`.
+- [x] CI runs `uv run ruff check`, `uv run mypy src`, and
       `uv run pytest tests` (the full `tests/` directory, not only
       `tests/unit`).
-- [ ] CI runs on Windows and Linux at minimum.
-- [ ] Integration tests run in CI, not only unit tests. The CI `pytest` step
+- [x] CI runs on Windows and Linux at minimum.
+- [x] Integration tests run in CI, not only unit tests. The CI `pytest` step
       is updated from `uv run pytest tests/unit` to `uv run pytest tests`.
-- [ ] Release-gate tests verify MCP handshake, tool discovery, and at least one
+- [x] Release-gate tests verify MCP handshake, tool discovery, and at least one
       live runtime call through the MCP server. Runtime tests use FastMCP's
       in-process test client (`fastmcp.Client` or `mcp.testing` transport)
       rather than spawning a subprocess, to avoid port binding and process
       lifecycle complexity in CI.
-- [ ] Benchmark relevance reaches `>=80%` top-3 before release.
-- [ ] Coverage report is generated and the documented target is `>=80%` for
+- [x] Benchmark relevance reaches `>=80%` top-3 before release.
+- [x] Coverage report is generated and the documented target is `>=80%` for
       release-critical code.
-- [ ] Test environment uses isolated fixture vaults and clean derived data per
+- [x] Test environment uses isolated fixture vaults and clean derived data per
       run.
 
 ### US-003: Write In-Repository Setup And Operations Documentation
@@ -119,12 +119,12 @@ not break release-critical behavior.
 operate the MCP server from a GitHub checkout or GitHub source install.
 
 **Acceptance Criteria:**
-- [ ] Documentation states prerequisites: Python `>=3.12`, `uv`, basic file
+- [x] Documentation states prerequisites: Python `>=3.12`, `uv`, basic file
       system knowledge, and an Obsidian-style markdown vault.
-- [ ] Documentation does not instruct users to install from PyPI for the MVP.
-- [ ] Setup instructions reference `config-example.yaml` in the project root
+- [x] Documentation does not instruct users to install from PyPI for the MVP.
+- [x] Setup instructions reference `config-example.yaml` in the project root
       as the starting-point vault config template.
-- [ ] Setup instructions cover:
+- [x] Setup instructions cover:
   1. Clone or source-install from GitHub.
   2. Create or choose a vault directory.
   3. Add `memory-mcp.yaml`.
@@ -132,12 +132,12 @@ operate the MCP server from a GitHub checkout or GitHub source install.
   5. Run initial indexing.
   6. Configure and run `mcp-memory serve`.
   7. Verify setup with a known read/search call.
-- [ ] Daily operations cover incremental indexing, index status, search debug,
+- [x] Daily operations cover incremental indexing, index status, search debug,
       proposal review, proposal approval/rejection, and cleanup.
-- [ ] Troubleshooting covers the most common failure modes in each category:
+- [x] Troubleshooting covers the most common failure modes in each category:
       setup, config, guardrails, indexing, and MCP startup. At minimum one
       scenario per category, with root cause and resolution.
-- [ ] Existing docs are linked from `README.md` instead of duplicated where
+- [x] Existing docs are linked from `README.md` instead of duplicated where
       possible.
 
 ### US-004: Write Tool And Integration Reference
@@ -146,20 +146,20 @@ operate the MCP server from a GitHub checkout or GitHub source install.
 need clear examples for every supported tool.
 
 **Acceptance Criteria:**
-- [ ] Reference covers every tool defined in `TOOL_CONTRACTS` and registered in
+- [x] Reference covers every tool defined in `TOOL_CONTRACTS` and registered in
       `src/obsidian_memory_mcp/server.py`. `src/obsidian_memory_mcp/contracts.py`
       contains structured `TOOL_CONTRACTS` metadata for all 9 tools and is the
       authoritative source for this doc.
-- [ ] Reference includes request fields, response fields, error codes, and one
+- [x] Reference includes request fields, response fields, error codes, and one
       practical example for each tool.
-- [ ] Reference covers error handling patterns and recovery suggestions from
+- [x] Reference covers error handling patterns and recovery suggestions from
       `ERROR_CATALOG`. `src/obsidian_memory_mcp/errors.py` contains the
       authoritative `ERROR_CATALOG` definition.
-- [ ] Reference includes common workflows:
+- [x] Reference includes common workflows:
   - Search and retrieve.
   - Load context pack.
   - Propose, list, approve, and reject a memory update.
-- [ ] Examples use the fixture vault and are copy-paste friendly where possible.
+- [x] Examples use the fixture vault and are copy-paste friendly where possible.
 
 ### US-005: Refresh Architecture And Design Documentation
 
@@ -167,17 +167,17 @@ need clear examples for every supported tool.
 decisions, tradeoffs, and release limits.
 
 **Acceptance Criteria:**
-- [ ] `docs/system-architecture.md` reflects the current implementation and
+- [x] `docs/system-architecture.md` reflects the current implementation and
       9-tool surface. Updates are limited to accuracy corrections against the
       current implementation; adding new architectural decisions is out of scope
       for Phase 6.
-- [ ] Architecture docs cover config, indexing, retrieval, context packs,
+- [x] Architecture docs cover config, indexing, retrieval, context packs,
       proposals, changesets, and MCP runtime integration.
-- [ ] Design decisions document why SQLite FTS is used instead of embeddings,
+- [x] Design decisions document why SQLite FTS is used instead of embeddings,
       why writes are proposal-based, and why indexing is CLI-driven.
-- [ ] Release limits are explicit, including tested fixture scale, expected
+- [x] Release limits are explicit, including tested fixture scale, expected
       latency ranges, and any unverified operating systems.
-- [ ] Future evolution paths are noted without making them MVP scope.
+- [x] Future evolution paths are noted without making them MVP scope.
 
 ### US-006: Create Release Documentation, Versioning, And Metadata
 
@@ -185,21 +185,21 @@ decisions, tradeoffs, and release limits.
 notes for the GitHub release.
 
 **Acceptance Criteria:**
-- [ ] Version is read from `pyproject.toml` as the single source of truth. No
+- [x] Version is read from `pyproject.toml` as the single source of truth. No
       separate `__version__.py` is required. At least one test exercises the
       version string via `importlib.metadata.version('obsidian-memory-mcp')`.
-- [ ] `CHANGELOG.md` includes MVP release notes, known limitations, upgrade
+- [x] `CHANGELOG.md` includes MVP release notes, known limitations, upgrade
       notes, and support channels.
-- [ ] `pyproject.toml` includes release-ready metadata:
+- [x] `pyproject.toml` includes release-ready metadata:
   - Package name, version, description, README, license, authors/maintainers.
   - Python requirement.
   - Runtime dependencies.
   - Dev/test dependencies.
   - Console scripts.
   - Project URLs pointing to the GitHub repository, issues, and docs files.
-- [ ] `README.md` includes feature overview, quick start, tool summary,
+- [x] `README.md` includes feature overview, quick start, tool summary,
       documentation links, security/safety model, and release status.
-- [ ] GitHub release notes can be created from the changelog without requiring
+- [x] GitHub release notes can be created from the changelog without requiring
       PyPI publication.
 
 ### US-007: Prepare Open Source Repository Hygiene
@@ -208,20 +208,20 @@ notes for the GitHub release.
 set clear expectations for contributions, support, and security.
 
 **Acceptance Criteria:**
-- [ ] `LICENSE` (Apache 2.0) is present, referenced from `README.md`, and the
+- [x] `LICENSE` (Apache 2.0) is present, referenced from `README.md`, and the
       copyright line has the correct year and owner with no template
       placeholders remaining.
-- [ ] `CONTRIBUTING.md` documents local setup, required checks, TDD
+- [x] `CONTRIBUTING.md` documents local setup, required checks, TDD
       expectations, and pull request expectations.
-- [ ] `AGENTS.md` is reviewed and either retained as-is, merged into
+- [x] `AGENTS.md` is reviewed and either retained as-is, merged into
       `CONTRIBUTING.md`, or acknowledged via a link from `CONTRIBUTING.md`.
-- [ ] `SECURITY.md` documents how to report security issues and explains that
+- [x] `SECURITY.md` documents how to report security issues and explains that
       real private vault data must not be shared in issues.
-- [ ] GitHub issue templates exist for bug reports and feature requests, or the
+- [x] GitHub issue templates exist for bug reports and feature requests, or the
       README clearly states the preferred issue format.
-- [ ] `.gitignore` excludes local vault data, derived indexes, caches, virtual
+- [x] `.gitignore` excludes local vault data, derived indexes, caches, virtual
       environments, build artifacts, and local server registry files.
-- [ ] No real private vault content, credentials, or personal data are present in
+- [x] No real private vault content, credentials, or personal data are present in
       tracked fixtures or docs.
 
 ### US-008: Create Release Acceptance Gate For MVP Criteria
@@ -230,9 +230,9 @@ set clear expectations for contributions, support, and security.
 requirements remain true.
 
 **Acceptance Criteria:**
-- [ ] Acceptance criteria from previous PRDs are mapped to existing tests or new
+- [x] Acceptance criteria from previous PRDs are mapped to existing tests or new
       release-gate tests.
-- [ ] Coverage includes:
+- [x] Coverage includes:
   - Phase 0: contracts and schemas.
   - Phase 1: config loading, vault boundaries, and guardrails.
   - Phase 2A: MCP initialize handshake, tool discovery, and runtime call.
@@ -241,9 +241,9 @@ requirements remain true.
   - Phase 4: context packs, token caps, and strict budget behavior.
   - Phase 5A/5B: proposal workflow, approval requirement, audit trail,
     changesets, and memory supersession docs.
-- [ ] Release gate can be run locally with `uv run` commands documented in
+- [x] Release gate can be run locally with `uv run` commands documented in
       `README.md` or `docs/release-checklist.md`.
-- [ ] All release-gate checks pass before tagging the GitHub release.
+- [x] All release-gate checks pass before tagging the GitHub release.
 
 ### US-009: Establish Relevance And Performance Baselines
 
@@ -251,15 +251,15 @@ requirements remain true.
 and a way to detect major regressions.
 
 **Acceptance Criteria:**
-- [ ] Baselines are measured and documented in `docs/performance-baseline.md`.
-- [ ] Baselines include indexing time, search latency, read latency, context pack
+- [x] Baselines are measured and documented in `docs/performance-baseline.md`.
+- [x] Baselines include indexing time, search latency, read latency, context pack
       load time, proposal latency, token-count accuracy checks, and index size.
-- [ ] Benchmark scripts use deterministic fixture data and clear output.
-- [ ] CI performance threshold failures are reserved for regressions of 10x or
+- [x] Benchmark scripts use deterministic fixture data and clear output.
+- [x] CI performance threshold failures are reserved for regressions of 10x or
       greater, measured against fixture-based baselines. Absolute time
       thresholds are documented in `docs/performance-baseline.md` but are
       machine-specific and not enforced in CI for the MVP.
-- [ ] Baseline docs state the machine/OS used for measurement and do not promise
+- [x] Baseline docs state the machine/OS used for measurement and do not promise
       universal performance.
 
 ### US-010: Document Versioning And Future Evolution Policy
@@ -268,13 +268,13 @@ and a way to detect major regressions.
 public releases.
 
 **Acceptance Criteria:**
-- [ ] Semantic versioning policy is documented.
-- [ ] Config compatibility commitment is documented for the current config
+- [x] Semantic versioning policy is documented.
+- [x] Config compatibility commitment is documented for the current config
       schema.
-- [ ] MCP tool signature compatibility expectations are documented.
-- [ ] Deprecation policy states that breaking changes require a major version
+- [x] MCP tool signature compatibility expectations are documented.
+- [x] Deprecation policy states that breaking changes require a major version
       bump after `1.0.0`.
-- [ ] Config migration tooling is explicitly out of scope until a real config
+- [x] Config migration tooling is explicitly out of scope until a real config
       schema migration exists.
 
 ## Functional Requirements
@@ -333,20 +333,20 @@ public releases.
 
 ## Success Metrics
 
-- [ ] `uv run ruff check` passes.
-- [ ] `uv run mypy src` passes.
-- [ ] `uv run pytest tests` passes.
-- [ ] Release-gate checks pass locally and in CI.
-- [ ] `>=80%` top-3 search relevance on benchmark queries.
-- [ ] `>=80%` test coverage for release-critical code, or a documented reason
+- [x] `uv run ruff check` passes.
+- [x] `uv run mypy src` passes.
+- [x] `uv run pytest tests` passes.
+- [x] Release-gate checks pass locally and in CI.
+- [x] `>=80%` top-3 search relevance on benchmark queries.
+- [x] `>=80%` test coverage for release-critical code, or a documented reason
       for any uncovered release-critical path.
-- [ ] All README and docs links resolve inside the repository.
-- [ ] Setup from a clean clone takes less than 30 minutes for an experienced
+- [x] All README and docs links resolve inside the repository.
+- [x] Setup from a clean clone takes less than 30 minutes for an experienced
       operator.
-- [ ] CI runtime is measured after integration tests are added. The target is
+- [x] CI runtime is measured after integration tests are added. The target is
       under 3 minutes for required checks; anything under 10 minutes is
       acceptable for MVP. This is an observation target, not a release gate.
-- [ ] GitHub release checklist is complete before tagging.
+- [x] GitHub release checklist is complete before tagging.
 
 ## Open Questions
 
