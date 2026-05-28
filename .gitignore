@@ -221,6 +221,9 @@ __marimo__/
 .claude/settings.local.json
 .claude/worktrees/
 
+# Prompts
+prompts/
+
 # Agent Outputs
 docs/plans/
 docs/code-review/
