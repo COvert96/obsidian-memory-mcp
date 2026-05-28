@@ -159,6 +159,135 @@ def test_changeset_cleanup_removes_terminal_changesets_and_member_proposals(
     assert all(proposal_manager.get(proposal_id) is None for proposal_id in proposal_ids)
 
 
+def test_changeset_reject_marks_changeset_and_member_proposals_rejected(
+    tmp_path: Path,
+) -> None:
+    vault = tmp_path / "vault"
+    (vault / "Memory").mkdir(parents=True)
+    manager = ChangesetManager(_config(vault))
+    created = manager.create(
+        title="Two-file update",
+        mutations=(
+            FileMutation("Memory/a.md", "create", "# A"),
+            FileMutation("Memory/b.md", "create", "# B"),
+        ),
+    )
+
+    result = manager.reject(
+        created.changeset_id,
+        reason="not needed",
+        notes="rejected during acceptance testing",
+    )
+
+    assert result.status is ChangesetStatus.REJECTED
+    assert result.reason == "not needed"
+    assert result.notes == "rejected during acceptance testing"
+    stored = manager.get(created.changeset_id)
+    assert stored is not None
+    assert stored.status is ChangesetStatus.REJECTED
+    assert all(
+        proposal.status.value == "rejected"
+        for proposal in manager.proposals(created.changeset_id)
+    )
+    assert not vault.joinpath("Memory", "a.md").exists()
+    assert not vault.joinpath("Memory", "b.md").exists()
+
+
+def test_changeset_requires_at_least_two_mutations(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    (vault / "Memory").mkdir(parents=True)
+    manager = ChangesetManager(_config(vault))
+
+    with pytest.raises(ToolExecutionError) as exc_info:
+        manager.create(
+            title="Single mutation — should be rejected",
+            mutations=(FileMutation("Memory/only.md", "create", "# Only"),),
+        )
+
+    assert exc_info.value.error.code is ErrorCode.ERR_INVALID_REQUEST
+    assert "at least two" in exc_info.value.error.message
+
+
+def test_changeset_approve_raises_for_already_applied_changeset(
+    tmp_path: Path,
+) -> None:
+    vault = tmp_path / "vault"
+    (vault / "Memory").mkdir(parents=True)
+    manager = ChangesetManager(_config(vault))
+    created = manager.create(
+        title="Two creates",
+        mutations=(
+            FileMutation("Memory/x.md", "create", "# X"),
+            FileMutation("Memory/y.md", "create", "# Y"),
+        ),
+    )
+    manager.approve(created.changeset_id)
+
+    with pytest.raises(ToolExecutionError) as exc_info:
+        manager.approve(created.changeset_id)
+
+    assert exc_info.value.error.code is ErrorCode.ERR_INVALID_REQUEST
+    assert "applied" in exc_info.value.error.message
+
+
+def test_changeset_approve_raises_for_already_rejected_changeset(
+    tmp_path: Path,
+) -> None:
+    vault = tmp_path / "vault"
+    (vault / "Memory").mkdir(parents=True)
+    manager = ChangesetManager(_config(vault))
+    created = manager.create(
+        title="Two creates",
+        mutations=(
+            FileMutation("Memory/p.md", "create", "# P"),
+            FileMutation("Memory/q.md", "create", "# Q"),
+        ),
+    )
+    manager.reject(created.changeset_id)
+
+    with pytest.raises(ToolExecutionError) as exc_info:
+        manager.approve(created.changeset_id)
+
+    assert exc_info.value.error.code is ErrorCode.ERR_INVALID_REQUEST
+    assert "rejected" in exc_info.value.error.message
+
+
+def test_changeset_reject_raises_for_already_applied_changeset(
+    tmp_path: Path,
+) -> None:
+    vault = tmp_path / "vault"
+    (vault / "Memory").mkdir(parents=True)
+    manager = ChangesetManager(_config(vault))
+    created = manager.create(
+        title="Two creates",
+        mutations=(
+            FileMutation("Memory/m.md", "create", "# M"),
+            FileMutation("Memory/n.md", "create", "# N"),
+        ),
+    )
+    manager.approve(created.changeset_id)
+
+    with pytest.raises(ToolExecutionError) as exc_info:
+        manager.reject(created.changeset_id)
+
+    assert exc_info.value.error.code is ErrorCode.ERR_INVALID_REQUEST
+    assert "applied" in exc_info.value.error.message
+
+
+def test_changeset_approve_raises_for_nonexistent_changeset_id(
+    tmp_path: Path,
+) -> None:
+    vault = tmp_path / "vault"
+    (vault / "Memory").mkdir(parents=True)
+    manager = ChangesetManager(_config(vault))
+
+    with pytest.raises(ToolExecutionError) as exc_info:
+        manager.approve("changeset-does-not-exist")
+
+    assert exc_info.value.error.code is ErrorCode.ERR_INVALID_REQUEST
+    assert "does not exist" in exc_info.value.error.message
+
+
 def _sequential_ids():
     count = 0
 
