@@ -447,14 +447,16 @@ class ChangesetManager:
     def _repositories(self) -> Iterator[tuple[ProposalRepository, "_ChangesetRepository"]]:
         database_existed = self._config.index_db_location.exists()
         connection = connect_index_db(self._config.index_db_location)
+        proposal_repository = ProposalRepository(connection)
         try:
             bootstrap_schema_once(
                 connection,
                 self._config.index_db_location,
                 database_existed=database_existed,
             )
-            yield ProposalRepository(connection), _ChangesetRepository(connection)
+            yield proposal_repository, _ChangesetRepository(connection)
         finally:
+            proposal_repository.close()
             connection.close()
 
 
