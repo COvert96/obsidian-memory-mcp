@@ -4,6 +4,9 @@ name: Quality gates
 on:
   workflow_call:
 
+# actions/checkout@v6, setup-uv@v8, and action-gh-release@v3 use the Node.js 24 runtime.
+# https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+
 jobs:
   checks:
     name: Checks (${{ matrix.os }})
@@ -17,10 +20,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           enable-cache: true
 
