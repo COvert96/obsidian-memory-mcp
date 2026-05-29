@@ -22,7 +22,11 @@ uv run pytest tests
 uv run pytest tests/release
 ```
 
-Radon fails the gate when any module has cyclomatic complexity grade **C+**, maintainability index grade **C**, or maintainability index below **20**. See [docs/python-api.md](docs/python-api.md) for intended import boundaries.
+Radon **fails** the gate when any module has cyclomatic complexity grade **C+**, maintainability index grade **C**, or maintainability index below **20**.
+
+The same script prints **watch** output (non-failing): grade-B blocks with cyclomatic complexity **≥ 8**, and modules with maintainability index **below 35**. Use watch output as a refactor backlog before adding branches to hot paths.
+
+See [docs/python-api.md](docs/python-api.md) for intended import boundaries.
 
 Coverage target for release-critical code is 80%. CI generates `coverage.xml` and terminal coverage output.
 

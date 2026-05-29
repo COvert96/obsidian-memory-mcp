@@ -22,6 +22,37 @@ The MVP release exposes 9 MCP tools:
 
 The MCP server layer in `src/obsidian_memory_mcp/server.py` is an adapter. It resolves the project registry, loads vault config, and delegates to domain services. Business rules live in config validation, guardrails, indexing, retrieval, context pack, write/supersession, and token modules. SQLite and filesystem access are details kept behind repository/service functions.
 
+```mermaid
+flowchart TB
+  MCPClient[MCP_Client] --> Server[server.py_FastMCP]
+  Operator[Operator_CLI] --> CLI[cli]
+  Server --> Config[config]
+  Server --> Retrieval[retrieval]
+  Server --> Writes[writes]
+  Server --> ContextPacks[context_packs]
+  CLI --> Indexing[indexing]
+  Indexing --> SQLite[(SQLite_index)]
+  Retrieval --> SQLite
+  ContextPacks --> SQLite
+  Indexing --> Vault[(Vault_markdown)]
+  Retrieval --> Vault
+  Writes --> Vault
+```
+
+## Database access
+
+The index database is accessed through two entry points in `obsidian_memory_mcp.database`:
+
+| API | Used by | Role |
+|-----|---------|------|
+| `get_connection()` | `indexing/service.py`, `indexing/repository.py` | SQLAlchemy `Connection` for transactional index writes |
+| `connect_index_db()` | `retrieval`, `context_packs`, `status`, `writes` audit, `search_debug` | Raw `sqlite3.Connection` for FTS reads and lightweight queries |
+
+Both apply the same SQLite pragmas (foreign keys, WAL on disk). When adding code:
+
+- **Index writes** (files, blocks, FTS rows, runs) → SQLAlchemy via `indexing.repository` and `get_connection()`.
+- **Read-only FTS / status queries** → `connect_index_db()` unless you need to participate in an existing SQLAlchemy transaction.
+
 ## Package layout convention
 
 All bounded-context packages follow the same rules (introduced with `database/` in

@@ -9,7 +9,11 @@ import sys
 
 # Modules below this MI are blocked (radon A starts at 20).
 WATCH_MI_MIN = 20.0
-# Functions at CC grade B with complexity 10 are reported as watch items.
+# Informational watch: modules below this MI are reported but do not fail CI.
+WATCH_MI_INFO_MAX = 35.0
+# Functions at CC grade B with complexity >= this are reported as watch items.
+WATCH_CC_BACKLOG_MIN = 8
+# Higher threshold for a shorter summary line count.
 WATCH_CC_MIN = 10
 
 
@@ -45,8 +49,61 @@ def _modules_below_mi_threshold() -> list[tuple[str, float]]:
     return sorted(below, key=lambda item: item[1])
 
 
+def _modules_below_mi_info_threshold() -> list[tuple[str, float]]:
+    raw = subprocess.run(
+        [sys.executable, "-m", "radon", "mi", "src", "-j"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if raw.returncode not in {0, 1}:
+        print(raw.stderr or raw.stdout, file=sys.stderr)
+        sys.exit(raw.returncode)
+
+    below: list[tuple[str, float]] = []
+    for path, metrics in json.loads(raw.stdout or "{}").items():
+        mi = float(metrics["mi"])
+        if WATCH_MI_MIN <= mi < WATCH_MI_INFO_MAX:
+            below.append((path, mi))
+    return sorted(below, key=lambda item: item[1])
+
+
 def _high_complexity_blocks() -> str:
     return _run_radon("cc", "src", "-n", "B", "-s", "-j")
+
+
+def _watch_items(min_complexity: int) -> list[dict[str, object]]:
+    watch_cc = json.loads(_high_complexity_blocks() or "{}")
+    return [
+        entry
+        for entries in watch_cc.values()
+        for entry in entries
+        if int(entry.get("complexity", 0)) >= min_complexity
+    ]
+
+
+def _print_watch_items(items: list[dict[str, object]], *, min_complexity: int) -> None:
+    if not items:
+        return
+    print(
+        f"Radon watch: {len(items)} block(s) at cyclomatic complexity "
+        f">= {min_complexity} (grade B). Consider refactoring before adding branches.",
+        file=sys.stderr,
+    )
+    for entry in sorted(
+        items,
+        key=lambda item: (
+            -int(item.get("complexity", 0)),
+            str(item.get("filename", "")),
+            str(item.get("name", "")),
+        ),
+    ):
+        print(
+            f"  {entry.get('filename')}:{entry.get('lineno')} "
+            f"{entry.get('type')} {entry.get('name')} "
+            f"(CC {entry.get('complexity')})",
+            file=sys.stderr,
+        )
 
 
 def main() -> int:
@@ -69,17 +126,22 @@ def main() -> int:
             print(f"  {path}: {mi:.2f}", file=sys.stderr)
         return 1
 
-    watch_cc = json.loads(_high_complexity_blocks() or "{}")
-    watch_items = [
-        entry
-        for entries in watch_cc.values()
-        for entry in entries
-        if int(entry.get("complexity", 0)) >= WATCH_CC_MIN
-    ]
-    if watch_items:
+    info_mi = _modules_below_mi_info_threshold()
+    if info_mi:
         print(
-            f"Radon watch: {len(watch_items)} block(s) at cyclomatic complexity "
-            f">= {WATCH_CC_MIN} (grade B). Consider refactoring before adding branches.",
+            f"Radon watch: {len(info_mi)} module(s) with MI below {WATCH_MI_INFO_MAX}:",
+            file=sys.stderr,
+        )
+        for path, mi in info_mi:
+            print(f"  {path}: {mi:.2f}", file=sys.stderr)
+
+    _print_watch_items(_watch_items(WATCH_CC_BACKLOG_MIN), min_complexity=WATCH_CC_BACKLOG_MIN)
+
+    high_cc = _watch_items(WATCH_CC_MIN)
+    if high_cc and WATCH_CC_MIN > WATCH_CC_BACKLOG_MIN:
+        print(
+            f"Radon watch: {len(high_cc)} block(s) at cyclomatic complexity "
+            f">= {WATCH_CC_MIN} (grade B).",
             file=sys.stderr,
         )
 

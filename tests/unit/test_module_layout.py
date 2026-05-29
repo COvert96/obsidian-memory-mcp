@@ -19,8 +19,9 @@ from obsidian_memory_mcp.context_packs import (
     ContextPackLoader,
     ContextPackResult,
     ContextPackSummary,
-    SqliteIndexQueries,
+    IndexQueries,
 )
+from obsidian_memory_mcp.context_packs._index_queries import SqliteIndexQueries
 from obsidian_memory_mcp.contracts import TOOL_CONTRACTS, ToolContract
 from obsidian_memory_mcp.indexing import (
     FileCandidate,
@@ -42,8 +43,14 @@ def test_context_pack_features_are_grouped_under_context_packs_package() -> None
     assert ContextPackLoader is not None
     assert ContextPackResult is not None
     assert ContextPackSummary is not None
-    assert SqliteIndexQueries is not None
+    assert IndexQueries is not None
     assert DEFAULT_CONTEXT_PACK_TOKEN_BUDGET > 0
+
+
+def test_sqlite_index_queries_is_internal_adapter() -> None:
+    context_packs = importlib.import_module("obsidian_memory_mcp.context_packs")
+    assert "SqliteIndexQueries" not in context_packs.__all__
+    assert SqliteIndexQueries is not None
 
 
 def test_project_config_defaults_are_owned_by_the_model() -> None:
@@ -102,6 +109,16 @@ def test_internal_submodules_are_not_reexported_at_package_root() -> None:
     utils = importlib.import_module("obsidian_memory_mcp.utils")
     assert "_glob" not in utils.__all__
     assert "normalize_glob" in utils.__all__
+
+
+def test_no_legacy_top_level_parser_package() -> None:
+    package = importlib.import_module("obsidian_memory_mcp")
+    top_level_packages = {
+        name
+        for _finder, name, ispkg in pkgutil.iter_modules(package.__path__)
+        if ispkg
+    }
+    assert "parser" not in top_level_packages
 
 
 def test_no_flat_duplicate_top_level_helper_modules() -> None:
