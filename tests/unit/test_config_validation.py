@@ -31,9 +31,7 @@ def valid_config(vault_path: Path) -> dict[str, object]:
             "write": {"allow": ["wiki/proposals/"], "deny": ["wiki/log.md"]},
         },
         "tags_separator": ",",
-        "max_proposal_ttl_hours": 48,
-        "proposal_ttl_seconds": 3600,
-        "max_proposal_content_bytes": 1048576,
+        "max_write_content_bytes": 1048576,
     }
 
 
@@ -61,9 +59,8 @@ write_constraints:
       - "**/*.md"
   write:
     allow:
-      - wiki/proposals/
+      - Memory/**
 tags_separator: "|"
-max_proposal_ttl_hours: 12
 """.format(vault=vault.as_posix()),
     )
     loader = ConfigLoader(vault)
@@ -75,10 +72,8 @@ max_proposal_ttl_hours: 12
     assert loaded.vault_path == vault.resolve()
     assert loaded.index_db_location == vault.resolve() / "memory-index.sqlite3"
     assert loaded.tags_separator == "|"
-    assert loaded.max_proposal_ttl_hours == 12
-    assert loaded.proposal_ttl_seconds == 3600
     assert loaded.max_write_content_bytes == 1024 * 1024
-    assert loaded.proposal_retention_days == 7
+    assert loaded.memory_archive_path == "Memory/archive"
 
 
 def test_loader_reports_missing_config_with_actionable_error(tmp_path: Path) -> None:
@@ -132,10 +127,7 @@ def test_validator_reports_wrong_types_with_actual_values(tmp_path: Path) -> Non
     data["context_packs"] = "prd"
     data["write_constraints"] = []
     data["tags_separator"] = ["|"]
-    data["max_proposal_ttl_hours"] = "soon"
-    data["proposal_ttl_seconds"] = 0
-    data["max_proposal_content_bytes"] = "large"
-    data["proposal_retention_days"] = 0
+    data["max_write_content_bytes"] = "large"
 
     errors = ConfigValidator().collect_errors(data)
 
@@ -143,10 +135,7 @@ def test_validator_reports_wrong_types_with_actual_values(tmp_path: Path) -> Non
         "context_packs",
         "write_constraints",
         "tags_separator",
-        "max_proposal_ttl_hours",
-        "proposal_ttl_seconds",
-        "max_proposal_content_bytes",
-        "proposal_retention_days",
+        "max_write_content_bytes",
     }
     assert any("Got 'prd'" in error.message for error in errors)
     assert any("expected type" in error.suggestion for error in errors)
@@ -340,6 +329,54 @@ def test_validator_raises_with_all_errors(tmp_path: Path) -> None:
     assert exc_info.value.error.code is ErrorCode.ERR_INVALID_PROJECT
     assert len(exc_info.value.validation_errors) >= 3
     assert "vault_path" in exc_info.value.error.message
+
+
+def test_validator_defaults_memory_archive_path_when_absent(tmp_path: Path) -> None:
+    config = ConfigValidator().validate(valid_config(tmp_path))
+
+    assert config.memory_archive_path == "Memory/archive"
+
+
+def test_validator_reads_memory_archive_path_when_present(tmp_path: Path) -> None:
+    data = valid_config(tmp_path)
+    data["memory_archive_path"] = "Memory/old-notes"
+
+    config = ConfigValidator().validate(data)
+
+    assert config.memory_archive_path == "Memory/old-notes"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "/absolute/Memory/archive",
+        "archive",
+        "wiki/archive",
+        "Memory/../escape",
+        123,
+    ],
+)
+def test_validator_rejects_invalid_memory_archive_path(
+    tmp_path: Path, value: object
+) -> None:
+    data = valid_config(tmp_path)
+    data["memory_archive_path"] = value
+
+    errors = ConfigValidator().collect_errors(data)
+
+    assert any(error.field == "memory_archive_path" for error in errors)
+
+
+def test_validator_warns_on_removed_proposal_field_without_raising(
+    tmp_path: Path,
+) -> None:
+    data = valid_config(tmp_path)
+    data["proposal_ttl_seconds"] = 3600
+
+    with pytest.warns(DeprecationWarning, match="proposal_ttl_seconds"):
+        config = ConfigValidator().validate(data)
+
+    assert config.vault_path == tmp_path.resolve()
 
 
 def test_load_project_config_convenience_function(tmp_path: Path) -> None:

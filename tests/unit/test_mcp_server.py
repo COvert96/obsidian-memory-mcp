@@ -39,6 +39,32 @@ def test_server_exposes_read_note_tool() -> None:
     assert any(t.name == "read_note" for t in tools)
 
 
+def test_server_tool_surface_is_the_nine_v0_2_0_tools() -> None:
+    tool_names = {tool.name for tool in asyncio.run(mcp.list_tools())}
+
+    proposal_tools = {
+        "propose_memory_update",
+        "list_proposals",
+        "approve_proposal",
+        "reject_proposal",
+    }
+    crud_tools = {"write_memory", "update_memory", "write_note", "update_note"}
+
+    assert proposal_tools.isdisjoint(tool_names)
+    assert crud_tools <= tool_names
+    assert tool_names == {
+        "read_note",
+        "read_section",
+        "search_notes",
+        "get_context_pack",
+        "list_context_packs",
+        "write_memory",
+        "update_memory",
+        "write_note",
+        "update_note",
+    }
+
+
 # ---------------------------------------------------------------------------
 # read_note - success path
 # ---------------------------------------------------------------------------

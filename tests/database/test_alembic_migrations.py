@@ -75,15 +75,12 @@ def test_alembic_upgrade_head_creates_full_schema_on_blank_database(
         "blocks",
         "wikilinks",
         "index_errors",
-        "proposals",
-        "proposal_events",
-        "proposal_changesets",
-        "proposal_changeset_members",
-        "proposal_changeset_events",
         "write_audit",
         "blocks_fts",
         "alembic_version",
     }.issubset(tables)
+    # Phase 8c migration 002 drops every proposal table at head.
+    assert not any(name.startswith("proposal") for name in tables)
     assert {
         "idx_files_freshness",
         "idx_sections_file_id",
@@ -93,16 +90,25 @@ def test_alembic_upgrade_head_creates_full_schema_on_blank_database(
         "idx_wikilinks_file_id",
         "idx_index_errors_run_id",
         "idx_index_errors_file_id",
-        "idx_proposals_status_created",
-        "idx_proposals_file_path",
-        "idx_proposals_created",
-        "idx_proposal_events_proposal_id",
-        "idx_proposal_changesets_status_created",
-        "idx_proposal_changeset_members_changeset",
-        "idx_proposal_changeset_members_proposal",
-        "idx_proposal_changeset_events_changeset_id",
     }.issubset(indexes)
+    assert not any(name.startswith("idx_proposal") for name in indexes)
     assert stamped is not None
+
+
+def test_migrate_from_phase_8b_drops_proposal_tables(tmp_path: Path) -> None:
+    database_path = tmp_path / "index.sqlite3"
+    config = _alembic_config(database_path)
+    # Phase 8b shipped at revision 001_initial_schema (proposal tables present).
+    command.upgrade(config, "001_initial_schema")
+    with sqlite3.connect(database_path) as connection:
+        assert "proposals" in _table_names(connection)
+
+    command.upgrade(config, "head")
+
+    with sqlite3.connect(database_path) as connection:
+        tables = _table_names(connection)
+    assert not any(name.startswith("proposal") for name in tables)
+    assert "write_audit" in tables
 
 
 def test_alembic_check_passes_after_head_is_applied(tmp_path: Path) -> None:

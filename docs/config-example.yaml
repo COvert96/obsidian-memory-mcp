@@ -54,7 +54,8 @@ write_constraints:
       - "wiki/log.md"
 
 tags_separator: ","
-max_proposal_ttl_hours: 24
-proposal_ttl_seconds: 3600
 max_write_content_bytes: 1048576
-proposal_retention_days: 7
+
+# Directory (relative, under Memory/) where update_memory archives superseded
+# notes. Defaults to "Memory/archive" when omitted.
+memory_archive_path: "Memory/archive"

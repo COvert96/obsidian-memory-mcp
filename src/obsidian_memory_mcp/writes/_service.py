@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -85,7 +86,15 @@ class WriteService:
         file_path: str,
         content: str,
         expected_hash: str | None = None,
+        *,
+        defer_audit: bool = False,
     ) -> WriteResult:
+        """Overwrite an existing file atomically.
+
+        When ``defer_audit`` is set, the audit row is *not* appended here; the
+        caller must append exactly one row afterwards (used by the supersession
+        orchestrator, whose archive paths are known only after the write).
+        """
         content_bytes = self._normalize_within_size_limit(content)
 
         resolved_path = self._guardrails.check_write(file_path)
@@ -107,7 +116,19 @@ class WriteService:
                 )
             )
 
-        return self._write(resolved_path, relative_path, content_bytes, "update")
+        return self._write(
+            resolved_path,
+            relative_path,
+            content_bytes,
+            "update",
+            record_audit=not defer_audit,
+        )
+
+    def record_supersession_audit(
+        self, result: WriteResult, archived_paths: list[str]
+    ) -> None:
+        """Append the single audit row for a deferred supersession write."""
+        self._record_audit(result, supersedes=json.dumps(archived_paths))
 
     def _normalize_within_size_limit(self, content: str) -> bytes:
         content_bytes = escape_wikilink_alias_separator(content).encode("utf-8")
@@ -131,6 +152,8 @@ class WriteService:
         relative_path: str,
         content_bytes: bytes,
         operation: str,
+        *,
+        record_audit: bool = True,
     ) -> WriteResult:
         atomic_write(resolved_path, content_bytes)
         result = WriteResult(
@@ -140,10 +163,13 @@ class WriteService:
             file_size_bytes=len(content_bytes),
             written_at=self._now(),
         )
-        self._record_audit(result)
+        if record_audit:
+            self._record_audit(result)
         return result
 
-    def _record_audit(self, result: WriteResult) -> None:
+    def _record_audit(
+        self, result: WriteResult, *, supersedes: str | None = None
+    ) -> None:
         if self._audit is None:
             return
         try:
@@ -155,6 +181,7 @@ class WriteService:
                     file_path=result.file_path,
                     operation=result.operation,
                     content_hash=result.content_hash,
+                    supersedes=supersedes,
                 )
             )
         except Exception as error:  # noqa: BLE001 — audit must never abort a write

@@ -32,21 +32,18 @@ class AccessConstraints:
 class ProjectConfig:
     CONFIG_FILE_NAME: ClassVar[str] = "memory-mcp.yaml"
     DEFAULT_TAGS_SEPARATOR: ClassVar[str] = ","
-    DEFAULT_MAX_PROPOSAL_TTL_HOURS: ClassVar[int] = 24
-    DEFAULT_PROPOSAL_TTL_SECONDS: ClassVar[int] = 3600
     DEFAULT_MAX_WRITE_CONTENT_BYTES: ClassVar[int] = 1024 * 1024
-    DEFAULT_MAX_PROPOSAL_CONTENT_BYTES: ClassVar[int] = 1024 * 1024  # deprecated alias
-    DEFAULT_PROPOSAL_RETENTION_DAYS: ClassVar[int] = 7
+    # Deprecated alias retained for the renamed write-size limit (Phase 8c).
+    DEFAULT_MAX_PROPOSAL_CONTENT_BYTES: ClassVar[int] = DEFAULT_MAX_WRITE_CONTENT_BYTES
+    DEFAULT_MEMORY_ARCHIVE_PATH: ClassVar[str] = "Memory/archive"
 
     vault_path: Path
     index_db_location: Path
     context_packs: tuple[ContextPackConfig, ...]
     write_constraints: AccessConstraints
     tags_separator: str = DEFAULT_TAGS_SEPARATOR
-    max_proposal_ttl_hours: int = DEFAULT_MAX_PROPOSAL_TTL_HOURS
-    proposal_ttl_seconds: int = DEFAULT_PROPOSAL_TTL_SECONDS
     max_write_content_bytes: int = DEFAULT_MAX_WRITE_CONTENT_BYTES
-    proposal_retention_days: int = DEFAULT_PROPOSAL_RETENTION_DAYS
+    memory_archive_path: str = DEFAULT_MEMORY_ARCHIVE_PATH
 
 
 WritePolicy = AccessPolicy

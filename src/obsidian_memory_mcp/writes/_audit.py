@@ -14,16 +14,15 @@ from sqlalchemy.pool import StaticPool
 
 from obsidian_memory_mcp.config import ProjectConfig
 from obsidian_memory_mcp.database._tables import write_audit
-from obsidian_memory_mcp.proposals._db import bootstrap_schema_once
-from obsidian_memory_mcp.schema import connect_index_db
+from obsidian_memory_mcp.schema import bootstrap_schema_once, connect_index_db
 from obsidian_memory_mcp.writes._models import WriteAuditEntry
 
 
 class WriteAuditRepository:
     """Append and query write_audit rows in the configured index database.
 
-    Each call opens, bootstraps, and closes its own connection — mirroring the
-    proposal repositories' use of the configured index DB location.
+    Each call opens, bootstraps, and closes its own connection against the
+    configured index DB location.
     """
 
     def __init__(self, config: ProjectConfig) -> None:
