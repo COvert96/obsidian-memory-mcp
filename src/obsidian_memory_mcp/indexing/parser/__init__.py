@@ -6,10 +6,12 @@ For read-time section slicing and frontmatter use the ``markdown`` package.
 
 from __future__ import annotations
 
-from obsidian_memory_mcp.parser._blocks import build_blocks
-from obsidian_memory_mcp.parser._frontmatter import extract_frontmatter
-from obsidian_memory_mcp.parser._headings import find_headings
-from obsidian_memory_mcp.parser._models import (
+from typing import Any
+
+from obsidian_memory_mcp.markdown import extract_frontmatter as _markdown_extract_frontmatter
+from obsidian_memory_mcp.indexing.parser._blocks import build_blocks
+from obsidian_memory_mcp.indexing.parser._index_headings import find_headings
+from obsidian_memory_mcp.indexing.parser._models import (
     HARD_BLOCK_MAX_TOKENS,
     PARSER_VERSION,
     TARGET_BLOCK_MAX_TOKENS,
@@ -20,14 +22,14 @@ from obsidian_memory_mcp.parser._models import (
     ParsedSection,
     ParsedWikilink,
 )
-from obsidian_memory_mcp.parser._sections import build_sections
-from obsidian_memory_mcp.parser._tags import extract_tags
-from obsidian_memory_mcp.parser._text import (
+from obsidian_memory_mcp.indexing.parser._sections import build_sections
+from obsidian_memory_mcp.indexing.parser._tags import extract_tags
+from obsidian_memory_mcp.indexing.parser._text import (
     estimate_markdown_tokens,
     normalize_newlines,
     sha256,
 )
-from obsidian_memory_mcp.parser._wikilinks import extract_wikilinks
+from obsidian_memory_mcp.indexing.parser._wikilinks import extract_wikilinks
 
 __all__ = [
     "HARD_BLOCK_MAX_TOKENS",
@@ -45,6 +47,13 @@ __all__ = [
 ]
 
 
+def _extract_frontmatter(
+    content: str,
+) -> tuple[dict[str, Any], str | None, str, int]:
+    result = _markdown_extract_frontmatter(content)
+    return result.frontmatter, result.error, result.body, result.body_start_line
+
+
 def parse_markdown(
     *,
     vault_path: str,
@@ -54,7 +63,7 @@ def parse_markdown(
     raw_bytes = content if isinstance(content, bytes) else content.encode("utf-8")
     text = raw_bytes.decode("utf-8")
     normalized_text = normalize_newlines(text)
-    frontmatter, frontmatter_error, body, body_start_line = extract_frontmatter(
+    frontmatter, frontmatter_error, body, body_start_line = _extract_frontmatter(
         normalized_text
     )
     body_lines = body.split("\n")

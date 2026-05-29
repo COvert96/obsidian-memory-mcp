@@ -9,7 +9,7 @@ import pytest
 
 from obsidian_memory_mcp.config import ConfigLoader
 from obsidian_memory_mcp.indexing import IndexMode, run_index
-from obsidian_memory_mcp.parser import PARSER_VERSION
+from obsidian_memory_mcp.indexing.parser import PARSER_VERSION
 from obsidian_memory_mcp.search_debug import debug_search
 
 

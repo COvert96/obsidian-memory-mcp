@@ -75,6 +75,7 @@ uv run mcp-memory audit writes C:\path\to\vault --limit 50
 ```powershell
 uv run ruff check
 uv run mypy --strict src
+uv run lint-imports
 uv run python scripts/radon_gate.py
 uv run pytest --cov=obsidian_memory_mcp --cov-report=term-missing --cov-report=xml --cov-fail-under=80 tests
 uv run pytest tests/release

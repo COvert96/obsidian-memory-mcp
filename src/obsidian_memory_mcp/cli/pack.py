@@ -9,8 +9,13 @@ from pathlib import Path
 
 from obsidian_memory_mcp.utils import duration_ms
 from obsidian_memory_mcp.config import ProjectConfig
-from obsidian_memory_mcp.context_packs import ContextPackLoader, ContextPackResult
+from obsidian_memory_mcp.context_packs import ContextPackLoader
 from obsidian_memory_mcp.errors import ToolExecutionError
+from obsidian_memory_mcp.cli._pack_output import (
+    pack_exit_code,
+    pack_issue_summary,
+    print_context_pack_summary,
+)
 
 COMMAND_PACK = "pack"
 SUBCOMMAND_LIST = "list"
@@ -111,12 +116,12 @@ def _pack_list(vault_root: Path, load_config: ConfigLoaderFn) -> int:
             print(f"{pack.name:<20} <error> {exc.error.message}")
             exit_code = 1
             continue
-        issues = _pack_issue_summary(result)
+        issues = pack_issue_summary(result)
         print(
             f"{pack.name:<20} {len(pack.paths):>8} {len(result.files_included):>6} "
             f"{result.token_count:>7}  {issues:<6} {pack.description or ''}"
         )
-        exit_code = max(exit_code, _pack_exit_code(result))
+        exit_code = max(exit_code, pack_exit_code(result))
 
     print(f"Duration ms: {duration_ms(started)}")
     return exit_code
@@ -141,12 +146,12 @@ def _pack_validate(
             print(f"  {suggestion}")
         return 1
 
-    _print_context_pack_summary(result, duration_ms=duration_ms(started))
+    print_context_pack_summary(result, duration_ms=duration_ms(started))
     if result.tag_filtered_files:
         print("Tag-filtered files:")
         for path in result.tag_filtered_files:
             print(f"  - {path}")
-    return _pack_exit_code(result)
+    return pack_exit_code(result)
 
 
 def _pack_load(
@@ -174,58 +179,9 @@ def _pack_load(
         return 1
 
     print(result.content, end="" if result.content.endswith("\n") else "\n")
-    _print_context_pack_summary(result, duration_ms=duration_ms(started))
+    print_context_pack_summary(result, duration_ms=duration_ms(started))
     if result.missing_files:
         return 1
     if result.warnings:
-        return 2
-    return 0
-
-
-def _print_context_pack_summary(
-    result: ContextPackResult,
-    *,
-    duration_ms: int,
-) -> None:
-    print("Files included:")
-    for path in result.files_included:
-        print(f"  - {path}")
-    print(f"Token count: {result.token_count}")
-    print("Missing files:")
-    if result.missing_files:
-        for path in result.missing_files:
-            print(f"  - {path}")
-    else:
-        print("  <none>")
-    print("Warnings:")
-    if result.warnings:
-        for warning in result.warnings:
-            print(f"  - {warning}")
-    else:
-        print("  <none>")
-    print(f"Duration ms: {duration_ms}")
-
-
-def _pack_issue_summary(result: ContextPackResult) -> str:
-    issues: list[str] = []
-    if result.missing_files:
-        issues.append(f"{len(result.missing_files)} missing")
-    if result.warnings:
-        issues.append(f"{len(result.warnings)} warnings")
-    if result.token_count > result.budget:
-        issues.append("over budget")
-    elif result.token_count > result.budget * 0.9:
-        issues.append("near budget")
-    return ", ".join(issues) or "none"
-
-
-def _pack_exit_code(result: ContextPackResult) -> int:
-    if result.missing_files:
-        return 1
-    if (
-        result.warnings
-        or result.token_count > result.budget
-        or result.token_count > result.budget * 0.9
-    ):
         return 2
     return 0

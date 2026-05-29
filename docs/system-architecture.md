@@ -40,7 +40,7 @@ Shared non-domain helpers live in top-level packages:
 - **`utils/`** — globs, SHA-256 helpers, vault path normalization, timing, wikilink parsing.
 - **`contracts/`** — MCP tool contract metadata (`TOOL_CONTRACTS`, …).
 
-The indexing pipeline remains `parser/` (blocks, sections, FTS targets). CLI handlers
+The indexing pipeline lives under `indexing/parser/` (blocks, sections, FTS targets). CLI handlers
 live under `cli/`; `obsidian_memory_mcp.cli:main` is the `mcp-memory` entry point.
 
 ## Configuration

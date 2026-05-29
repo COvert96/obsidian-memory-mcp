@@ -62,31 +62,48 @@ def _iter_markdown_entries(
 
     while stack:
         directory, relative_directory = stack.pop()
-        child_directories: list[tuple[str, str]] = []
-        try:
-            with os.scandir(directory) as entries:
-                for entry in entries:
-                    if entry.is_dir(follow_symlinks=False):
-                        if entry.name not in DEFAULT_EXCLUDED_DIRS and not entry.is_symlink():
-                            child_directories.append(
-                                (
-                                    entry.path,
-                                    _join_relative(relative_directory, entry.name),
-                                )
-                            )
-                        continue
-                    if entry.name.endswith(".md") and (
-                        entry.is_file(follow_symlinks=False) or entry.is_symlink()
-                    ):
-                        found.append((_join_relative(relative_directory, entry.name), entry))
-        except OSError:
-            continue
-
+        markdown_entries, child_directories = _scan_directory_entries(
+            directory, relative_directory
+        )
+        found.extend(markdown_entries)
         stack.extend(
             sorted(child_directories, key=lambda item: item[1].lower(), reverse=True)
         )
 
     return tuple(sorted(found, key=lambda item: item[0].lower()))
+
+
+def _scan_directory_entries(
+    directory: str,
+    relative_directory: str,
+) -> tuple[list[tuple[str, os.DirEntry[str]]], list[tuple[str, str]]]:
+    markdown_entries: list[tuple[str, os.DirEntry[str]]] = []
+    child_directories: list[tuple[str, str]] = []
+    try:
+        with os.scandir(directory) as entries:
+            for entry in entries:
+                if entry.is_dir(follow_symlinks=False):
+                    if (
+                        entry.name not in DEFAULT_EXCLUDED_DIRS
+                        and not entry.is_symlink()
+                    ):
+                        child_directories.append(
+                            (
+                                entry.path,
+                                _join_relative(relative_directory, entry.name),
+                            )
+                        )
+                    continue
+                if entry.name.endswith(".md") and (
+                    entry.is_file(follow_symlinks=False) or entry.is_symlink()
+                ):
+                    markdown_entries.append(
+                        (_join_relative(relative_directory, entry.name), entry)
+                    )
+    except OSError:
+        return [], []
+
+    return markdown_entries, child_directories
 
 
 def _candidate_path_and_stat(

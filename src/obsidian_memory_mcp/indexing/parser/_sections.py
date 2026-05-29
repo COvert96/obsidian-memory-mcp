@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
-from obsidian_memory_mcp.parser._models import HeadingOccurrence, ParsedSection
-from obsidian_memory_mcp.parser._text import normalize_newlines, section_key, sha256
+from obsidian_memory_mcp.indexing.parser._models import HeadingOccurrence, ParsedSection
+from obsidian_memory_mcp.indexing.parser._text import (
+    normalize_newlines,
+    section_key,
+    sha256,
+)
 
 
 def build_sections(

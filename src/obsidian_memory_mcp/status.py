@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from obsidian_memory_mcp.config import ProjectConfig
 from obsidian_memory_mcp.indexing import FileCandidate, discover_markdown_files
-from obsidian_memory_mcp.parser import PARSER_VERSION
+from obsidian_memory_mcp.indexing.parser import PARSER_VERSION
 from obsidian_memory_mcp.database import connect_index_db
 from obsidian_memory_mcp.migrations import current_revision, ensure_index_migrated
 

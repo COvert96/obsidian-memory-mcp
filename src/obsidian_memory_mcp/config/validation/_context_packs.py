@@ -53,13 +53,31 @@ def _validate_context_pack_entry(
         errors.append(type_error(f"context_packs[{index}]", "an object", context_pack))
         return
 
+    prefix = f"context_packs[{index}]"
+    name = _register_pack_name(index, context_pack, names, errors)
+    _validate_pack_shape(prefix, context_pack, errors)
+
+    if name is None:
+        return
+
+    includes = context_pack.get("include_context_packs", [])
+    if isinstance(includes, list) and all(isinstance(item, str) for item in includes):
+        includes_by_name[name] = (index, tuple(includes))
+
+
+def _register_pack_name(
+    index: int,
+    context_pack: dict[str, object],
+    names: set[str],
+    errors: list[ConfigValidationError],
+) -> str | None:
     name = context_pack.get("name")
-    name_is_unique = False
     if not isinstance(name, str) or not name:
         errors.append(
             type_error(f"context_packs[{index}].name", "a non-empty string", name)
         )
-    elif name in names:
+        return None
+    if name in names:
         errors.append(
             ConfigValidationError(
                 field=f"context_packs[{index}].name",
@@ -68,11 +86,17 @@ def _validate_context_pack_entry(
                 suggestion="Rename the duplicate context pack.",
             )
         )
-    else:
-        names.add(name)
-        name_is_unique = True
+        return None
 
-    prefix = f"context_packs[{index}]"
+    names.add(name)
+    return name
+
+
+def _validate_pack_shape(
+    prefix: str,
+    context_pack: dict[str, object],
+    errors: list[ConfigValidationError],
+) -> None:
     validate_string_list(
         context_pack,
         "paths",
@@ -94,13 +118,6 @@ def _validate_context_pack_entry(
     validate_optional_positive_int(
         context_pack, "token_budget", f"{prefix}.token_budget", errors
     )
-
-    if not name_is_unique or not isinstance(name, str):
-        return
-
-    includes = context_pack.get("include_context_packs", [])
-    if isinstance(includes, list) and all(isinstance(item, str) for item in includes):
-        includes_by_name[name] = (index, tuple(includes))
 
 
 def _validate_context_pack_references(

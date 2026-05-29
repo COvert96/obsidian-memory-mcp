@@ -30,7 +30,7 @@ from obsidian_memory_mcp.indexing.repository import (
     tombstone_file,
     update_metadata_for_unchanged_file,
 )
-from obsidian_memory_mcp.parser import PARSER_VERSION, parse_markdown_bytes
+from obsidian_memory_mcp.indexing.parser import PARSER_VERSION, parse_markdown_bytes
 from obsidian_memory_mcp.migrations import ensure_index_migrated
 
 SKIPPABLE_ERROR_TYPES = frozenset({"frontmatter_parse_error"})

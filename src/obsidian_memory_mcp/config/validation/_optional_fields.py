@@ -55,29 +55,49 @@ def validate_memory_archive_path(
         )
         return
 
-    normalized = value.replace("\\", "/")
-    parts = tuple(part for part in normalized.split("/") if part not in {"", "."})
-    is_under_memory = bool(parts) and parts[0] == "Memory"
-    if PurePosixPath(normalized).is_absolute() or not is_under_memory:
-        errors.append(
-            ConfigValidationError(
-                field="memory_archive_path",
-                expected="a relative path under 'Memory/'",
-                actual=value,
-                suggestion="Use a path such as 'Memory/archive'.",
-            )
+    parts = _archive_path_parts(value)
+    if parts is None:
+        _append_archive_path_error(
+            errors,
+            expected="a relative path under 'Memory/'",
+            actual=value,
+            suggestion="Use a path such as 'Memory/archive'.",
         )
         return
 
     if ".." in parts:
-        errors.append(
-            ConfigValidationError(
-                field="memory_archive_path",
-                expected="a path without '..' traversal segments",
-                actual=value,
-                suggestion="Remove parent-directory traversal from the archive path.",
-            )
+        _append_archive_path_error(
+            errors,
+            expected="a path without '..' traversal segments",
+            actual=value,
+            suggestion="Remove parent-directory traversal from the archive path.",
         )
+
+
+def _archive_path_parts(value: str) -> tuple[str, ...] | None:
+    normalized = value.replace("\\", "/")
+    parts = tuple(part for part in normalized.split("/") if part not in {"", "."})
+    is_under_memory = bool(parts) and parts[0] == "Memory"
+    if PurePosixPath(normalized).is_absolute() or not is_under_memory:
+        return None
+    return parts
+
+
+def _append_archive_path_error(
+    errors: list[ConfigValidationError],
+    *,
+    expected: str,
+    actual: str,
+    suggestion: str,
+) -> None:
+    errors.append(
+        ConfigValidationError(
+            field="memory_archive_path",
+            expected=expected,
+            actual=actual,
+            suggestion=suggestion,
+        )
+    )
 
 
 def warn_removed_proposal_fields(data: dict[str, Any]) -> None:

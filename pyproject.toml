@@ -37,6 +37,7 @@ obsidian-memory-tokens = "obsidian_memory_mcp.tokens:main"
 [dependency-groups]
 dev = [
 	"anyio>=4.13.0",
+	"import-linter>=2.11",
 	"mypy>=2.1.0",
 	"pytest>=8.4.0",
 	"pytest-cov>=7.0.0",
@@ -60,3 +61,64 @@ extend-select = [
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "obsidian_memory_mcp.database._tables" = { msg = "Import database tables via `obsidian_memory_mcp.database` (public API), not `database._tables`." }
 "obsidian_memory_mcp.writes._service" = { msg = "Import write helpers via `obsidian_memory_mcp.writes` (public API), not `writes._service`." }
+
+[tool.importlinter]
+root_package = "obsidian_memory_mcp"
+
+[[tool.importlinter.contracts]]
+name = "Contracts and errors stay pure"
+type = "forbidden"
+source_modules = [
+	"obsidian_memory_mcp.contracts",
+	"obsidian_memory_mcp.errors",
+]
+forbidden_modules = [
+	"obsidian_memory_mcp.database",
+	"obsidian_memory_mcp.indexing",
+	"obsidian_memory_mcp.retrieval",
+	"obsidian_memory_mcp.writes",
+	"obsidian_memory_mcp.context_packs",
+	"obsidian_memory_mcp.server",
+	"obsidian_memory_mcp.cli",
+]
+
+[[tool.importlinter.contracts]]
+name = "Shared markdown syntax stays free of domain packages"
+type = "forbidden"
+source_modules = ["obsidian_memory_mcp.markdown"]
+forbidden_modules = [
+	"obsidian_memory_mcp.indexing",
+	"obsidian_memory_mcp.database",
+	"obsidian_memory_mcp.retrieval",
+	"obsidian_memory_mcp.context_packs",
+	"obsidian_memory_mcp.writes",
+	"obsidian_memory_mcp.server",
+	"obsidian_memory_mcp.cli",
+]
+
+[[tool.importlinter.contracts]]
+name = "Indexing parser does not depend on IO adapters"
+type = "forbidden"
+source_modules = ["obsidian_memory_mcp.indexing.parser"]
+forbidden_modules = [
+	"obsidian_memory_mcp.database",
+	"obsidian_memory_mcp.retrieval",
+	"obsidian_memory_mcp.server",
+	"obsidian_memory_mcp.cli",
+]
+
+[[tool.importlinter.contracts]]
+name = "Database table definitions stay isolated"
+type = "forbidden"
+source_modules = [
+	"obsidian_memory_mcp.database._tables",
+	"obsidian_memory_mcp.database._engine",
+]
+forbidden_modules = [
+	"obsidian_memory_mcp.indexing",
+	"obsidian_memory_mcp.retrieval",
+	"obsidian_memory_mcp.writes",
+	"obsidian_memory_mcp.context_packs",
+	"obsidian_memory_mcp.server",
+	"obsidian_memory_mcp.cli",
+]

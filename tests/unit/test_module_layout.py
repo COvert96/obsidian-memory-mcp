@@ -82,11 +82,16 @@ def test_shared_packages_expose_public_apis() -> None:
 
 
 def test_domain_packages_use_underscore_models_module() -> None:
-    for package_name in ("config", "context_packs", "indexing", "writes", "parser"):
+    for package_name in ("config", "context_packs", "indexing", "writes"):
         module = importlib.import_module(f"obsidian_memory_mcp.{package_name}")
         assert hasattr(module, "__all__")
         models = importlib.import_module(f"obsidian_memory_mcp.{package_name}._models")
         assert models.__file__ is not None
+
+    parser_models = importlib.import_module(
+        "obsidian_memory_mcp.indexing.parser._models"
+    )
+    assert parser_models.__file__ is not None
 
 
 def test_internal_submodules_are_not_reexported_at_package_root() -> None:
