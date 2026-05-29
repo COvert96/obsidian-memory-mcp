@@ -176,7 +176,7 @@ def test_unreadable_directory_does_not_abort_discovery(
             raise PermissionError("blocked directory")
         return original_scandir(path)
 
-    monkeypatch.setattr("obsidian_memory_mcp.indexing.service.os.scandir", scandir)
+    monkeypatch.setattr("obsidian_memory_mcp.indexing._discovery.os.scandir", scandir)
 
     result = run_index(index_config, mode=IndexMode.FULL)
 

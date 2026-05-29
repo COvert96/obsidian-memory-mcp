@@ -12,7 +12,7 @@ from sqlalchemy import delete, insert, select, text, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.engine import Connection, CursorResult, RowMapping
 
-from obsidian_memory_mcp.database._tables import (
+from obsidian_memory_mcp.database import (
     blocks,
     files,
     index_errors,

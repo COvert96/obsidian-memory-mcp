@@ -5,20 +5,19 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
-from dataclasses import dataclass
 from typing import Any
 
 from obsidian_memory_mcp.config import ProjectConfig
 from obsidian_memory_mcp.utils import glob_matches, normalize_glob
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
 from obsidian_memory_mcp.database import connect_index_db
-
-_BOOLEAN_TERMS = frozenset({"AND", "OR", "NOT"})
-_MAX_SEARCH_LIMIT = 100
-_PREVIEW_RADIUS = 80
-_PREVIEW_MIN_LENGTH = 180
-_PREVIEW_MAX_LENGTH = 200
-
+from obsidian_memory_mcp.retrieval._preview import format_preview
+from obsidian_memory_mcp.retrieval._regex import (
+    RegexQuery,
+    parse_regex_query,
+    query_terms,
+    validate_limit,
+)
 
 class SearchService:
     """Run ranked FTS5 retrieval over the Phase 2 index."""
@@ -39,8 +38,8 @@ class SearchService:
         if not normalized_query:
             raise _invalid_request("query is required")
 
-        result_limit = _validate_limit(limit)
-        regex_query = _parse_regex_query(normalized_query)
+        result_limit = validate_limit(limit)
+        regex_query = parse_regex_query(normalized_query)
         rows = _fetch_search_rows(
             self._config,
             normalized_query,
@@ -58,17 +57,11 @@ class SearchService:
         }
 
 
-@dataclass(frozen=True)
-class _RegexQuery:
-    pattern: re.Pattern[str]
-    fts_query: str
-
-
 def _fetch_search_rows(
     config: ProjectConfig,
     normalized_query: str,
     *,
-    regex_query: _RegexQuery | None,
+    regex_query: RegexQuery | None,
     result_limit: int,
     tags: list[str],
     paths: list[str],
@@ -95,38 +88,6 @@ def _fetch_search_rows(
     return [
         row for row in rows if regex_query.pattern.search(row["content"]) is not None
     ][:result_limit]
-
-
-def _validate_limit(limit: int) -> int:
-    if not isinstance(limit, int) or limit < 1:
-        raise _invalid_request("limit must be a positive integer")
-    return min(limit, _MAX_SEARCH_LIMIT)
-
-
-def _parse_regex_query(query: str) -> _RegexQuery | None:
-    if not (len(query) >= 2 and query.startswith("/") and query.endswith("/")):
-        return None
-
-    pattern_text = query[1:-1]
-    if not pattern_text:
-        raise _invalid_request("query is required")
-
-    try:
-        pattern = re.compile(pattern_text, flags=re.IGNORECASE)
-    except re.error as error:
-        raise _invalid_request(f"invalid regex query: {error}") from error
-
-    fts_query = _regex_candidate_query(pattern_text)
-    return _RegexQuery(pattern=pattern, fts_query=fts_query)
-
-
-def _regex_candidate_query(pattern_text: str) -> str:
-    without_classes = re.sub(r"\\[A-Za-z]+", " ", pattern_text)
-    literalish = re.sub(r"\\(.)", r"\1", without_classes)
-    terms = tuple(_query_terms(literalish))
-    if not terms:
-        raise _invalid_request("regex query must contain at least one literal term")
-    return " OR ".join(_quote_fts_term(term) for term in terms)
 
 
 def _search_sql(
@@ -234,7 +195,7 @@ def _execute_search(
 def _row_to_result(
     row: sqlite3.Row,
     query: str,
-    regex_query: _RegexQuery | None,
+    regex_query: RegexQuery | None,
 ) -> dict[str, Any]:
     tags = json.loads(row["tags"])
     return {
@@ -250,47 +211,21 @@ def _row_to_result(
 def _preview(
     row: sqlite3.Row,
     query: str,
-    regex_query: _RegexQuery | None,
+    regex_query: RegexQuery | None,
 ) -> str:
     if regex_query is not None:
         content = row["content"]
         match = regex_query.pattern.search(content)
         if match is not None:
-            return _format_preview(content, match.start(), match.end())
+            return format_preview(content, match.start(), match.end())
 
     haystack = "\n".join(part for part in (row["heading"], row["content"]) if part)
-    for term in _query_terms(query):
+    for term in query_terms(query):
         match = re.search(re.escape(term), haystack, flags=re.IGNORECASE)
         if match is not None:
-            return _format_preview(haystack, match.start(), match.end())
+            return format_preview(haystack, match.start(), match.end())
 
-    return _format_preview(haystack, 0, 0)
-
-
-def _format_preview(text: str, start: int, end: int) -> str:
-    left = max(0, start - _PREVIEW_RADIUS)
-    right = min(len(text), max(end + _PREVIEW_RADIUS, _PREVIEW_MIN_LENGTH))
-    preview = re.sub(r"\s+", " ", text[left:right]).strip()
-    if left > 0:
-        preview = f"...{preview}"
-    if right < len(text):
-        preview = f"{preview}..."
-    if len(preview) > _PREVIEW_MAX_LENGTH:
-        trim_at = _PREVIEW_MAX_LENGTH - 3
-        preview = f"{preview[:trim_at].rstrip()}..."
-    return preview
-
-
-def _query_terms(query: str) -> list[str]:
-    return [
-        term
-        for term in re.findall(r"[A-Za-z0-9_/-]+", query)
-        if term.upper() not in _BOOLEAN_TERMS
-    ]
-
-
-def _quote_fts_term(term: str) -> str:
-    return '"' + term.replace('"', '""') + '"'
+    return format_preview(haystack, 0, 0)
 
 
 def _normalize_tag(tag: str) -> str:

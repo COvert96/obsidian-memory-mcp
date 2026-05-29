@@ -2,6 +2,11 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
+from pathlib import Path
+
+import obsidian_memory_mcp.indexing.repository as indexing_repository
+import obsidian_memory_mcp.server as server_module
+import obsidian_memory_mcp.writes._audit as writes_audit
 
 from obsidian_memory_mcp.config import (
     ConfigValidationError,
@@ -114,3 +119,18 @@ def test_no_flat_duplicate_top_level_helper_modules() -> None:
         "_time",
     }
     assert retired.isdisjoint(top_level_modules)
+
+
+def test_adapters_do_not_import_internal_write_modules() -> None:
+    """Keep package boundaries honest: adapters should use public package APIs."""
+    server_source = Path(server_module.__file__).read_text(encoding="utf-8")
+    assert "obsidian_memory_mcp.writes._service" not in server_source
+
+
+def test_domain_modules_do_not_import_database_tables_module_directly() -> None:
+    """`database._tables` is an internal detail; import from `database` instead."""
+    repository_source = Path(indexing_repository.__file__).read_text(encoding="utf-8")
+    audit_source = Path(writes_audit.__file__).read_text(encoding="utf-8")
+
+    assert "obsidian_memory_mcp.database._tables" not in repository_source
+    assert "obsidian_memory_mcp.database._tables" not in audit_source

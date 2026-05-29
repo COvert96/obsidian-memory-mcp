@@ -59,7 +59,7 @@ Verify the setup from an MCP client by calling `search_notes` with:
 
 The live FastMCP server exposes 9 tools: `read_note`, `read_section`, `search_notes`, `get_context_pack`, `list_context_packs`, `write_memory`, `update_memory`, `write_note`, and `update_note`.
 
-The canonical contract metadata lives in [src/obsidian_memory_mcp/contracts.py](src/obsidian_memory_mcp/contracts.py). See [docs/tool-reference.md](docs/tool-reference.md) and [docs/error-codes.md](docs/error-codes.md) for request fields, response fields, examples, error codes, and common workflows.
+The canonical contract metadata lives in [src/obsidian_memory_mcp/contracts/__init__.py](src/obsidian_memory_mcp/contracts/__init__.py). See [docs/tool-reference.md](docs/tool-reference.md) and [docs/error-codes.md](docs/error-codes.md) for request fields, response fields, examples, error codes, and common workflows.
 
 ## Daily Operations
 
