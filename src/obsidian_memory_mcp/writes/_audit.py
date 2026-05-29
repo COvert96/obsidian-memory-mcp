@@ -13,8 +13,8 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.pool import StaticPool
 
 from obsidian_memory_mcp.config import ProjectConfig
-from obsidian_memory_mcp.database._tables import write_audit
 from obsidian_memory_mcp.database import connect_index_db
+from obsidian_memory_mcp.database import write_audit
 from obsidian_memory_mcp.migrations import ensure_index_migrated
 from obsidian_memory_mcp.writes._models import WriteAuditEntry
 

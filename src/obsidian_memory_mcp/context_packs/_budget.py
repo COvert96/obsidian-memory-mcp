@@ -46,44 +46,11 @@ class BudgetEnforcer:
         pack: ContextPackConfig,
     ) -> ContextPackResult:
         ranked_documents = self._rank_for_truncation(pack, result, documents)
-        emitted_parts: list[str] = []
-        included_paths: set[str] = set()
-
-        for document in ranked_documents:
-            full_part = format_document(document)
-            if _candidate_fits(emitted_parts, full_part, result.budget):
-                emitted_parts.append(full_part)
-                included_paths.add(document.vault_path)
-                continue
-
-            for fragment in document.fragments:
-                fragment_part = format_fragment(document.vault_path, fragment)
-                if _candidate_fits(emitted_parts, fragment_part, result.budget):
-                    emitted_parts.append(fragment_part)
-                    included_paths.add(document.vault_path)
-                else:
-                    break
-
-        content = "".join(emitted_parts)
-        token_count = estimate_tokens(content)
-        omitted_count = len(
-            [path for path in result.files_included if path not in included_paths]
+        content, included_paths = _emit_truncated_content(
+            ranked_documents,
+            result.budget,
         )
-        warning = (
-            f"Context pack '{result.pack_name}' truncated from "
-            f"{result.token_count} to {token_count} tokens to fit budget "
-            f"{result.budget}; omitted {omitted_count} file(s)."
-        )
-        return replace(
-            result,
-            content=content,
-            token_count=token_count,
-            files_included=tuple(
-                path for path in result.files_included if path in included_paths
-            ),
-            warnings=(*result.warnings, warning),
-            original_token_count=result.token_count,
-        )
+        return _truncation_result(result, content, included_paths)
 
     def _rank_for_truncation(
         self,
@@ -139,6 +106,57 @@ def with_near_budget_warning(result: ContextPackResult) -> ContextPackResult:
     if warning in result.warnings:
         return result
     return replace(result, warnings=(*result.warnings, warning))
+
+
+def _emit_truncated_content(
+    ranked_documents: tuple[PackDocument, ...],
+    budget: int,
+) -> tuple[str, set[str]]:
+    emitted_parts: list[str] = []
+    included_paths: set[str] = set()
+
+    for document in ranked_documents:
+        full_part = format_document(document)
+        if _candidate_fits(emitted_parts, full_part, budget):
+            emitted_parts.append(full_part)
+            included_paths.add(document.vault_path)
+            continue
+
+        for fragment in document.fragments:
+            fragment_part = format_fragment(document.vault_path, fragment)
+            if _candidate_fits(emitted_parts, fragment_part, budget):
+                emitted_parts.append(fragment_part)
+                included_paths.add(document.vault_path)
+            else:
+                break
+
+    return "".join(emitted_parts), included_paths
+
+
+def _truncation_result(
+    result: ContextPackResult,
+    content: str,
+    included_paths: set[str],
+) -> ContextPackResult:
+    token_count = estimate_tokens(content)
+    omitted_count = len(
+        [path for path in result.files_included if path not in included_paths]
+    )
+    warning = (
+        f"Context pack '{result.pack_name}' truncated from "
+        f"{result.token_count} to {token_count} tokens to fit budget "
+        f"{result.budget}; omitted {omitted_count} file(s)."
+    )
+    return replace(
+        result,
+        content=content,
+        token_count=token_count,
+        files_included=tuple(
+            path for path in result.files_included if path in included_paths
+        ),
+        warnings=(*result.warnings, warning),
+        original_token_count=result.token_count,
+    )
 
 
 def _candidate_fits(parts: list[str], next_part: str, budget: int) -> bool:

@@ -13,9 +13,7 @@ from obsidian_memory_mcp.database._alembic_compare import (
     compare_nullable_for_primary_keys,
     include_object_for_compare,
 )
-from obsidian_memory_mcp.database._tables import (
-    metadata,  # type: ignore[import-untyped]
-)
+from obsidian_memory_mcp.database import metadata  # type: ignore[import-untyped]
 
 config = context.config
 

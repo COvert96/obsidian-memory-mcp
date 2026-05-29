@@ -10,8 +10,11 @@ from pathlib import Path, PurePosixPath
 
 from obsidian_memory_mcp.config import GuardrailEvaluator, ProjectConfig
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
-from obsidian_memory_mcp.hashing import sha256_bytes, sha256_file
-from obsidian_memory_mcp.wikilinks import escape_wikilink_alias_separator
+from obsidian_memory_mcp.utils import (
+    escape_wikilink_alias_separator,
+    sha256_bytes,
+    sha256_file,
+)
 from obsidian_memory_mcp.writes._audit import WriteAuditRepository
 from obsidian_memory_mcp.writes._io import atomic_write
 from obsidian_memory_mcp.writes._models import WriteAuditEntry, WriteResult

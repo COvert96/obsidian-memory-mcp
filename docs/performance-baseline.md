@@ -7,7 +7,7 @@ These values are fixture baselines, not universal promises. Hardware, antivirus 
 | Operation | Baseline |
 |---|---:|
 | Full indexing time | 303 ms |
-| Search latency, `proposal workflow` | 8 ms |
+| Search latency, `direct write workflow` | 8 ms |
 | Read latency, `wiki/architecture/system-overview.md` | 2 ms |
 | Context pack load time | 272 ms |
 | Proposal creation latency | 33 ms |

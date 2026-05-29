@@ -32,4 +32,4 @@ Tags and ownership information from the original note are merged into the new no
 
 ## Limitations
 
-Supersession does not automatically update references in other notes — clients must manually update wikilinks. Bulk supersession of many related notes is complex and should be coordinated carefully to avoid orphaned references. See [[changeset-workflow]] and [[proposal-workflow]] for advanced patterns.
+Supersession does not automatically update references in other notes — clients must manually update wikilinks. Bulk supersession of many related notes is complex and should be coordinated carefully to avoid orphaned references. See [[changeset-workflow]] and [[direct-write-workflow]] for related patterns.

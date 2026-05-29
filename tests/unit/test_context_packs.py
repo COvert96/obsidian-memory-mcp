@@ -14,7 +14,7 @@ from obsidian_memory_mcp.config import (
 )
 from obsidian_memory_mcp.context_packs import ContextPackLoader
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError
-from obsidian_memory_mcp.parser import PARSER_VERSION
+from obsidian_memory_mcp.indexing.parser import PARSER_VERSION
 from obsidian_memory_mcp.database import connect_index_db
 from obsidian_memory_mcp.migrations import ensure_index_migrated
 

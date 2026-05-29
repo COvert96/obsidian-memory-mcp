@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-from obsidian_memory_mcp._time import duration_ms
+from obsidian_memory_mcp.utils import duration_ms
 
 
 def test_duration_ms_never_returns_negative_values() -> None:

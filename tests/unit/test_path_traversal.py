@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError
-from obsidian_memory_mcp.paths import normalize_vault_path
+from obsidian_memory_mcp.utils import normalize_vault_path
 
 
 def assert_guardrail_violation(vault: Path, requested_path: str) -> None:
