@@ -27,11 +27,22 @@ def read_text(config: ProjectConfig, path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except PermissionError as error:
-        relative = path.relative_to(config.vault_path).as_posix()
-        raise ToolExecutionError(
-            build_error(
-                ErrorCode.ERR_GUARDRAIL_VIOLATION,
-                message=f"Path '{relative}' is not readable.",
-                details={"path": relative, "suggestion": "Choose a readable note."},
-            )
-        ) from error
+        raise _unreadable(config, path) from error
+
+
+def read_bytes(config: ProjectConfig, path: Path) -> bytes:
+    try:
+        return path.read_bytes()
+    except PermissionError as error:
+        raise _unreadable(config, path) from error
+
+
+def _unreadable(config: ProjectConfig, path: Path) -> ToolExecutionError:
+    relative = path.relative_to(config.vault_path).as_posix()
+    return ToolExecutionError(
+        build_error(
+            ErrorCode.ERR_GUARDRAIL_VIOLATION,
+            message=f"Path '{relative}' is not readable.",
+            details={"path": relative, "suggestion": "Choose a readable note."},
+        )
+    )

@@ -31,7 +31,6 @@ def config(tmp_path: Path) -> ProjectConfig:
             ),
         ),
         tags_separator=",",
-        max_proposal_ttl_hours=24,
     )
 
 
@@ -88,7 +87,6 @@ def test_recursive_glob_matches_files_directly_under_parent_directory(
             write=AccessPolicy(),
         ),
         tags_separator=",",
-        max_proposal_ttl_hours=24,
     )
 
     result = GuardrailEvaluator(config).check_read("wiki/note.md")
@@ -125,7 +123,6 @@ def test_guardrail_check_uses_cached_normalized_paths(tmp_path: Path) -> None:
             write=AccessPolicy(allow=tuple(f"wiki/{index}/**" for index in range(20))),
         ),
         tags_separator=",",
-        max_proposal_ttl_hours=24,
     )
     evaluator = GuardrailEvaluator(config)
 

@@ -220,6 +220,7 @@ __marimo__/
 # Claude
 .claude/settings.local.json
 .claude/worktrees/
+memory/
 
 # Prompts
 prompts/

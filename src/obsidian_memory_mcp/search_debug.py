@@ -7,7 +7,8 @@ import sqlite3
 from dataclasses import asdict, dataclass
 
 from obsidian_memory_mcp.config import ProjectConfig
-from obsidian_memory_mcp.schema import bootstrap_schema, connect_index_db
+from obsidian_memory_mcp.database import connect_index_db
+from obsidian_memory_mcp.migrations import ensure_index_migrated
 
 
 @dataclass(frozen=True)
@@ -35,9 +36,9 @@ def debug_search(
     path: str | None = None,
     tag: str | None = None,
 ) -> tuple[DebugSearchResult, ...]:
+    ensure_index_migrated(config.index_db_location)
     connection = connect_index_db(config.index_db_location)
     try:
-        bootstrap_schema(connection)
         sql, params = _query_sql(query, limit=limit, path=path, tag=tag)
         try:
             rows = connection.execute(sql, params).fetchall()

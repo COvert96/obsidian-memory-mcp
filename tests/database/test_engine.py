@@ -58,10 +58,6 @@ def test_metadata_create_all_is_idempotent(tmp_path: Path) -> None:
         "blocks",
         "wikilinks",
         "index_errors",
-        "proposals",
-        "proposal_events",
-        "proposal_changesets",
-        "proposal_changeset_members",
-        "proposal_changeset_events",
         "write_audit",
     }.issubset(table_names)
+    assert not any(name.startswith("proposal") for name in table_names)

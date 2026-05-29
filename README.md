@@ -1,16 +1,16 @@
 # Obsidian Memory MCP
 
-Obsidian Memory MCP is a local MCP server that gives AI clients guarded access to an Obsidian-style markdown vault. It provides deterministic retrieval with SQLite FTS5, token-budgeted context packs, and a proposal-based write workflow for memory updates.
+Obsidian Memory MCP is a local MCP server that gives AI clients guarded access to an Obsidian-style markdown vault. It provides deterministic retrieval with SQLite FTS5, token-budgeted context packs, and direct atomic writes with audit logging for memory updates.
 
-Release status: MVP GitHub source release, version `0.1.0`. PyPI publication and hosted documentation are not part of this release.
+Release status: Development on `main`, upcoming `0.2.0`. PyPI publication and hosted documentation are not part of this release.
 
 ## Features
 
 - Read full notes and individual markdown sections from configured vaults.
 - Search indexed markdown blocks with path, tag, and exclusion filters.
 - Load curated context packs with strict or soft token budgets.
-- Propose memory updates under `Memory/**` without writing immediately.
-- List, approve, and reject proposals with audit trail support.
+- Create and update memory files under `Memory/**` with guardrails and optimistic-lock hashes.
+- Inspect the append-only `write_audit` log from the CLI.
 - Run release gates, relevance benchmarks, and performance baseline checks from the repository.
 
 ## Requirements
@@ -57,9 +57,9 @@ Verify the setup from an MCP client by calling `search_notes` with:
 
 ## Tool Summary
 
-The live FastMCP server exposes 9 tools: `read_note`, `read_section`, `search_notes`, `get_context_pack`, `list_context_packs`, `propose_memory_update`, `list_proposals`, `approve_proposal`, and `reject_proposal`.
+The live FastMCP server exposes 9 tools: `read_note`, `read_section`, `search_notes`, `get_context_pack`, `list_context_packs`, `write_memory`, `update_memory`, `write_note`, and `update_note`.
 
-The canonical contract metadata lives in [src/obsidian_memory_mcp/contracts.py](src/obsidian_memory_mcp/contracts.py). See [docs/tool-reference.md](docs/tool-reference.md) and [docs/error-codes.md](docs/error-codes.md) for request fields, response fields, examples, error codes, and common workflows.
+The canonical contract metadata lives in [src/obsidian_memory_mcp/contracts/__init__.py](src/obsidian_memory_mcp/contracts/__init__.py). See [docs/tool-reference.md](docs/tool-reference.md) and [docs/error-codes.md](docs/error-codes.md) for request fields, response fields, examples, error codes, and common workflows.
 
 ## Daily Operations
 
@@ -67,18 +67,16 @@ The canonical contract metadata lives in [src/obsidian_memory_mcp/contracts.py](
 uv run mcp-memory index C:\path\to\vault
 uv run mcp-memory index status C:\path\to\vault
 uv run mcp-memory debug search C:\path\to\vault "query terms" --limit 5
-uv run mcp-memory proposals list C:\path\to\vault
-uv run mcp-memory proposals show {proposal_id} C:\path\to\vault --diff
-uv run mcp-memory proposals approve {proposal_id} C:\path\to\vault
-uv run mcp-memory proposals reject {proposal_id} C:\path\to\vault --reason duplicate
-uv run mcp-memory proposals cleanup C:\path\to\vault --retention-days 7 --yes
+uv run mcp-memory audit writes C:\path\to\vault --limit 50
 ```
 
 ## Release Gates
 
 ```powershell
 uv run ruff check
-uv run mypy src
+uv run mypy --strict src
+uv run lint-imports
+uv run python scripts/radon_gate.py
 uv run pytest --cov=obsidian_memory_mcp --cov-report=term-missing --cov-report=xml --cov-fail-under=80 tests
 uv run pytest tests/release
 uv run mcp-memory benchmark relevance C:\path\to\fixture-vault --queries tests/benchmarks/benchmark-queries.yaml --min-accuracy 0.80
@@ -86,9 +84,13 @@ uv run mcp-memory benchmark relevance C:\path\to\fixture-vault --queries tests/b
 
 The benchmark command expects the vault to have a valid `memory-mcp.yaml` and a built index. The release test suite prepares an isolated copy of the fixture vault automatically.
 
+## Python API
+
+The supported integration surface is the **MCP server** (`uv run mcp-memory serve`) and **CLI** (`uv run mcp-memory`). Importing `obsidian_memory_mcp` is possible for tests and advanced embedding, but public symbols in `obsidian_memory_mcp.__all__` are not semver-guaranteed until a future library release is documented. See [docs/python-api.md](docs/python-api.md) for module boundaries and which `_`-prefixed files are internal.
+
 ## Safety Model
 
-Reads and writes are constrained to the configured vault root. Path normalization blocks traversal and symlink escape attempts. Read and write guardrails use allow and deny glob patterns from `memory-mcp.yaml`; deny rules take precedence. MCP writes are proposal-based: a tool call can create a proposal, but content is not written until an approval step succeeds.
+Reads and writes are constrained to the configured vault root. Path normalization blocks traversal and symlink escape attempts. Read and write guardrails use allow and deny glob patterns from `memory-mcp.yaml`; deny rules take precedence. MCP writes are direct and atomic: the CRUD write tools enforce the write guardrails, create-vs-update preconditions, and optimistic-lock hashes, and append every write to the `write_audit` log.
 
 Do not share real private vault data, credentials, or personal data in public issues. See [SECURITY.md](SECURITY.md).
 
@@ -98,14 +100,14 @@ Do not share real private vault data, credentials, or personal data in public is
 - [Indexing guide](docs/indexing-guide.md)
 - [Retrieval guide](docs/retrieval-guide.md)
 - [Context packs guide](docs/context-packs-guide.md)
-- [Proposals guide](docs/proposals-guide.md)
-- [Memory supersession guide](docs/memory-supersession-guide.md)
+- [Write tools guide](docs/write-tools-guide.md)
 - [System architecture](docs/system-architecture.md)
 - [Design history](docs/design-history.md)
 - [Tool reference](docs/tool-reference.md)
 - [Error codes](docs/error-codes.md)
 - [Performance baseline](docs/performance-baseline.md)
 - [Release checklist](docs/release-checklist.md)
+- [Python API boundaries](docs/python-api.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 

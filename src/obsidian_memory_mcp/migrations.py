@@ -6,12 +6,36 @@ import sqlite3
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from threading import Lock
+from typing import Final
 
 from alembic.config import Config
 from alembic.script import Script, ScriptDirectory
 from sqlalchemy.engine import URL
 
 from alembic import command
+
+_HEAD_REQUIRED_TABLES: Final[frozenset[str]] = frozenset(
+    {
+        "index_runs",
+        "files",
+        "sections",
+        "blocks",
+        "wikilinks",
+        "index_errors",
+        "write_audit",
+    }
+)
+
+_HEAD_FORBIDDEN_TABLES: Final[frozenset[str]] = frozenset(
+    {
+        "proposals",
+        "proposal_events",
+        "proposal_changesets",
+        "proposal_changeset_members",
+        "proposal_changeset_events",
+    }
+)
 
 
 class InstallState(Enum):
@@ -24,11 +48,45 @@ class InstallState(Enum):
 class MigrationOutcome:
     install_state: InstallState
     applied_migration_count: int
-    stamped_existing_schema: bool
 
 
 class MigrationError(RuntimeError):
     """Raised when Alembic migration setup or execution fails."""
+
+
+_MIGRATED_INDEX_PATHS: set[Path] = set()
+_MIGRATION_LOCK = Lock()
+
+
+def ensure_index_migrated(
+    index_db_location: Path,
+    *,
+    alembic_ini_path: Path | None = None,
+) -> None:
+    """Ensure the index database schema is migrated to Alembic head.
+
+    Idempotent and cached per resolved path so hot paths (e.g. audit append)
+    do not re-run Alembic on every connection open.
+    """
+    if index_db_location.name == ":memory:":
+        raise MigrationError(
+            "In-memory index databases cannot be migrated; use a file path."
+        )
+
+    cache_key = index_db_location.resolve(strict=False)
+    with _MIGRATION_LOCK:
+        if cache_key in _MIGRATED_INDEX_PATHS:
+            return
+        migrate_index_database(
+            index_db_location,
+            alembic_ini_path=alembic_ini_path,
+        )
+        _MIGRATED_INDEX_PATHS.add(cache_key)
+
+
+def current_revision(index_db_path: Path) -> str | None:
+    """Return the applied Alembic revision, or None if unmigrated."""
+    return _current_revision(index_db_path)
 
 
 def migrate_index_database(
@@ -43,25 +101,51 @@ def migrate_index_database(
             alembic_ini_path or _default_alembic_ini_path(),
         )
 
-        if install_state is InstallState.LEGACY_SCHEMA:
-            command.stamp(config, "head")
-            return MigrationOutcome(
-                install_state=install_state,
-                applied_migration_count=0,
-                stamped_existing_schema=True,
-            )
-
         pending_count = _pending_migration_count(config, index_db_path)
+        if install_state is InstallState.VERSIONED_DATABASE and _needs_schema_repair(
+            config, index_db_path
+        ):
+            command.stamp(config, "base")
+            pending_count = _pending_migration_count(config, index_db_path)
+
         command.upgrade(config, "head")
         return MigrationOutcome(
             install_state=install_state,
             applied_migration_count=pending_count,
-            stamped_existing_schema=False,
         )
     except MigrationError:
         raise
     except Exception as error:  # pragma: no cover - defensive translation path
         raise MigrationError(str(error)) from error
+
+
+def _schema_matches_head(index_db_path: Path) -> bool:
+    tables = _table_names(index_db_path)
+    if not _HEAD_REQUIRED_TABLES.issubset(tables):
+        return False
+    return not tables & _HEAD_FORBIDDEN_TABLES
+
+
+def _needs_schema_repair(config: Config, index_db_path: Path) -> bool:
+    if _schema_matches_head(index_db_path):
+        return False
+    script_directory = ScriptDirectory.from_config(config)
+    heads = script_directory.get_heads()
+    if len(heads) != 1:
+        raise MigrationError(
+            "Expected exactly one Alembic head revision; branching is unsupported."
+        )
+    return _current_revision(index_db_path) == heads[0]
+
+
+def _table_names(index_db_path: Path) -> set[str]:
+    with sqlite3.connect(index_db_path) as connection:
+        return {
+            str(row[0])
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )
+        }
 
 
 def detect_install_state(index_db_path: Path) -> InstallState:

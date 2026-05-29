@@ -3,7 +3,10 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+from alembic import command
+
 from obsidian_memory_mcp.cli import main
+from obsidian_memory_mcp.migrations import _alembic_config, _default_alembic_ini_path
 
 
 def _write_config(
@@ -48,30 +51,38 @@ def test_migrate_cli_applies_initial_migration_on_fresh_database(
 
     assert exit_code == 0
     output = capsys.readouterr().out
-    assert "Applied 1 migration(s)." in output
+    assert "Applied 2 migration(s)." in output
+    tables = _table_names(database_path)
     assert {
         "alembic_version",
         "files",
         "blocks_fts",
         "write_audit",
-    }.issubset(_table_names(database_path))
+    }.issubset(tables)
+    assert not any(name.startswith("proposal") for name in tables)
 
 
-def test_migrate_cli_stamps_existing_v010_schema_without_running_upgrade(
+def test_migrate_cli_upgrades_existing_v010_schema_without_alembic_version(
     tmp_path: Path, capsys
 ) -> None:
     vault = tmp_path / "vault"
     vault.mkdir()
     _write_config(vault)
     database_path = vault / "memory-index.sqlite3"
+    config = _alembic_config(database_path, _default_alembic_ini_path())
+    command.upgrade(config, "001_initial_schema")
     with sqlite3.connect(database_path) as connection:
-        connection.execute("CREATE TABLE files (id INTEGER PRIMARY KEY)")
+        connection.execute("DROP TABLE alembic_version")
+        connection.execute("DROP TABLE write_audit")
+        connection.commit()
 
     exit_code = main(["migrate", str(vault)])
 
     assert exit_code == 0
     output = capsys.readouterr().out
-    assert "Stamped existing schema as current version." in output
+    assert "Applied 2 migration(s)." in output
+    tables = _table_names(database_path)
+    assert "write_audit" in tables
     with sqlite3.connect(database_path) as connection:
         stamped = connection.execute(
             "SELECT version_num FROM alembic_version"

@@ -13,31 +13,70 @@ The MVP release exposes 9 MCP tools:
 - `search_notes`
 - `get_context_pack`
 - `list_context_packs`
-- `propose_memory_update`
-- `list_proposals`
-- `approve_proposal`
-- `reject_proposal`
+- `write_memory`
+- `update_memory`
+- `write_note`
+- `update_note`
 
 ## Boundaries
 
-The MCP server layer in `src/obsidian_memory_mcp/server.py` is an adapter. It resolves the project registry, loads vault config, and delegates to domain services. Business rules live in config validation, guardrails, indexing, retrieval, context pack, proposal, changeset, and token modules. SQLite and filesystem access are details kept behind repository/service functions.
+The MCP server layer in `src/obsidian_memory_mcp/server.py` is an adapter. It resolves the project registry, loads vault config, and delegates to domain services. Business rules live in config validation, guardrails, indexing, retrieval, context pack, write/supersession, and token modules. SQLite and filesystem access are details kept behind repository/service functions.
 
-## Package Layout Convention
+```mermaid
+flowchart TB
+  MCPClient[MCP_Client] --> Server[server.py_FastMCP]
+  Operator[Operator_CLI] --> CLI[cli]
+  Server --> Config[config]
+  Server --> Retrieval[retrieval]
+  Server --> Writes[writes]
+  Server --> ContextPacks[context_packs]
+  CLI --> Indexing[indexing]
+  Indexing --> SQLite[(SQLite_index)]
+  Retrieval --> SQLite
+  ContextPacks --> SQLite
+  Indexing --> Vault[(Vault_markdown)]
+  Retrieval --> Vault
+  Writes --> Vault
+```
 
-Domain packages follow one convention so public vs internal API boundaries are visible in the tree:
+## Database access
 
-- `__init__.py` is the package public API and defines `__all__` exports.
-- Shared domain data shapes live in `_models.py`.
-- Internal implementation modules are underscore-prefixed.
-- Persistence modules are named `repository.py`.
-- Orchestration modules are named `service.py` (function-oriented) or `manager.py` (stateful class-oriented).
-- Dependencies inside a package flow from orchestration and persistence toward models, not the reverse.
+The index database is accessed through two entry points in `obsidian_memory_mcp.database`:
 
-Recent cleanup aligned `config/` and `context_packs/` with this convention (`_models.py` modules plus curated package-level re-exports).
+| API | Used by | Role |
+|-----|---------|------|
+| `get_connection()` | `indexing/service.py`, `indexing/repository.py` | SQLAlchemy `Connection` for transactional index writes |
+| `connect_index_db()` | `retrieval`, `context_packs`, `status`, `writes` audit, `search_debug` | Raw `sqlite3.Connection` for FTS reads and lightweight queries |
+
+Both apply the same SQLite pragmas (foreign keys, WAL on disk). When adding code:
+
+- **Index writes** (files, blocks, FTS rows, runs) → SQLAlchemy via `indexing.repository` and `get_connection()`.
+- **Read-only FTS / status queries** → `connect_index_db()` unless you need to participate in an existing SQLAlchemy transaction.
+
+## Package layout convention
+
+All bounded-context packages follow the same rules (introduced with `database/` in
+Phase 7a and applied project-wide):
+
+1. **One package per bounded context** — cross-package access goes through `__init__.py`.
+2. **`__init__.py` is the public API** — explicit `__all__` re-exports.
+3. **Internal modules are underscore-prefixed** — e.g. `_models.py`, `_guardrails.py`.
+4. **Domain dataclasses live in `_models.py`** (plural) with no infrastructure imports.
+5. **Persistence is `repository.py`** — row mapping stays there; tests may import it.
+6. **Orchestration is `service.py` (stateless functions) or `manager.py` (stateful class)** — one style per package.
+
+Shared non-domain helpers live in top-level packages:
+
+- **`markdown/`** — frontmatter, fence lines, read-time headings (`parse_frontmatter`, `find_headings`, …).
+- **`utils/`** — globs, SHA-256 helpers, vault path normalization, timing, wikilink parsing.
+- **`contracts/`** — MCP tool contract metadata (`TOOL_CONTRACTS`, …).
+
+The indexing pipeline lives under `indexing/parser/` (blocks, sections, FTS targets). CLI handlers
+live under `cli/`; `obsidian_memory_mcp.cli:main` is the `mcp-memory` entry point.
 
 ## Configuration
 
-Each vault has a `memory-mcp.yaml` file. `ConfigLoader` validates required fields, absolute vault paths, derived index locations, context pack definitions, proposal settings, and read/write guardrails. A server-level registry maps MCP `project` names to vault roots.
+Each vault has a `memory-mcp.yaml` file. `ConfigLoader` validates required fields, absolute vault paths, derived index locations, context pack definitions, write limits, the memory archive path, and read/write guardrails. A server-level registry maps MCP `project` names to vault roots.
 
 ## Indexing
 
@@ -51,9 +90,9 @@ The source of truth is markdown on disk. The index is derived data stored in SQL
 
 Context packs are configured named bundles of files, optional sections, tags, included packs, and token budgets. The loader resolves configured paths, applies read guardrails, estimates tokens with `tiktoken`, and either rejects over-budget packs in strict mode or returns warnings in soft mode.
 
-## Proposal Workflow
+## Write Workflow
 
-Writes are proposal-based. `propose_memory_update` records a proposed create, update, or delete for a `Memory/**` path without changing the file. `approve_proposal` rechecks guardrails and file hashes before writing. `reject_proposal` records a terminal rejection. Audit events and changesets support grouped review and memory supersession workflows.
+Writes are direct and atomic. `write_memory`/`write_note` create new files; `update_memory`/`update_note` overwrite existing ones. Each call enforces the write guardrails, the create-vs-update precondition, and an optional `expected_hash` optimistic lock, then writes via a temp-file-plus-rename and appends one row to the append-only `write_audit` log. `update_memory` additionally accepts a `supersedes` list: `SupersessionService` validates the superseded paths up front, then archives each note under `memory_archive_path` with supersession frontmatter and back-references them from the new note — all recorded in a single audit row.
 
 ## MCP Runtime Integration
 
@@ -63,7 +102,7 @@ FastMCP handles initialize handshake, tool discovery, Pydantic schema generation
 
 SQLite FTS5 is used instead of embeddings because it is deterministic, local, dependency-light, and good enough for the MVP fixture benchmark. Embeddings remain a future option if measured relevance is insufficient.
 
-Writes are proposal-based because AI clients should not mutate memory files without review. The workflow favors auditability and conflict detection over write convenience.
+Writes are direct and atomic because operators need predictable automation with strong guardrails. Auditability comes from the append-only `write_audit` log, optimistic-lock hashes, and optional supersession archiving—not from a staging queue.
 
 Indexing is CLI-driven because it is simple, reproducible, and avoids background watcher complexity. Operators decide when to refresh derived data.
 

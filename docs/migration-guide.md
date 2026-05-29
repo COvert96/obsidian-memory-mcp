@@ -14,9 +14,10 @@ If `vault_path` is omitted, the command uses the current working directory.
 
 `mcp-memory migrate` inspects `sqlite_master` and picks the correct action:
 
-1. No `alembic_version` table and `files` table exists: treats the DB as a v0.1.0 schema and runs `alembic stamp head`.
+1. No `alembic_version` table and `files` table exists: treats the DB as a v0.1.0 index and runs `alembic upgrade head` (idempotent `CREATE IF NOT EXISTS` DDL).
 2. No `alembic_version` table and no `files` table: treats the DB as a fresh install and runs `alembic upgrade head`.
 3. `alembic_version` table exists: runs `alembic upgrade head` for incremental migrations.
+4. `alembic_version` is already at head but required tables are missing (for example `write_audit`) or proposal tables were never dropped: re-stamps to base and re-runs `upgrade head` to repair the schema.
 
 ## Verify Success
 
