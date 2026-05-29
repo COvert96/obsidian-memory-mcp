@@ -14,10 +14,10 @@ from obsidian_memory_mcp._time import duration_ms
 from obsidian_memory_mcp.config import ProjectConfig
 from obsidian_memory_mcp.context_packs import ContextPackLoader
 from obsidian_memory_mcp.indexing import IndexMode, run_index
-from obsidian_memory_mcp.proposals import ProposalManager
 from obsidian_memory_mcp.retrieval import ReadNoteService, SearchService
 from obsidian_memory_mcp.config import GuardrailEvaluator
 from obsidian_memory_mcp.status import get_index_status
+from obsidian_memory_mcp.writes import WriteService
 
 RELEASE_RELEVANCE_THRESHOLD = 0.80
 
@@ -100,7 +100,7 @@ class PerformanceBaseline:
     search_ms: int
     read_ms: int
     context_pack_ms: int
-    proposal_ms: int
+    write_ms: int
     token_count: int
     indexed_files: int
     index_size_bytes: int
@@ -115,7 +115,7 @@ class PerformanceBaseline:
                 f"search_ms: {self.search_ms}",
                 f"read_ms: {self.read_ms}",
                 f"context_pack_ms: {self.context_pack_ms}",
-                f"proposal_ms: {self.proposal_ms}",
+                f"write_ms: {self.write_ms}",
                 f"token_count: {self.token_count}",
                 f"indexed_files: {self.indexed_files}",
                 f"index_size_bytes: {self.index_size_bytes}",
@@ -183,14 +183,13 @@ def measure_performance_baseline(config: ProjectConfig) -> PerformanceBaseline:
     pack = pack_loader.load(config.context_packs[0].name, strict_budget=False)
     context_pack_ms = duration_ms(started)
 
-    manager = ProposalManager(config)
+    write_service = WriteService(config)
     started = time.perf_counter()
-    manager.create(
-        file_path="Memory/performance-baseline.md",
-        operation="create",
-        content="# Performance Baseline\nFixture proposal latency check.\n",
+    write_service.create(
+        "Memory/performance-baseline.md",
+        "# Performance Baseline\nFixture write latency check.\n",
     )
-    proposal_ms = duration_ms(started)
+    write_ms = duration_ms(started)
 
     status = get_index_status(config)
     return PerformanceBaseline(
@@ -198,7 +197,7 @@ def measure_performance_baseline(config: ProjectConfig) -> PerformanceBaseline:
         search_ms=search_ms,
         read_ms=read_ms,
         context_pack_ms=context_pack_ms,
-        proposal_ms=proposal_ms,
+        write_ms=write_ms,
         token_count=pack.token_count,
         indexed_files=status.indexed_files,
         index_size_bytes=config.index_db_location.stat().st_size,

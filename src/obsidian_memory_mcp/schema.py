@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Callable
 from pathlib import Path
+from threading import Lock
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Connection, Engine
@@ -15,6 +16,9 @@ from obsidian_memory_mcp.database._tables import create_fts_tables, metadata
 # TODO(phase-7b): Remove once Alembic owns schema versioning.
 SCHEMA_VERSION = 4
 SUPPORTED_SCHEMA_VERSIONS = frozenset({0, 2, 3, SCHEMA_VERSION})
+
+_BOOTSTRAPPED_SCHEMA_PATHS: set[Path] = set()
+_SCHEMA_BOOTSTRAP_LOCK = Lock()
 
 
 class SchemaVersionError(RuntimeError):
@@ -48,6 +52,30 @@ def bootstrap_schema(connection: sqlite3.Connection | Connection | Engine) -> No
         sa_connection.commit()
     finally:
         cleanup()
+
+
+def bootstrap_schema_once(
+    connection: sqlite3.Connection,
+    index_db_path: Path,
+    *,
+    database_existed: bool,
+) -> None:
+    """Bootstrap the schema at most once per resolved database path.
+
+    Relocated from the deleted ``proposals`` package in Phase 8c; the retained
+    ``write_audit`` repository is the sole caller. Retiring this runtime path so
+    Alembic is the sole schema owner is tracked as Phase 8d.
+    """
+    if index_db_path.name == ":memory:":
+        bootstrap_schema(connection)
+        return
+
+    cache_key = index_db_path.resolve(strict=False)
+    with _SCHEMA_BOOTSTRAP_LOCK:
+        if database_existed and cache_key in _BOOTSTRAPPED_SCHEMA_PATHS:
+            return
+        bootstrap_schema(connection)
+        _BOOTSTRAPPED_SCHEMA_PATHS.add(cache_key)
 
 
 def _user_version(connection: Connection) -> int:

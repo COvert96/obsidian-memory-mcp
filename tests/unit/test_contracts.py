@@ -7,14 +7,10 @@ from obsidian_memory_mcp.errors import ERROR_CATALOG, ErrorCode, build_error
 
 
 EXPECTED_TOOL_NAMES = {
-    "approve_proposal",
     "get_context_pack",
     "list_context_packs",
-    "list_proposals",
-    "propose_memory_update",
     "read_note",
     "read_section",
-    "reject_proposal",
     "search_notes",
     "update_memory",
     "update_note",
@@ -75,22 +71,17 @@ def test_list_context_packs_contract_documents_metadata_fields() -> None:
     assert "description" in first_pack
 
 
-def test_proposal_contracts_use_consistent_ids_and_error_codes() -> None:
-    list_item = TOOL_CONTRACTS["list_proposals"].example_response["proposals"][0]
-    approve_errors = TOOL_CONTRACTS["approve_proposal"].possible_errors
-
-    assert "proposal_id" in list_item
-    assert "id" not in list_item
-    assert ErrorCode.ERR_MISSING_FILE not in approve_errors
-
-
-def test_propose_memory_update_contract_declares_memory_scope() -> None:
-    contract = TOOL_CONTRACTS["propose_memory_update"]
+def test_update_memory_contract_declares_memory_scope_and_hash_guard() -> None:
+    contract = TOOL_CONTRACTS["update_memory"]
     file_path = contract.example_request["file_path"]
 
-    assert "Memory/" in contract.description
     assert isinstance(file_path, str)
     assert file_path.startswith("Memory/")
+    assert ErrorCode.ERR_HASH_MISMATCH in contract.possible_errors
+
+
+def test_no_proposal_tools_remain_in_contracts() -> None:
+    assert not any("proposal" in name for name in TOOL_CONTRACTS)
 
 
 # ---------------------------------------------------------------------------

@@ -57,7 +57,7 @@ Verify the setup from an MCP client by calling `search_notes` with:
 
 ## Tool Summary
 
-The live FastMCP server exposes 9 tools: `read_note`, `read_section`, `search_notes`, `get_context_pack`, `list_context_packs`, `propose_memory_update`, `list_proposals`, `approve_proposal`, and `reject_proposal`.
+The live FastMCP server exposes 9 tools: `read_note`, `read_section`, `search_notes`, `get_context_pack`, `list_context_packs`, `write_memory`, `update_memory`, `write_note`, and `update_note`.
 
 The canonical contract metadata lives in [src/obsidian_memory_mcp/contracts.py](src/obsidian_memory_mcp/contracts.py). See [docs/tool-reference.md](docs/tool-reference.md) and [docs/error-codes.md](docs/error-codes.md) for request fields, response fields, examples, error codes, and common workflows.
 
@@ -67,11 +67,7 @@ The canonical contract metadata lives in [src/obsidian_memory_mcp/contracts.py](
 uv run mcp-memory index C:\path\to\vault
 uv run mcp-memory index status C:\path\to\vault
 uv run mcp-memory debug search C:\path\to\vault "query terms" --limit 5
-uv run mcp-memory proposals list C:\path\to\vault
-uv run mcp-memory proposals show {proposal_id} C:\path\to\vault --diff
-uv run mcp-memory proposals approve {proposal_id} C:\path\to\vault
-uv run mcp-memory proposals reject {proposal_id} C:\path\to\vault --reason duplicate
-uv run mcp-memory proposals cleanup C:\path\to\vault --retention-days 7 --yes
+uv run mcp-memory audit writes C:\path\to\vault --limit 50
 ```
 
 ## Release Gates
@@ -88,7 +84,7 @@ The benchmark command expects the vault to have a valid `memory-mcp.yaml` and a 
 
 ## Safety Model
 
-Reads and writes are constrained to the configured vault root. Path normalization blocks traversal and symlink escape attempts. Read and write guardrails use allow and deny glob patterns from `memory-mcp.yaml`; deny rules take precedence. MCP writes are proposal-based: a tool call can create a proposal, but content is not written until an approval step succeeds.
+Reads and writes are constrained to the configured vault root. Path normalization blocks traversal and symlink escape attempts. Read and write guardrails use allow and deny glob patterns from `memory-mcp.yaml`; deny rules take precedence. MCP writes are direct and atomic: the CRUD write tools enforce the write guardrails, create-vs-update preconditions, and optimistic-lock hashes, and append every write to the `write_audit` log.
 
 Do not share real private vault data, credentials, or personal data in public issues. See [SECURITY.md](SECURITY.md).
 
@@ -98,8 +94,7 @@ Do not share real private vault data, credentials, or personal data in public is
 - [Indexing guide](docs/indexing-guide.md)
 - [Retrieval guide](docs/retrieval-guide.md)
 - [Context packs guide](docs/context-packs-guide.md)
-- [Proposals guide](docs/proposals-guide.md)
-- [Memory supersession guide](docs/memory-supersession-guide.md)
+- [Write tools guide](docs/write-tools-guide.md)
 - [System architecture](docs/system-architecture.md)
 - [Design history](docs/design-history.md)
 - [Tool reference](docs/tool-reference.md)

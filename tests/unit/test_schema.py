@@ -49,14 +49,10 @@ def test_schema_bootstrap_creates_required_tables_indexes_and_user_version(
         "blocks",
         "wikilinks",
         "index_errors",
-        "proposals",
-        "proposal_events",
-        "proposal_changesets",
-        "proposal_changeset_members",
-        "proposal_changeset_events",
         "write_audit",
         "blocks_fts",
     }.issubset(tables)
+    assert not any(name.startswith("proposal") for name in tables)
     assert {
         "idx_files_freshness",
         "idx_sections_file_id",

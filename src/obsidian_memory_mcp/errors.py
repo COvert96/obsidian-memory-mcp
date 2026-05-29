@@ -17,7 +17,6 @@ class ErrorCode(str, Enum):
     ERR_INVALID_REQUEST = "ERR_INVALID_REQUEST"
     ERR_MISSING_FILE = "ERR_MISSING_FILE"
     ERR_SECTION_NOT_FOUND = "ERR_SECTION_NOT_FOUND"
-    ERR_STALE_PROPOSAL = "ERR_STALE_PROPOSAL"
 
 
 @dataclass(frozen=True)
@@ -83,12 +82,6 @@ ERROR_CATALOG: dict[ErrorCode, ErrorDefinition] = {
         message_template="The requested file operation violates configured guardrails.",
         recovery_suggestion=(
             "Choose a path inside the vault and within the allowed read/write constraints."
-        ),
-    ),
-    ErrorCode.ERR_STALE_PROPOSAL: ErrorDefinition(
-        message_template="The proposal is stale and can no longer be applied safely.",
-        recovery_suggestion=(
-            "Recreate the proposal against the latest file contents before approving it."
         ),
     ),
     ErrorCode.ERR_CONTEXT_EXCEEDS_BUDGET: ErrorDefinition(

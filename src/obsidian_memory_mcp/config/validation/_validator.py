@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from obsidian_memory_mcp.config._models import ProjectConfig
@@ -43,6 +43,7 @@ class ConfigValidator:
         if errors:
             raise ConfigValidationException(validation_error_response(errors), errors)
 
+        _warn_removed_proposal_fields(data)
         vault_path = Path(data["vault_path"]).resolve()
         return ProjectConfig(
             vault_path=vault_path,
@@ -55,18 +56,10 @@ class ConfigValidator:
                 "tags_separator",
                 ProjectConfig.DEFAULT_TAGS_SEPARATOR,
             ),
-            max_proposal_ttl_hours=data.get(
-                "max_proposal_ttl_hours",
-                ProjectConfig.DEFAULT_MAX_PROPOSAL_TTL_HOURS,
-            ),
-            proposal_ttl_seconds=data.get(
-                "proposal_ttl_seconds",
-                ProjectConfig.DEFAULT_PROPOSAL_TTL_SECONDS,
-            ),
             max_write_content_bytes=_resolve_max_write_content_bytes(data),
-            proposal_retention_days=data.get(
-                "proposal_retention_days",
-                ProjectConfig.DEFAULT_PROPOSAL_RETENTION_DAYS,
+            memory_archive_path=data.get(
+                "memory_archive_path",
+                ProjectConfig.DEFAULT_MEMORY_ARCHIVE_PATH,
             ),
         )
 
@@ -334,18 +327,6 @@ class ConfigValidator:
             )
         self._validate_optional_positive_int(
             data,
-            "max_proposal_ttl_hours",
-            "max_proposal_ttl_hours",
-            errors,
-        )
-        self._validate_optional_positive_int(
-            data,
-            "proposal_ttl_seconds",
-            "proposal_ttl_seconds",
-            errors,
-        )
-        self._validate_optional_positive_int(
-            data,
             "max_write_content_bytes",
             "max_write_content_bytes",
             errors,
@@ -356,12 +337,48 @@ class ConfigValidator:
             "max_proposal_content_bytes",
             errors,
         )
-        self._validate_optional_positive_int(
-            data,
-            "proposal_retention_days",
-            "proposal_retention_days",
-            errors,
-        )
+        self._validate_memory_archive_path(data, errors)
+
+    @staticmethod
+    def _validate_memory_archive_path(
+        data: dict[str, Any],
+        errors: list[ConfigValidationError],
+    ) -> None:
+        if "memory_archive_path" not in data:
+            return
+
+        value = data["memory_archive_path"]
+        if not isinstance(value, str) or not value:
+            errors.append(
+                _type_error(
+                    "memory_archive_path", "a non-empty relative path", value
+                )
+            )
+            return
+
+        normalized = value.replace("\\", "/")
+        parts = tuple(part for part in normalized.split("/") if part not in {"", "."})
+        is_under_memory = bool(parts) and parts[0] == "Memory"
+        if PurePosixPath(normalized).is_absolute() or not is_under_memory:
+            errors.append(
+                ConfigValidationError(
+                    field="memory_archive_path",
+                    expected="a relative path under 'Memory/'",
+                    actual=value,
+                    suggestion="Use a path such as 'Memory/archive'.",
+                )
+            )
+            return
+
+        if ".." in parts:
+            errors.append(
+                ConfigValidationError(
+                    field="memory_archive_path",
+                    expected="a path without '..' traversal segments",
+                    actual=value,
+                    suggestion="Remove parent-directory traversal from the archive path.",
+                )
+            )
 
     @staticmethod
     def _validate_string_list(
@@ -425,6 +442,24 @@ class ConfigValidator:
         value = container[key]
         if not isinstance(value, int) or value <= 0:
             errors.append(_type_error(field_path, "a positive integer", value))
+
+
+_REMOVED_PROPOSAL_FIELDS: tuple[str, ...] = (
+    "max_proposal_ttl_hours",
+    "proposal_ttl_seconds",
+    "proposal_retention_days",
+)
+
+
+def _warn_removed_proposal_fields(data: dict[str, Any]) -> None:
+    for field in _REMOVED_PROPOSAL_FIELDS:
+        if field in data:
+            warnings.warn(
+                f"Config field '{field}' was removed in v0.2.0 and has no "
+                "effect. Remove it from memory-mcp.yaml.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
 
 
 def _resolve_max_write_content_bytes(data: dict[str, Any]) -> int:

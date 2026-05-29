@@ -10,9 +10,11 @@ from typing import Any, cast
 import pytest
 from mcp.server.fastmcp.exceptions import ToolError
 
+from obsidian_memory_mcp.config import ConfigLoader
 from obsidian_memory_mcp.errors import ErrorCode
 from obsidian_memory_mcp.server import mcp
 from obsidian_memory_mcp.server_registry import SERVER_REGISTRY_ENV_VAR
+from obsidian_memory_mcp.writes import WriteAuditRepository
 
 
 def _write_config(vault: Path) -> None:
@@ -262,6 +264,71 @@ def test_update_memory_missing_file_raises(vault: Path) -> None:
         )
 
     assert ErrorCode.ERR_MISSING_FILE.value in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# update_memory with supersedes
+# ---------------------------------------------------------------------------
+
+
+def test_update_memory_supersedes_archives_old_note_and_records_one_audit_row(
+    vault: Path,
+) -> None:
+    (vault / "Memory" / "old.md").write_text(
+        "---\ntopic: company\n---\n# Old\nOld truth.", encoding="utf-8"
+    )
+    (vault / "Memory" / "new.md").write_text("# stub", encoding="utf-8")
+
+    result = _call(
+        "update_memory",
+        {
+            "project": "sample",
+            "file_path": "Memory/new.md",
+            "content": "# New\nNew truth.",
+            "supersedes": ["Memory/old.md"],
+        },
+    )
+
+    # Old note archived with supersession frontmatter.
+    assert not (vault / "Memory" / "old.md").exists()
+    archived = vault / "Memory" / "archive" / "old.md"
+    assert archived.is_file()
+    archived_text = archived.read_text(encoding="utf-8")
+    assert "superseded: true" in archived_text
+    assert "superseded_by: Memory/new.md" in archived_text
+    assert "Old truth." in archived_text
+
+    # New note carries the supersedes back-reference.
+    new_text = (vault / "Memory" / "new.md").read_text(encoding="utf-8")
+    assert "supersedes:" in new_text
+    assert "Memory/archive/old.md" in new_text
+    assert "New truth." in new_text
+
+    # Exactly one append-only audit row carries the archive paths.
+    config = ConfigLoader(vault).load()
+    entries = WriteAuditRepository(config).list(
+        project="sample", file_path="Memory/new.md"
+    )
+    assert len(entries) == 1
+    assert entries[0].operation == "update"
+    assert json.loads(cast(str, entries[0].supersedes)) == ["Memory/archive/old.md"]
+    assert result["supersedes"] == ["Memory/archive/old.md"]
+
+
+def test_update_memory_without_supersedes_records_null_supersedes(vault: Path) -> None:
+    (vault / "Memory" / "plain.md").write_text("# Old", encoding="utf-8")
+
+    _call(
+        "update_memory",
+        {"project": "sample", "file_path": "Memory/plain.md", "content": "# New"},
+    )
+
+    config = ConfigLoader(vault).load()
+    entries = WriteAuditRepository(config).list(
+        project="sample", file_path="Memory/plain.md"
+    )
+    assert len(entries) == 1
+    assert entries[0].supersedes is None
 
 
 # ---------------------------------------------------------------------------

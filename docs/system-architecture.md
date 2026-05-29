@@ -13,14 +13,14 @@ The MVP release exposes 9 MCP tools:
 - `search_notes`
 - `get_context_pack`
 - `list_context_packs`
-- `propose_memory_update`
-- `list_proposals`
-- `approve_proposal`
-- `reject_proposal`
+- `write_memory`
+- `update_memory`
+- `write_note`
+- `update_note`
 
 ## Boundaries
 
-The MCP server layer in `src/obsidian_memory_mcp/server.py` is an adapter. It resolves the project registry, loads vault config, and delegates to domain services. Business rules live in config validation, guardrails, indexing, retrieval, context pack, proposal, changeset, and token modules. SQLite and filesystem access are details kept behind repository/service functions.
+The MCP server layer in `src/obsidian_memory_mcp/server.py` is an adapter. It resolves the project registry, loads vault config, and delegates to domain services. Business rules live in config validation, guardrails, indexing, retrieval, context pack, write/supersession, and token modules. SQLite and filesystem access are details kept behind repository/service functions.
 
 ## Package Layout Convention
 
@@ -37,7 +37,7 @@ Recent cleanup aligned `config/` and `context_packs/` with this convention (`_mo
 
 ## Configuration
 
-Each vault has a `memory-mcp.yaml` file. `ConfigLoader` validates required fields, absolute vault paths, derived index locations, context pack definitions, proposal settings, and read/write guardrails. A server-level registry maps MCP `project` names to vault roots.
+Each vault has a `memory-mcp.yaml` file. `ConfigLoader` validates required fields, absolute vault paths, derived index locations, context pack definitions, write limits, the memory archive path, and read/write guardrails. A server-level registry maps MCP `project` names to vault roots.
 
 ## Indexing
 
@@ -51,9 +51,9 @@ The source of truth is markdown on disk. The index is derived data stored in SQL
 
 Context packs are configured named bundles of files, optional sections, tags, included packs, and token budgets. The loader resolves configured paths, applies read guardrails, estimates tokens with `tiktoken`, and either rejects over-budget packs in strict mode or returns warnings in soft mode.
 
-## Proposal Workflow
+## Write Workflow
 
-Writes are proposal-based. `propose_memory_update` records a proposed create, update, or delete for a `Memory/**` path without changing the file. `approve_proposal` rechecks guardrails and file hashes before writing. `reject_proposal` records a terminal rejection. Audit events and changesets support grouped review and memory supersession workflows.
+Writes are direct and atomic. `write_memory`/`write_note` create new files; `update_memory`/`update_note` overwrite existing ones. Each call enforces the write guardrails, the create-vs-update precondition, and an optional `expected_hash` optimistic lock, then writes via a temp-file-plus-rename and appends one row to the append-only `write_audit` log. `update_memory` additionally accepts a `supersedes` list: `SupersessionService` validates the superseded paths up front, then archives each note under `memory_archive_path` with supersession frontmatter and back-references them from the new note — all recorded in a single audit row.
 
 ## MCP Runtime Integration
 

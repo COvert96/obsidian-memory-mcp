@@ -48,13 +48,15 @@ def test_migrate_cli_applies_initial_migration_on_fresh_database(
 
     assert exit_code == 0
     output = capsys.readouterr().out
-    assert "Applied 1 migration(s)." in output
+    assert "Applied 2 migration(s)." in output
+    tables = _table_names(database_path)
     assert {
         "alembic_version",
         "files",
         "blocks_fts",
         "write_audit",
-    }.issubset(_table_names(database_path))
+    }.issubset(tables)
+    assert not any(name.startswith("proposal") for name in tables)
 
 
 def test_migrate_cli_stamps_existing_v010_schema_without_running_upgrade(
