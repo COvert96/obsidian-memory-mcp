@@ -1,0 +1,8 @@
+interface:
+  display_name: Memory capture
+  short_description: Persist conversation insights to Memory/ via MCP
+
+dependencies:
+  tools:
+    - type: mcp
+      description: obsidian-memory-mcp server (>= v0.2.0) with write_memory and update_memory
