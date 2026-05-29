@@ -1,3 +1,5 @@
+"""Vault path normalization and traversal guards."""
+
 from __future__ import annotations
 
 from pathlib import Path, PureWindowsPath
@@ -8,7 +10,6 @@ from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_erro
 
 def normalize_vault_path(vault_root: str | Path, requested_path: str | Path) -> Path:
     """Resolve a requested path and prove that it stays inside the vault."""
-
     vault = _normalized_vault_root(vault_root)
     raw_path = str(requested_path).strip()
     if not raw_path:
@@ -34,7 +35,10 @@ def normalize_vault_path(vault_root: str | Path, requested_path: str | Path) -> 
     if not resolved_path.is_relative_to(vault):
         raise _guardrail_violation(
             requested_path=raw_path,
-            message=f"Requested path '{raw_path}' resolves to '{resolved_path}' and escapes vault '{vault}'.",
+            message=(
+                f"Requested path '{raw_path}' resolves to '{resolved_path}' "
+                f"and escapes vault '{vault}'."
+            ),
             suggestion="Choose a path inside the configured vault root.",
         )
 

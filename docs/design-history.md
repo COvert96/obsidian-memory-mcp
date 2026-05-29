@@ -14,9 +14,9 @@ Earlier planning weighed building a custom MCP protocol layer against using the 
 
 Release design favored deterministic local behavior over embedding infrastructure. SQLite FTS5 keeps indexing/search fully local, dependency-light, and reproducible across CI and operator machines.
 
-## Why Proposal-Based Writes
+## Why Proposal-Based Writes (v0.1.x, removed in v0.2.0)
 
-The system separates proposal creation from write application to preserve human review, auditability, and hash-based conflict checks. This was chosen over direct writes to minimize accidental or unsafe memory mutations from automated agents.
+Early releases separated proposal creation from write application to preserve human review, auditability, and hash-based conflict checks. **v0.2.0** replaced that staging model with direct atomic MCP writes, an append-only `write_audit` log, and optional `expected_hash` optimistic locking. See [write-tools-guide.md](write-tools-guide.md) for the current workflow.
 
 ## Why CLI-Driven Indexing
 

@@ -7,19 +7,19 @@ from typing import Any
 
 from obsidian_memory_mcp.config import GuardrailEvaluator, ProjectConfig
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
-from obsidian_memory_mcp.hashing import sha256_bytes
-from obsidian_memory_mcp.markdown_parser import (
+from obsidian_memory_mcp.markdown import (
     MarkdownHeading,
     find_headings,
     matching_heading,
+    parse_frontmatter,
     section_end_index,
 )
+from obsidian_memory_mcp.utils import sha256_bytes
 from obsidian_memory_mcp.retrieval._io import (
     read_bytes,
     read_text,
     resolve_existing_note,
 )
-from obsidian_memory_mcp.vault import parse_frontmatter
 
 
 class ReadNoteService:

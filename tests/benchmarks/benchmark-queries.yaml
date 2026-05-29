@@ -86,30 +86,30 @@ queries:
         section: "list_context_packs Tool"
     explanation: "The context pack API note documents listing pack metadata."
 
-  - id: proposal-state-machine
-    query: "pending applied rejected expired state machine"
+  - id: direct-write-lifecycle
+    query: "write lifecycle audit log"
     expected:
-      - path: "wiki/architecture/proposal-workflow.md"
-        section: "State Machine"
-      - path: "memory-workflow/proposal-lifecycle.md"
+      - path: "wiki/architecture/direct-write-workflow.md"
+        section: "Write Lifecycle"
+      - path: "memory-workflow/write-lifecycle.md"
         section: "States Overview"
-    explanation: "Proposal state transitions appear in architecture and lifecycle notes."
+    explanation: "Direct-write lifecycle appears in architecture and workflow notes."
 
-  - id: propose-memory-update
-    query: "propose_memory_update file_path operation content"
+  - id: write-memory-api
+    query: "write_memory file_path content create"
     expected:
-      - path: "wiki/api/propose-memory-update.md"
+      - path: "wiki/api/write-memory-api.md"
         section: "Request Parameters"
-    explanation: "The propose_memory_update API reference lists request fields."
+    explanation: "The write_memory API reference lists request fields."
 
-  - id: proposal-approval-conflict
-    query: "hash conflict"
+  - id: hash-mismatch-conflict
+    query: "hash mismatch ERR_HASH_MISMATCH"
     expected:
-      - path: "wiki/api/approve-reject-proposal.md"
-        section: "Conflict Detection"
-      - path: "memory-workflow/approval-process.md"
-        section: "Hash Conflict Handling"
-    explanation: "Approval conflict behavior is documented in API and workflow notes."
+      - path: "wiki/api/hash-mismatch-errors.md"
+        section: "Hash Mismatch"
+      - path: "memory-workflow/write-lifecycle.md"
+        section: "Conflict Handling"
+    explanation: "Hash conflict behavior is documented in API and workflow notes."
 
   - id: audit-trail-events
     query: "audit trail"
