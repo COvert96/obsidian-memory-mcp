@@ -10,7 +10,7 @@ from typing import Any
 
 import yaml
 
-from obsidian_memory_mcp._time import duration_ms
+from obsidian_memory_mcp.utils import duration_ms
 from obsidian_memory_mcp.config import ProjectConfig
 from obsidian_memory_mcp.context_packs import ContextPackLoader
 from obsidian_memory_mcp.indexing import IndexMode, run_index

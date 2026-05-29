@@ -1,6 +1,6 @@
 # MCP Tool Reference
 
-`src/obsidian_memory_mcp/contracts.py` is the authoritative metadata source for tool descriptions, example payloads, and possible error codes. `src/obsidian_memory_mcp/server.py` is the authoritative live registration surface. Both define the same 9 tools for the MVP release.
+`src/obsidian_memory_mcp/contracts/__init__.py` is the authoritative metadata source for tool descriptions, example payloads, and possible error codes. `src/obsidian_memory_mcp/server.py` is the authoritative live registration surface. Both define the same 9 tools for the MVP release.
 
 Examples below use the fixture project name `sample` and paths from `tests/fixtures/sample-vault/`.
 

@@ -36,8 +36,9 @@ from obsidian_memory_mcp.writes import (
     SupersessionService,
     WriteAuditRepository,
     WriteService,
+    is_memory_path,
+    require_memory_path,
 )
-from obsidian_memory_mcp.writes._service import is_memory_path, require_memory_path
 
 mcp = FastMCP("obsidian-memory-mcp")
 

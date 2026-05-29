@@ -6,10 +6,7 @@ from obsidian_memory_mcp.context_packs._models import (
     ContextPackSummary,
     IndexQueries,
 )
-from obsidian_memory_mcp.context_packs.manager import (
-    ContextPackLoader,
-    SqliteIndexQueries,
-)
+from obsidian_memory_mcp.context_packs.manager import ContextPackLoader
 
 __all__ = [
     "ContextPackSummary",
@@ -17,5 +14,4 @@ __all__ = [
     "ContextPackLoader",
     "ContextPackResult",
     "IndexQueries",
-    "SqliteIndexQueries",
 ]

@@ -132,6 +132,11 @@ def _load_registry_file(registry_path: Path) -> ProjectRegistry:
 
 
 def _parse_projects(raw: Any, registry_path: Path) -> dict[str, Path]:
+    """Validate and normalize the `projects:` mapping.
+
+    This is intentionally strict: we fail fast on shape errors to avoid ambiguous
+    server behavior when a registry is partially misconfigured.
+    """
     if not isinstance(raw, dict):
         raise _format_error(
             registry_path, "a top-level YAML mapping with a 'projects' key"
@@ -143,42 +148,45 @@ def _parse_projects(raw: Any, registry_path: Path) -> dict[str, Path]:
             registry_path, "a 'projects' mapping with at least one entry"
         )
 
-    result: dict[str, Path] = {}
-    for name, value in projects_raw.items():
-        if not isinstance(name, str) or not name:
-            raise _format_error(registry_path, "non-empty string project names")
+    return {
+        name: _parse_single_project(name, value, registry_path)
+        for name, value in projects_raw.items()
+    }
 
-        if not isinstance(value, str):
-            raise _format_error(
-                registry_path,
-                "absolute path strings as project values "
-                "(e.g. `my-project: /absolute/path/to/vault`)",
+
+def _parse_single_project(name: object, value: object, registry_path: Path) -> Path:
+    if not isinstance(name, str) or not name:
+        raise _format_error(registry_path, "non-empty string project names")
+
+    if not isinstance(value, str):
+        raise _format_error(
+            registry_path,
+            "absolute path strings as project values "
+            "(e.g. `my-project: /absolute/path/to/vault`)",
+        )
+
+    vault_path = Path(value)
+    if not vault_path.is_absolute():
+        raise _format_error(registry_path, "absolute vault paths for all projects")
+
+    resolved = vault_path.resolve(strict=False)
+    if not resolved.is_dir():
+        raise ToolExecutionError(
+            build_error(
+                ErrorCode.ERR_INVALID_PROJECT,
+                message=(
+                    f"Project '{name}' points to '{resolved}', "
+                    "which is not an existing directory."
+                ),
+                details={
+                    "project": name,
+                    "vault_path": str(resolved),
+                    "suggestion": "Create the vault directory or fix the project mapping.",
+                },
             )
+        )
 
-        vault_path = Path(value)
-        if not vault_path.is_absolute():
-            raise _format_error(registry_path, "absolute vault paths for all projects")
-
-        resolved = vault_path.resolve(strict=False)
-        if not resolved.is_dir():
-            raise ToolExecutionError(
-                build_error(
-                    ErrorCode.ERR_INVALID_PROJECT,
-                    message=(
-                        f"Project '{name}' points to '{resolved}', "
-                        "which is not an existing directory."
-                    ),
-                    details={
-                        "project": name,
-                        "vault_path": str(resolved),
-                        "suggestion": "Create the vault directory or fix the project mapping.",
-                    },
-                )
-            )
-
-        result[name] = resolved
-
-    return result
+    return resolved
 
 
 def _format_error(registry_path: Path, expected: str) -> ToolExecutionError:
