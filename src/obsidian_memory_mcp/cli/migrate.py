@@ -19,10 +19,6 @@ def handle_migrate_command(arguments: argparse.Namespace) -> int:
         print(f"Migration failed: {exc}")
         return 1
 
-    if result.stamped_existing_schema:
-        print("Stamped existing schema as current version.")
-        return 0
-
     if result.applied_migration_count == 0:
         print("Already at head.")
         return 0

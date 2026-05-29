@@ -109,7 +109,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
         usage="mcp-memory migrate [vault_path]",
         epilog=(
             "Auto-detect cases:\n"
-            "  - alembic_version absent and files table present: stamp head.\n"
+            "  - alembic_version absent and files table present: upgrade head.\n"
             "  - alembic_version absent and files table absent: upgrade head.\n"
             "  - alembic_version table present: upgrade head (pending only)."
         ),
