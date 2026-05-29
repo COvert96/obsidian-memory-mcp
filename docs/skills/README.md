@@ -1,6 +1,6 @@
 # Agent Skills Library
 
-Published MCP-focused agent skills for **obsidian-memory-mcp** (>= v0.2.0). Skills teach agents how to bootstrap context, capture memory, and recall vault notes using direct-write tools — no proposal tools.
+Published MCP-focused agent skills for **obsidian-memory-mcp** (>= v0.2.0). Five skills teach agents how to bootstrap context, capture and maintain memory, recall vault notes, and format well-structured `Memory/` files using direct-write tools — no proposal tools.
 
 This library is split by **provider** (authoring format and install path) and **shared** artifacts (workflows, templates, examples, scripts).
 
@@ -33,7 +33,7 @@ Repo-local tooling skills under `.claude/skills/` and `.agents/skills/` (devops,
 
 ```powershell
 New-Item -ItemType Directory -Force -Path .claude/skills
-foreach ($s in 'context-bootstrap','memory-capture','recall-before-answer') {
+foreach ($s in 'context-bootstrap','memory-capture','recall-before-answer','memory-maintenance','structured-note-template') {
   New-Item -ItemType SymbolicLink -Force -Path ".claude/skills/$s" -Target "docs/skills/claude/$s"
 }
 ```
@@ -42,7 +42,7 @@ foreach ($s in 'context-bootstrap','memory-capture','recall-before-answer') {
 
 ```powershell
 New-Item -ItemType Directory -Force -Path .agents/skills
-foreach ($s in 'context-bootstrap','memory-capture','recall-before-answer') {
+foreach ($s in 'context-bootstrap','memory-capture','recall-before-answer','memory-maintenance','structured-note-template') {
   New-Item -ItemType SymbolicLink -Force -Path ".agents/skills/$s" -Target "docs/skills/openai/$s"
 }
 ```
@@ -102,6 +102,8 @@ Requires **obsidian-memory-mcp >= v0.2.0**.
 | context-bootstrap | Load context pack at session start | `list_context_packs`, `get_context_pack`, `search_notes` | [claude/context-bootstrap/](claude/context-bootstrap/) | [openai/context-bootstrap/](openai/context-bootstrap/) | [shared/context-bootstrap/](shared/context-bootstrap/) |
 | memory-capture | Capture insights at conversation end | `search_notes`, `read_note`, `write_memory`, `update_memory` | [claude/memory-capture/](claude/memory-capture/) | [openai/memory-capture/](openai/memory-capture/) | [shared/memory-capture/](shared/memory-capture/) |
 | recall-before-answer | Search before answering | `search_notes`, `read_note`, `read_section` | [claude/recall-before-answer/](claude/recall-before-answer/) | [openai/recall-before-answer/](openai/recall-before-answer/) | [shared/recall-before-answer/](shared/recall-before-answer/) |
+| memory-maintenance | Periodically triage stale or `#review` memory notes | `search_notes`, `read_note`, `update_memory` | [claude/memory-maintenance/](claude/memory-maintenance/) | [openai/memory-maintenance/](openai/memory-maintenance/) | [shared/memory-maintenance/](shared/memory-maintenance/) |
+| structured-note-template | Frontmatter and heading conventions for `Memory/` notes | none | [claude/structured-note-template/](claude/structured-note-template/) | [openai/structured-note-template/](openai/structured-note-template/) | [shared/structured-note-template/](shared/structured-note-template/) |
 
 ## Validate memory notes
 

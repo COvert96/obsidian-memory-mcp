@@ -11,6 +11,8 @@ New-Item -ItemType Directory -Force -Path .claude/skills
 New-Item -ItemType SymbolicLink -Path .claude/skills/context-bootstrap -Target docs/skills/claude/context-bootstrap
 New-Item -ItemType SymbolicLink -Path .claude/skills/memory-capture -Target docs/skills/claude/memory-capture
 New-Item -ItemType SymbolicLink -Path .claude/skills/recall-before-answer -Target docs/skills/claude/recall-before-answer
+New-Item -ItemType SymbolicLink -Path .claude/skills/memory-maintenance -Target docs/skills/claude/memory-maintenance
+New-Item -ItemType SymbolicLink -Path .claude/skills/structured-note-template -Target docs/skills/claude/structured-note-template
 ```
 
 Or copy `docs/skills/claude/<skill-name>/` to `.claude/skills/<skill-name>/` **and** copy `docs/skills/shared/<skill-name>/` into the same directory (merge `workflow.md`, `template.md`, `examples/`, `scripts/`).
@@ -42,3 +44,5 @@ MCP-specific requirements (tool list, server version) live in `description` / `w
 | context-bootstrap | [context-bootstrap/](context-bootstrap/) |
 | memory-capture | [memory-capture/](memory-capture/) |
 | recall-before-answer | [recall-before-answer/](recall-before-answer/) |
+| memory-maintenance | [memory-maintenance/](memory-maintenance/) |
+| structured-note-template | [structured-note-template/](structured-note-template/) |

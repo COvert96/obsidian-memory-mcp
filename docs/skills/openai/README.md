@@ -11,6 +11,8 @@ New-Item -ItemType Directory -Force -Path .agents/skills
 New-Item -ItemType SymbolicLink -Path .agents/skills/context-bootstrap -Target docs/skills/openai/context-bootstrap
 New-Item -ItemType SymbolicLink -Path .agents/skills/memory-capture -Target docs/skills/openai/memory-capture
 New-Item -ItemType SymbolicLink -Path .agents/skills/recall-before-answer -Target docs/skills/openai/recall-before-answer
+New-Item -ItemType SymbolicLink -Path .agents/skills/memory-maintenance -Target docs/skills/openai/memory-maintenance
+New-Item -ItemType SymbolicLink -Path .agents/skills/structured-note-template -Target docs/skills/openai/structured-note-template
 ```
 
 User-wide: `$HOME/.agents/skills/<skill-name>/`.
@@ -48,3 +50,5 @@ Workflow steps and MCP parameters are in [shared/](../shared/) `workflow.md` fil
 | context-bootstrap | [context-bootstrap/](context-bootstrap/) |
 | memory-capture | [memory-capture/](memory-capture/) |
 | recall-before-answer | [recall-before-answer/](recall-before-answer/) |
+| memory-maintenance | [memory-maintenance/](memory-maintenance/) |
+| structured-note-template | [structured-note-template/](structured-note-template/) |
