@@ -2,6 +2,16 @@
 
 Use `mcp-memory migrate` after every version upgrade.
 
+## Upgrading to 0.2.0-rc.1 (from 0.1.x)
+
+1. Check out tag `v0.2.0-rc.1` (or the release branch that contains it).
+2. Run `uv sync` so the installed package matches `pyproject.toml` (`0.2.0rc1`).
+3. Remove deprecated config keys (for example `proposal_ttl_seconds`) from `memory-mcp.yaml`.
+4. Run `mcp-memory migrate` on each vault (see below).
+5. Run a full re-index: `mcp-memory index --full --yes {vault}`.
+
+Proposal MCP tools and SQLite proposal tables are removed in 0.2.x. Use direct-write tools documented in [write-tools-guide.md](write-tools-guide.md).
+
 ## Command
 
 ```bash
