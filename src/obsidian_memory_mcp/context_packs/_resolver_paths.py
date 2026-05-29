@@ -69,17 +69,15 @@ def resolve_explicit_path(
     return ExplicitPathResolution(absolute_path=absolute_path)
 
 
-def expand_glob(config: ProjectConfig, pattern: str) -> tuple[tuple[Path, ...], tuple[str, ...]]:
+def expand_glob(
+    config: ProjectConfig, pattern: str
+) -> tuple[tuple[Path, ...], tuple[str, ...]]:
     normalized = normalize_vault_reference(pattern)
     if is_unsafe_pattern(normalized):
         return (), (f"Path pattern '{normalized}' was skipped because it is unsafe.",)
 
     matches = sorted(
-        (
-            path
-            for path in config.vault_path.glob(normalized)
-            if path.is_file()
-        ),
+        (path for path in config.vault_path.glob(normalized) if path.is_file()),
         key=lambda path: path.relative_to(config.vault_path).as_posix(),
     )
     return tuple(matches), ()

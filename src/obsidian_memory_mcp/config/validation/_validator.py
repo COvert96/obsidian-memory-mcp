@@ -25,7 +25,9 @@ from obsidian_memory_mcp.config.validation._vault_fields import (
     validate_index_db_location,
     validated_vault_path,
 )
-from obsidian_memory_mcp.config.validation._write_policy import validate_write_constraints
+from obsidian_memory_mcp.config.validation._write_policy import (
+    validate_write_constraints,
+)
 
 
 class ConfigValidator:

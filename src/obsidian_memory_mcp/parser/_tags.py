@@ -11,9 +11,7 @@ _MARKDOWN_TAG_RE = re.compile(r"(?<![\w/])#([A-Za-z0-9][A-Za-z0-9_/-]*)")
 _INLINE_CODE_RE = re.compile(r"`[^`]*`")
 
 
-def extract_tags(
-    frontmatter: dict[str, Any], body_lines: list[str]
-) -> tuple[str, ...]:
+def extract_tags(frontmatter: dict[str, Any], body_lines: list[str]) -> tuple[str, ...]:
     tags: set[str] = set()
     tags.update(_frontmatter_tags(frontmatter.get("tags")))
 

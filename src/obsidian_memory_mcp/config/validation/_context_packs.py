@@ -24,9 +24,7 @@ def validate_context_packs(
     context_packs = data["context_packs"]
     if not isinstance(context_packs, list):
         errors.append(
-            type_error(
-                "context_packs", "a list of context pack objects", context_packs
-            )
+            type_error("context_packs", "a list of context pack objects", context_packs)
         )
         return
 
@@ -86,9 +84,7 @@ def _validate_context_pack_entry(
         context_pack, "description", f"{prefix}.description", errors
     )
     validate_string_list(context_pack, "sections", f"{prefix}.sections", errors)
-    validate_string_list(
-        context_pack, "tags_filter", f"{prefix}.tags_filter", errors
-    )
+    validate_string_list(context_pack, "tags_filter", f"{prefix}.tags_filter", errors)
     validate_string_list(
         context_pack,
         "include_context_packs",
@@ -130,8 +126,7 @@ def _validate_context_pack_references(
             )
 
     include_graph = {
-        name: includes
-        for name, (_original_index, includes) in includes_by_name.items()
+        name: includes for name, (_original_index, includes) in includes_by_name.items()
     }
     cycle = find_context_pack_cycle(include_graph)
     if cycle:

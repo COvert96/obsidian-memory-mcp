@@ -5,12 +5,8 @@ from __future__ import annotations
 from obsidian_memory_mcp.errors import ErrorCode
 
 SAMPLE_PROJECT = "occlave"
-SAMPLE_CONTENT_HASH = (
-    "3c7b5f1d2a7e4cb68f4b33d20c342f87df8af3f8f0dcbcb3552f7c8f35ea1887"
-)
-SAMPLE_UPDATED_HASH = (
-    "bef4b0b23bc6e4fcbf64cfd9d3405fceea27191c0b37db114d4e62ebccb8eaf7"
-)
+SAMPLE_CONTENT_HASH = "3c7b5f1d2a7e4cb68f4b33d20c342f87df8af3f8f0dcbcb3552f7c8f35ea1887"
+SAMPLE_UPDATED_HASH = "bef4b0b23bc6e4fcbf64cfd9d3405fceea27191c0b37db114d4e62ebccb8eaf7"
 SAMPLE_WRITTEN_AT = "2026-05-28T10:00:00+00:00"
 
 

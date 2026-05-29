@@ -5,7 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from obsidian_memory_mcp.config.validation._errors import ConfigValidationError
-from obsidian_memory_mcp.config.validation._rules import type_error, validate_string_list
+from obsidian_memory_mcp.config.validation._rules import (
+    type_error,
+    validate_string_list,
+)
 
 
 def validate_write_constraints(

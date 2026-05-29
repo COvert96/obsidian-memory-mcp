@@ -196,9 +196,7 @@ class ContextPackResolver:
 
             vault_path = resolved_path.relative_to(self._config.vault_path).as_posix()
             candidates.append(
-                _DocumentCandidate(
-                    vault_path=vault_path, absolute_path=resolved_path
-                )
+                _DocumentCandidate(vault_path=vault_path, absolute_path=resolved_path)
             )
 
         documents: list[PackDocument] = []
