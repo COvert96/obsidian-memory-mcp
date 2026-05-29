@@ -147,6 +147,30 @@ def test_retrieval_tools_cover_fixture_vault_end_to_end(
     )
 
 
+def test_read_and_search_without_prior_index_or_manual_migrate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    vault = _prepare_vault(tmp_path)
+    index_db = vault / ".mcp" / "memory-index.sqlite3"
+    if index_db.exists():
+        index_db.unlink()
+
+    registry = _write_registry(tmp_path, vault)
+    monkeypatch.setenv(SERVER_REGISTRY_ENV_VAR, str(registry))
+
+    note_path = "wiki/concepts/compliance-as-code.md"
+    read_payload = _call("read_note", {"project": "sample", "note_path": note_path})
+    assert read_payload["file_path"] == note_path
+
+    search_payload = _call(
+        "search_notes",
+        {"project": "sample", "query": "compliance", "limit": 5},
+    )
+    assert "results" in search_payload
+    assert index_db.exists()
+
+
 def test_retrieval_tools_surface_expected_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

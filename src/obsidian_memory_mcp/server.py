@@ -7,6 +7,9 @@ framing, schema generation, and error serialisation.
 Domain exceptions (``ToolExecutionError``) raised inside tool functions
 propagate naturally to FastMCP, which converts them to
 ``CallToolResult(isError=True)`` responses.  No manual error-wrapping needed.
+
+Index schema is migrated lazily on first tool access per project via
+``ensure_index_migrated()`` in ``_project_config`` (memoized per DB path).
 """
 
 from __future__ import annotations
@@ -22,6 +25,7 @@ from obsidian_memory_mcp.config import (
 )
 from obsidian_memory_mcp.context_packs import ContextPackLoader
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
+from obsidian_memory_mcp.migrations import MigrationError, ensure_index_migrated
 from obsidian_memory_mcp.retrieval import (
     ReadNoteService,
     ReadSectionService,
@@ -256,7 +260,23 @@ def update_note(
 
 def _project_config(project: str) -> ProjectConfig:
     registry = load_project_registry()
-    return load_project_config(registry.resolve(project))
+    config = load_project_config(registry.resolve(project))
+    try:
+        ensure_index_migrated(config.index_db_location)
+    except MigrationError as exc:
+        raise ToolExecutionError(
+            build_error(
+                ErrorCode.ERR_INTERNAL,
+                message=(
+                    f"Failed to migrate index database for project '{project}': {exc}"
+                ),
+                details={
+                    "project": project,
+                    "index_db_path": str(config.index_db_location),
+                },
+            )
+        ) from exc
+    return config
 
 
 def _write_service(config: ProjectConfig, *, tool: str, project: str) -> WriteService:

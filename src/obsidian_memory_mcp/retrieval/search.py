@@ -11,7 +11,7 @@ from typing import Any
 
 from obsidian_memory_mcp.config import ProjectConfig
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
-from obsidian_memory_mcp.schema import connect_index_db
+from obsidian_memory_mcp.database import connect_index_db
 
 _BOOLEAN_TERMS = frozenset({"AND", "OR", "NOT"})
 _MAX_SEARCH_LIMIT = 100

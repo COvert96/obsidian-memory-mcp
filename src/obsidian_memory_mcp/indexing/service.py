@@ -31,7 +31,7 @@ from obsidian_memory_mcp.indexing.repository import (
     update_metadata_for_unchanged_file,
 )
 from obsidian_memory_mcp.parser import PARSER_VERSION, parse_markdown_bytes
-from obsidian_memory_mcp.schema import bootstrap_schema
+from obsidian_memory_mcp.migrations import ensure_index_migrated
 
 DEFAULT_EXCLUDED_DIRS = frozenset({".git", ".obsidian", ".trash", ".mcp"})
 SKIPPABLE_ERROR_TYPES = frozenset({"frontmatter_parse_error"})
@@ -51,8 +51,8 @@ def run_index(
     connection = None
 
     try:
+        ensure_index_migrated(config.index_db_location)
         connection = get_connection(config.index_db_location)
-        bootstrap_schema(connection)
         run_id = insert_run(connection, normalized_mode.value, parser_version)
         candidates = discover_markdown_files(config)
         file_rows = cast(

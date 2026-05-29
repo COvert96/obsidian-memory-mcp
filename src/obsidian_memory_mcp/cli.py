@@ -505,7 +505,8 @@ def _print_index_result(result: IndexRunResult) -> None:
 def _print_status(status: IndexStatus) -> None:
     print(f"Vault path: {status.vault_path}")
     print(f"Index DB path: {status.index_db_path}")
-    print(f"Schema version: {status.schema_version}")
+    revision = status.schema_revision or "<unmigrated>"
+    print(f"Schema revision: {revision}")
     print(f"Parser version: {status.parser_version}")
     print(f"Last run time: {status.last_run_time or '<none>'}")
     print(f"Last run status: {status.last_run_status or '<none>'}")

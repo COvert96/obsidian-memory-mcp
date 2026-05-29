@@ -21,7 +21,7 @@ from obsidian_memory_mcp.context_packs._models import (
     PackDocument,
 )
 from obsidian_memory_mcp.context_packs._resolver import ContextPackResolver
-from obsidian_memory_mcp.schema import connect_index_db
+from obsidian_memory_mcp.database import connect_index_db
 from obsidian_memory_mcp.tokens import estimate_tokens
 
 STALE_WARNING_TEMPLATE = (
