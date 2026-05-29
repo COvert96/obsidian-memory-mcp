@@ -13,3 +13,8 @@ When implementing any code, follow a strict Test-Driven Development (TDD) workfl
 
 Prioritize test quality over quantity. A single well-designed test that clearly expresses intent and covers a meaningful case is worth more than many shallow or redundant tests.
 </instructions>
+
+<constraints>
+- NEVER add "Co-Authored by ..." in commit messages, PR, or any tracked files.
+- Use the `devops` skill when commiting changes.
+</constraints>
