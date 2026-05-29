@@ -7,7 +7,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from obsidian_memory_mcp._time import duration_ms
+from obsidian_memory_mcp.utils import duration_ms
 from obsidian_memory_mcp.config import ProjectConfig
 from obsidian_memory_mcp.context_packs import ContextPackLoader, ContextPackResult
 from obsidian_memory_mcp.errors import ToolExecutionError

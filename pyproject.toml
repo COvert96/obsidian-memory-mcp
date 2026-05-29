@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "obsidian-memory-mcp"
-version = "0.1.0"
+version = "0.2.0"
 description = "MCP SDK-based server for guarded Obsidian memory access"
 readme = "README.md"
 license = "Apache-2.0"
@@ -40,6 +40,7 @@ dev = [
 	"mypy>=2.1.0",
 	"pytest>=8.4.0",
 	"pytest-cov>=7.0.0",
+	"radon>=6.0.1",
 	"ruff>=0.15.14",
 	"types-pyyaml>=6.0.12.20260518",
 ]

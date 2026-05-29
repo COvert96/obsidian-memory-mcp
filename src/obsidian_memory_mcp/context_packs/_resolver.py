@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import difflib
-import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from itertools import repeat
-from pathlib import Path, PurePath
+from pathlib import Path
 
 from obsidian_memory_mcp.config import (
     ContextPackConfig,
@@ -19,15 +18,15 @@ from obsidian_memory_mcp.context_packs._models import (
     Resolution,
     ResolvedContextPack,
 )
-from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
-from obsidian_memory_mcp.markdown_parser import (
-    find_headings,
-    normalize_heading_name,
-    section_end_index,
+from obsidian_memory_mcp.context_packs._resolver_paths import (
+    contains_glob,
+    expand_glob,
+    guard_read_path,
+    resolve_explicit_path,
 )
-from obsidian_memory_mcp.vault import parse_frontmatter
-
-_GLOB_CHARS = frozenset("*?[")
+from obsidian_memory_mcp.context_packs._resolver_sections import select_pack_content
+from obsidian_memory_mcp.context_packs._resolver_tags import matches_tags
+from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
 
 
 @dataclass(frozen=True)
@@ -41,20 +40,6 @@ class _ReadDocumentResult:
     document: PackDocument | None
     warnings: tuple[str, ...]
     tag_filtered_file: str | None = None
-
-
-@dataclass(frozen=True)
-class _ExplicitPathResolution:
-    absolute_path: Path | None = None
-    missing_file: str | None = None
-    warning: str | None = None
-
-
-@dataclass(frozen=True)
-class _SelectedContent:
-    content: str
-    fragments: tuple[str, ...]
-    warnings: tuple[str, ...]
 
 
 class ContextPackResolver:
@@ -161,13 +146,15 @@ class ContextPackResolver:
         warnings: list[str] = []
 
         for pattern in pack.paths:
-            if _contains_glob(pattern):
-                matched_paths, glob_warnings = self._expand_glob(pattern)
+            if contains_glob(pattern):
+                matched_paths, glob_warnings = expand_glob(self._config, pattern)
                 paths.extend(matched_paths)
                 warnings.extend(glob_warnings)
                 continue
 
-            explicit_path = self._explicit_path(pattern)
+            explicit_path = resolve_explicit_path(
+                self._config, self._guardrails, pattern
+            )
             if explicit_path.warning is not None:
                 warnings.append(explicit_path.warning)
                 continue
@@ -187,39 +174,6 @@ class ContextPackResolver:
             tag_filtered_files=resolved.tag_filtered_files,
         )
 
-    def _explicit_path(self, pattern: str) -> _ExplicitPathResolution:
-        path = _normalize_vault_reference(pattern)
-        if _is_unsafe_pattern(path):
-            return _ExplicitPathResolution(
-                warning=f"Path '{path}' was skipped because it is unsafe."
-            )
-        if not self._guardrails.allows_read_relative(path):
-            return _ExplicitPathResolution(
-                warning=f"File '{path}' was skipped because it violates read guardrails."
-            )
-
-        absolute_path = self._config.vault_path / path
-        if not absolute_path.is_file():
-            return _ExplicitPathResolution(missing_file=path)
-        return _ExplicitPathResolution(absolute_path=absolute_path)
-
-    def _expand_glob(self, pattern: str) -> tuple[tuple[Path, ...], tuple[str, ...]]:
-        normalized = _normalize_vault_reference(pattern)
-        if _is_unsafe_pattern(normalized):
-            return (), (
-                f"Path pattern '{normalized}' was skipped because it is unsafe.",
-            )
-
-        matches = sorted(
-            (
-                path
-                for path in self._config.vault_path.glob(normalized)
-                if path.is_file()
-            ),
-            key=lambda path: path.relative_to(self._config.vault_path).as_posix(),
-        )
-        return tuple(matches), ()
-
     def _documents_from_paths(
         self,
         paths: tuple[Path, ...],
@@ -231,23 +185,20 @@ class ContextPackResolver:
         collected_warnings = list(warnings)
 
         for absolute_path in paths:
-            vault_path = absolute_path.relative_to(self._config.vault_path).as_posix()
-            if not self._guardrails.allows_read_relative(vault_path):
-                collected_warnings.append(
-                    f"File '{vault_path}' was skipped because it violates read guardrails."
-                )
+            resolved_path, warning = guard_read_path(
+                self._config, self._guardrails, absolute_path
+            )
+            if warning is not None:
+                collected_warnings.append(warning)
                 continue
-            if _has_symlink_segment(self._config.vault_path, absolute_path):
-                try:
-                    absolute_path = self._guardrails.check_read(vault_path)
-                except ToolExecutionError as error:
-                    collected_warnings.append(
-                        f"Path '{vault_path}' was skipped: {error.error.message}"
-                    )
-                    continue
+            if resolved_path is None:
+                continue
 
+            vault_path = resolved_path.relative_to(self._config.vault_path).as_posix()
             candidates.append(
-                _DocumentCandidate(vault_path=vault_path, absolute_path=absolute_path)
+                _DocumentCandidate(
+                    vault_path=vault_path, absolute_path=resolved_path
+                )
             )
 
         documents: list[PackDocument] = []
@@ -284,14 +235,14 @@ def _read_candidate(
     pack: ContextPackConfig,
 ) -> _ReadDocumentResult:
     raw = candidate.absolute_path.read_text(encoding="utf-8")
-    if not _matches_tags(raw, pack.tags_filter):
+    if not matches_tags(raw, pack.tags_filter):
         return _ReadDocumentResult(
             document=None,
             warnings=(),
             tag_filtered_file=candidate.vault_path,
         )
 
-    selected = _select_pack_content(
+    selected = select_pack_content(
         vault_path=candidate.vault_path,
         raw_content=raw,
         section_names=pack.sections,
@@ -305,147 +256,3 @@ def _read_candidate(
         ),
         warnings=selected.warnings,
     )
-
-
-def _select_pack_content(
-    *,
-    vault_path: str,
-    raw_content: str,
-    section_names: tuple[str, ...],
-) -> _SelectedContent:
-    if not section_names:
-        return _SelectedContent(
-            content=raw_content,
-            fragments=_split_complete_sections(raw_content),
-            warnings=(),
-        )
-
-    selected, missing = _extract_named_sections(raw_content, section_names)
-    if not selected:
-        return _SelectedContent(
-            content=raw_content,
-            fragments=_split_complete_sections(raw_content),
-            warnings=(
-                f"Sections not found in '{vault_path}': {', '.join(section_names)}; "
-                "included full file as fallback.",
-            ),
-        )
-
-    if missing:
-        return _SelectedContent(
-            content="\n\n".join(selected),
-            fragments=selected,
-            warnings=(
-                f"Sections not found in '{vault_path}': {', '.join(missing)}; "
-                "included available sections only.",
-            ),
-        )
-
-    return _SelectedContent(
-        content="\n\n".join(selected),
-        fragments=selected,
-        warnings=(),
-    )
-
-
-def _extract_named_sections(
-    content: str,
-    section_names: tuple[str, ...],
-) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    lines = content.splitlines()
-    headings = find_headings(lines)
-    target_by_normalized = {
-        normalize_heading_name(name): name for name in section_names
-    }
-    found: set[str] = set()
-    selected: list[str] = []
-
-    for heading in headings:
-        normalized = normalize_heading_name(heading.text)
-        if normalized not in target_by_normalized:
-            continue
-        found.add(normalized)
-        end_index = section_end_index(headings, heading, line_count=len(lines))
-        selected.append("\n".join(lines[heading.line_index : end_index]).rstrip())
-
-    missing = tuple(
-        name for name in section_names if normalize_heading_name(name) not in found
-    )
-    return tuple(selected), missing
-
-
-def _split_complete_sections(content: str) -> tuple[str, ...]:
-    lines = content.splitlines()
-    headings = find_headings(lines)
-    if not headings:
-        return (content,) if content else ()
-
-    fragments: list[str] = []
-    first_heading = headings[0].line_index
-    preamble = "\n".join(lines[:first_heading]).rstrip()
-    if preamble:
-        fragments.append(preamble)
-
-    for index, heading in enumerate(headings):
-        next_index = (
-            headings[index + 1].line_index if index + 1 < len(headings) else len(lines)
-        )
-        fragment = "\n".join(lines[heading.line_index : next_index]).rstrip()
-        if fragment:
-            fragments.append(fragment)
-    return tuple(fragments)
-
-
-def _matches_tags(content: str, tags_filter: tuple[str, ...]) -> bool:
-    if not tags_filter:
-        return True
-    available = _frontmatter_tags(content)
-    required = {_normalize_tag(tag) for tag in tags_filter}
-    return required.issubset(available)
-
-
-def _frontmatter_tags(content: str) -> set[str]:
-    value = parse_frontmatter(content).get("tags")
-    if value is None:
-        return set()
-    if isinstance(value, str):
-        return {
-            _normalize_tag(part) for part in re.split(r"[\s,]+", value) if part.strip()
-        }
-    if isinstance(value, (list, tuple)):
-        return {_normalize_tag(str(part)) for part in value if str(part).strip()}
-    return {_normalize_tag(str(value))}
-
-
-def _contains_glob(pattern: str) -> bool:
-    return any(character in pattern for character in _GLOB_CHARS)
-
-
-def _normalize_vault_reference(value: str) -> str:
-    return value.replace("\\", "/").lstrip("/")
-
-
-def _is_unsafe_pattern(pattern: str) -> bool:
-    path = PurePath(pattern)
-    return path.is_absolute() or ".." in path.parts
-
-
-def _has_symlink_segment(vault_root: Path, path: Path) -> bool:
-    try:
-        relative_parts = path.relative_to(vault_root).parts
-    except ValueError:
-        return True
-
-    current = vault_root
-    for part in relative_parts:
-        current = current / part
-        try:
-            if current.is_symlink():
-                return True
-        except OSError:
-            return True
-    return False
-
-
-def _normalize_tag(tag: str) -> str:
-    return tag.strip().lstrip("#").casefold()

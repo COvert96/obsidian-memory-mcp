@@ -1,12 +1,11 @@
-"""Shared markdown heading parsing helpers."""
+"""Read-time heading discovery and section boundaries."""
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
 
-_HEADING_RE = re.compile(r"^(#{1,6})[ \t]+(.+?)\s*$")
-_FENCE_RE = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})(.*)$")
+from obsidian_memory_mcp.markdown._fence import HEADING_RE, next_fence_state
 
 
 @dataclass(frozen=True)
@@ -16,25 +15,16 @@ class MarkdownHeading:
     text: str
 
 
-@dataclass(frozen=True)
-class _FenceState:
-    marker: str
-    length: int
-
-
 def find_headings(lines: list[str]) -> tuple[MarkdownHeading, ...]:
     headings: list[MarkdownHeading] = []
-    fence_state: _FenceState | None = None
+    fence_state = None
 
     for index, line in enumerate(lines):
-        fence_match = _FENCE_RE.match(line)
-        if fence_match is not None:
-            fence_state = _next_fence_state(fence_match, fence_state)
-            continue
+        fence_state = next_fence_state(line, fence_state)
         if fence_state is not None:
             continue
 
-        heading_match = _HEADING_RE.match(line)
+        heading_match = HEADING_RE.match(line)
         if heading_match is None:
             continue
 
@@ -82,18 +72,3 @@ def clean_heading_text(text: str) -> str:
 
 def normalize_heading_name(value: str) -> str:
     return clean_heading_text(value.lstrip("#").strip()).casefold()
-
-
-def _next_fence_state(
-    match: re.Match[str],
-    current: _FenceState | None,
-) -> _FenceState | None:
-    marker_text = match.group(1)
-    suffix = match.group(2).strip()
-    marker = marker_text[0]
-    length = len(marker_text)
-    if current is None:
-        return _FenceState(marker=marker, length=length)
-    if current.marker == marker and length >= current.length and not suffix:
-        return None
-    return current

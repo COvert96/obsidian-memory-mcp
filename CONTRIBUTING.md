@@ -15,10 +15,13 @@ Use `uv run` for project commands. Do not call `.venv/Scripts/python.exe` or bar
 
 ```powershell
 uv run ruff check
-uv run mypy src
+uv run mypy --strict src
+uv run python scripts/radon_gate.py
 uv run pytest tests
 uv run pytest tests/release
 ```
+
+Radon fails the gate when any module has cyclomatic complexity grade **C+**, maintainability index grade **C**, or maintainability index below **20**. See [docs/python-api.md](docs/python-api.md) for intended import boundaries.
 
 Coverage target for release-critical code is 80%. CI generates `coverage.xml` and terminal coverage output.
 

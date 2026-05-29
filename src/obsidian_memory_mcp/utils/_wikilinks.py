@@ -1,4 +1,4 @@
-"""Helpers for parsing and normalizing Obsidian wikilinks."""
+"""Obsidian wikilink parsing and normalization."""
 
 from __future__ import annotations
 

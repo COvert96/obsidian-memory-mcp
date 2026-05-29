@@ -1,4 +1,4 @@
-"""Internal helpers for monotonic timing."""
+"""Monotonic timing helpers."""
 
 from __future__ import annotations
 

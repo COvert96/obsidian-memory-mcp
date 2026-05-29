@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
 
-from obsidian_memory_mcp._time import duration_ms
+from obsidian_memory_mcp.utils import duration_ms
 from obsidian_memory_mcp.config import GuardrailEvaluator, ProjectConfig
 from obsidian_memory_mcp.database import get_connection
 from obsidian_memory_mcp.indexing._models import (
@@ -158,12 +158,71 @@ def _process_candidate(
     parser_version: str,
     force_reindex: bool,
 ) -> None:
-    if not force_reindex and _is_stat_fresh(existing_file, candidate, parser_version):
+    if _skip_fresh_candidate(
+        existing_file, candidate, parser_version, force_reindex=force_reindex
+    ):
         stats.files_skipped += 1
         return
 
+    raw_bytes = _read_candidate_bytes(
+        connection,
+        candidate,
+        existing_file,
+        run_id,
+        parser_version=parser_version,
+        stats=stats,
+    )
+    if raw_bytes is None:
+        return
+
+    file_hash = _sha256(raw_bytes)
+    if _skip_unchanged_candidate(
+        connection,
+        candidate,
+        existing_file,
+        run_id,
+        file_hash=file_hash,
+        parser_version=parser_version,
+        force_reindex=force_reindex,
+        stats=stats,
+    ):
+        return
+
+    _index_candidate_bytes(
+        connection,
+        candidate,
+        existing_file,
+        run_id,
+        raw_bytes=raw_bytes,
+        file_hash=file_hash,
+        parser_version=parser_version,
+        stats=stats,
+    )
+
+
+def _skip_fresh_candidate(
+    existing_file: Mapping[str, object] | None,
+    candidate: FileCandidate,
+    parser_version: str,
+    *,
+    force_reindex: bool,
+) -> bool:
+    return not force_reindex and _is_stat_fresh(
+        existing_file, candidate, parser_version
+    )
+
+
+def _read_candidate_bytes(
+    connection: Any,
+    candidate: FileCandidate,
+    existing_file: Mapping[str, object] | None,
+    run_id: int,
+    *,
+    parser_version: str,
+    stats: _RunStats,
+) -> bytes | None:
     try:
-        raw_bytes = read_file_bytes(candidate.absolute_path)
+        return read_file_bytes(candidate.absolute_path)
     except OSError as error:
         record_file_failure(
             connection,
@@ -180,23 +239,49 @@ def _process_candidate(
         )
         stats.files_failed += 1
         stats.errors += 1
-        return
+        return None
 
-    file_hash = _sha256(raw_bytes)
-    if (
-        not force_reindex
-        and existing_file is not None
-        and existing_file["deleted_at"] is None
-        and str(existing_file["parser_version"]) == parser_version
-        and _row_optional_str(existing_file, "file_hash") == file_hash
-        and _can_skip_existing_error(existing_file)
-    ):
-        update_metadata_for_unchanged_file(
-            connection, _row_int(existing_file, "id"), candidate, run_id
-        )
-        stats.files_skipped += 1
-        return
 
+def _skip_unchanged_candidate(
+    connection: Any,
+    candidate: FileCandidate,
+    existing_file: Mapping[str, object] | None,
+    run_id: int,
+    *,
+    file_hash: str,
+    parser_version: str,
+    force_reindex: bool,
+    stats: _RunStats,
+) -> bool:
+    if force_reindex or existing_file is None:
+        return False
+    if existing_file["deleted_at"] is not None:
+        return False
+    if str(existing_file["parser_version"]) != parser_version:
+        return False
+    if _row_optional_str(existing_file, "file_hash") != file_hash:
+        return False
+    if not _can_skip_existing_error(existing_file):
+        return False
+
+    update_metadata_for_unchanged_file(
+        connection, _row_int(existing_file, "id"), candidate, run_id
+    )
+    stats.files_skipped += 1
+    return True
+
+
+def _index_candidate_bytes(
+    connection: Any,
+    candidate: FileCandidate,
+    existing_file: Mapping[str, object] | None,
+    run_id: int,
+    *,
+    raw_bytes: bytes,
+    file_hash: str,
+    parser_version: str,
+    stats: _RunStats,
+) -> None:
     try:
         parsed = parse_markdown_bytes(
             vault_path=candidate.vault_path,
@@ -233,7 +318,6 @@ def _process_candidate(
     stats.files_processed += 1
     stats.sections_indexed += len(parsed.sections)
     stats.blocks_indexed += len(parsed.blocks)
-
     if file_error:
         stats.errors += 1
 

@@ -24,7 +24,7 @@ import yaml
 
 from obsidian_memory_mcp.config import GuardrailEvaluator, ProjectConfig
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
-from obsidian_memory_mcp.paths import normalize_vault_path
+from obsidian_memory_mcp.utils import normalize_vault_path
 from obsidian_memory_mcp.writes._io import atomic_write
 
 

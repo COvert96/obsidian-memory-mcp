@@ -6,10 +6,10 @@ import json
 import re
 import sqlite3
 from dataclasses import dataclass
-from functools import lru_cache
 from typing import Any
 
 from obsidian_memory_mcp.config import ProjectConfig
+from obsidian_memory_mcp.utils import glob_matches, normalize_glob
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
 from obsidian_memory_mcp.database import connect_index_db
 
@@ -41,29 +41,15 @@ class SearchService:
 
         result_limit = _validate_limit(limit)
         regex_query = _parse_regex_query(normalized_query)
-        fts_query = regex_query.fts_query if regex_query else normalized_query
-        sql, params = _search_sql(
-            fts_query,
-            limit=None if regex_query else result_limit,
+        rows = _fetch_search_rows(
+            self._config,
+            normalized_query,
+            regex_query=regex_query,
+            result_limit=result_limit,
             tags=tags or [],
             paths=paths or [],
             exclude_paths=exclude_paths or [],
         )
-
-        connection = connect_index_db(self._config.index_db_location)
-        try:
-            _register_glob_function(connection)
-            rows = _execute_search(connection, sql, params, normalized_query)
-        finally:
-            connection.close()
-
-        if regex_query is not None:
-            rows = [
-                row
-                for row in rows
-                if regex_query.pattern.search(row["content"]) is not None
-            ][:result_limit]
-
         results = [_row_to_result(row, normalized_query, regex_query) for row in rows]
         return {
             "query": query,
@@ -76,6 +62,41 @@ class SearchService:
 class _RegexQuery:
     pattern: re.Pattern[str]
     fts_query: str
+
+
+def _fetch_search_rows(
+    config: ProjectConfig,
+    normalized_query: str,
+    *,
+    regex_query: _RegexQuery | None,
+    result_limit: int,
+    tags: list[str],
+    paths: list[str],
+    exclude_paths: list[str],
+) -> list[sqlite3.Row]:
+    fts_query = regex_query.fts_query if regex_query else normalized_query
+    sql, params = _search_sql(
+        fts_query,
+        limit=None if regex_query else result_limit,
+        tags=tags,
+        paths=paths,
+        exclude_paths=exclude_paths,
+    )
+    connection = connect_index_db(config.index_db_location)
+    try:
+        _register_glob_function(connection)
+        rows = _execute_search(connection, sql, params, normalized_query)
+    finally:
+        connection.close()
+
+    if regex_query is None:
+        return rows
+
+    return [
+        row
+        for row in rows
+        if regex_query.pattern.search(row["content"]) is not None
+    ][:result_limit]
 
 
 def _validate_limit(limit: int) -> int:
@@ -120,33 +141,52 @@ def _search_sql(
 ) -> tuple[str, tuple[object, ...]]:
     where = ["blocks_fts MATCH ?", "files.deleted_at IS NULL"]
     params: list[object] = [query]
+    _append_tag_filters(where, params, tags)
+    _append_include_path_filters(where, params, paths)
+    _append_exclude_path_filters(where, params, exclude_paths)
+    if limit is not None:
+        params.append(limit)
+    limit_clause = "LIMIT ?" if limit is not None else ""
+    return _search_select_sql(where, params, limit_clause)
 
-    normalized_tags = tuple(_normalize_tag(tag) for tag in tags)
-    for tag in normalized_tags:
+
+def _append_tag_filters(
+    where: list[str], params: list[object], tags: list[str]
+) -> None:
+    for tag in (_normalize_tag(tag) for tag in tags):
         if not tag:
             continue
         where.append("LOWER(blocks.tags) LIKE ? ESCAPE '\\'")
         params.append(f'%"{_escape_like_pattern(tag)}"%')
 
-    include_patterns = tuple(_normalize_glob(path) for path in paths if path.strip())
-    if include_patterns:
-        where.append(
-            "("
-            + " OR ".join(
-                "vault_path_glob_match(?, blocks.vault_path)" for _ in include_patterns
-            )
-            + ")"
-        )
-        params.extend(include_patterns)
 
-    for pattern in (_normalize_glob(path) for path in exclude_paths if path.strip()):
+def _append_include_path_filters(
+    where: list[str], params: list[object], paths: list[str]
+) -> None:
+    include_patterns = tuple(normalize_glob(path) for path in paths if path.strip())
+    if not include_patterns:
+        return
+    where.append(
+        "("
+        + " OR ".join(
+            "vault_path_glob_match(?, blocks.vault_path)" for _ in include_patterns
+        )
+        + ")"
+    )
+    params.extend(include_patterns)
+
+
+def _append_exclude_path_filters(
+    where: list[str], params: list[object], exclude_paths: list[str]
+) -> None:
+    for pattern in (normalize_glob(path) for path in exclude_paths if path.strip()):
         where.append("NOT vault_path_glob_match(?, blocks.vault_path)")
         params.append(pattern)
 
-    if limit is not None:
-        params.append(limit)
 
-    limit_clause = "LIMIT ?" if limit is not None else ""
+def _search_select_sql(
+    where: list[str], params: list[object], limit_clause: str
+) -> tuple[str, tuple[object, ...]]:
     return (
         f"""
         SELECT
@@ -266,50 +306,7 @@ def _register_glob_function(connection: sqlite3.Connection) -> None:
 def _sqlite_glob_match(pattern: str | None, vault_path: str | None) -> int:
     if pattern is None or vault_path is None:
         return 0
-    return int(_glob_matches(pattern, vault_path))
-
-
-def _glob_matches(pattern: str, vault_path: str) -> bool:
-    normalized_path = vault_path.replace("\\", "/").lstrip("/")
-    return (
-        _compile_glob_regex(_normalize_glob(pattern)).fullmatch(normalized_path)
-        is not None
-    )
-
-
-@lru_cache(maxsize=512)
-def _compile_glob_regex(pattern: str) -> re.Pattern[str]:
-    return re.compile(_glob_to_regex(pattern))
-
-
-def _glob_to_regex(pattern: str) -> str:
-    normalized = _normalize_glob(pattern)
-    pieces: list[str] = ["^"]
-    index = 0
-    while index < len(normalized):
-        if normalized.startswith("**/", index):
-            pieces.append("(?:.*/)?")
-            index += 3
-            continue
-        if normalized.startswith("**", index):
-            pieces.append(".*")
-            index += 2
-            continue
-
-        character = normalized[index]
-        if character == "*":
-            pieces.append("[^/]*")
-        elif character == "?":
-            pieces.append("[^/]")
-        else:
-            pieces.append(re.escape(character))
-        index += 1
-    pieces.append("$")
-    return "".join(pieces)
-
-
-def _normalize_glob(pattern: str) -> str:
-    return pattern.replace("\\", "/").lstrip("/")
+    return int(glob_matches(pattern, vault_path))
 
 
 def _escape_like_pattern(value: str) -> str:

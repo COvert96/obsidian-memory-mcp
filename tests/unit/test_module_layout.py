@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import importlib
+import pkgutil
+
 from obsidian_memory_mcp.config import (
     ConfigValidationError,
     ConfigValidationException,
@@ -13,22 +16,21 @@ from obsidian_memory_mcp.context_packs import (
     ContextPackSummary,
     SqliteIndexQueries,
 )
+from obsidian_memory_mcp.contracts import TOOL_CONTRACTS, ToolContract
 from obsidian_memory_mcp.indexing import (
+    FileCandidate,
     IndexMode,
     IndexRunResult,
     discover_markdown_files,
     run_index,
 )
-from obsidian_memory_mcp.indexing import repository as indexing_repository
-from obsidian_memory_mcp.indexing import service as indexing_service
-from obsidian_memory_mcp.indexing._models import FileCandidate
+from obsidian_memory_mcp.markdown import parse_frontmatter
 from obsidian_memory_mcp.retrieval import (
     ReadNoteService,
     ReadSectionService,
     SearchService,
 )
-from obsidian_memory_mcp.retrieval import readers as retrieval_readers
-from obsidian_memory_mcp.retrieval import search as retrieval_search
+from obsidian_memory_mcp.utils import duration_ms, normalize_vault_path
 
 
 def test_context_pack_features_are_grouped_under_context_packs_package() -> None:
@@ -52,19 +54,63 @@ def test_indexing_features_are_grouped_under_indexing_package() -> None:
     assert IndexMode is not None
     assert IndexRunResult is not None
     assert FileCandidate is not None
-    assert indexing_service is not None
-    assert indexing_repository is not None
 
 
 def test_retrieval_features_are_grouped_under_retrieval_package() -> None:
     assert ReadNoteService is not None
     assert ReadSectionService is not None
     assert SearchService is not None
-    assert retrieval_readers is not None
-    assert retrieval_search is not None
 
 
 def test_config_validation_features_are_grouped_under_validation_package() -> None:
     assert ConfigValidator is not None
     assert ConfigValidationError is not None
     assert ConfigValidationException is not None
+
+
+def test_shared_packages_expose_public_apis() -> None:
+    assert parse_frontmatter is not None
+    assert normalize_vault_path is not None
+    assert duration_ms is not None
+    assert TOOL_CONTRACTS
+    assert ToolContract is not None
+
+
+def test_domain_packages_use_underscore_models_module() -> None:
+    for package_name in ("config", "context_packs", "indexing", "writes", "parser"):
+        module = importlib.import_module(f"obsidian_memory_mcp.{package_name}")
+        assert hasattr(module, "__all__")
+        models = importlib.import_module(f"obsidian_memory_mcp.{package_name}._models")
+        assert models.__file__ is not None
+
+
+def test_internal_submodules_are_not_reexported_at_package_root() -> None:
+    config = importlib.import_module("obsidian_memory_mcp.config")
+    assert "GuardrailEvaluator" in config.__all__
+    assert "ProjectConfig" in config.__all__
+
+    utils = importlib.import_module("obsidian_memory_mcp.utils")
+    assert "_glob" not in utils.__all__
+    assert "normalize_glob" in utils.__all__
+
+
+def test_no_flat_duplicate_top_level_helper_modules() -> None:
+    package = importlib.import_module("obsidian_memory_mcp")
+    top_level_modules = {
+        name
+        for _finder, name, ispkg in pkgutil.iter_modules(package.__path__)
+        if not ispkg
+    }
+    retired = {
+        "glob_utils",
+        "hashing",
+        "paths",
+        "wikilinks",
+        "markdown_fence",
+        "markdown_frontmatter",
+        "markdown_parser",
+        "contract_examples",
+        "vault",
+        "_time",
+    }
+    assert retired.isdisjoint(top_level_modules)

@@ -4,7 +4,8 @@ Run these commands before tagging a GitHub release:
 
 ```powershell
 uv run ruff check
-uv run mypy src
+uv run mypy --strict src
+uv run python scripts/radon_gate.py
 uv run pytest --cov=obsidian_memory_mcp --cov-report=term-missing --cov-report=xml --cov-fail-under=80 tests
 uv run pytest tests/release
 uv run mcp-memory benchmark relevance C:\path\to\fixture-vault --queries tests/benchmarks/benchmark-queries.yaml --min-accuracy 0.80
@@ -22,9 +23,16 @@ The benchmark command requires a valid `memory-mcp.yaml` and a built index. The 
 | Phase 2: indexing, hash deduplication, FTS creation | `tests/unit/test_indexer.py`, `tests/integration/test_indexing_workflow.py`. |
 | Phase 3: read/search tools, latency, relevance | `tests/integration/test_retrieval_tools.py`, `tests/release/test_relevance_benchmark.py`, `tests/benchmarks/benchmark-queries.yaml`. |
 | Phase 4: context packs, token caps, strict budget | `tests/unit/test_context_packs.py`, `tests/unit/test_context_pack_truncation.py`, `tests/integration/test_context_pack_tools.py`. |
-| Phase 5A/5B: proposal workflow, audit trail, changesets, supersession | `tests/unit/test_proposals.py`, `tests/unit/test_changesets.py`, `tests/integration/test_approval_workflow.py`, `tests/integration/test_memory_supersession.py`. |
+| Phase 5: direct writes, audit trail, supersession | `tests/unit/test_write_service.py`, `tests/unit/test_write_audit.py`, `tests/unit/test_supersession_service.py`, `tests/integration/test_write_tools.py`. |
 
 ## GitHub Release Steps
+
+Tag only after feature work is merged to `main` and the quality gates above pass.
+
+| Tag | Purpose |
+|-----|---------|
+| `v0.2.0-rc.1` | Pre-release on GitHub; run the full quality gates table and fixture benchmarks |
+| `v0.2.0` | Final release after RC validation |
 
 1. Confirm CI is green on `main`.
 2. Confirm `CHANGELOG.md` has release notes and known limitations.

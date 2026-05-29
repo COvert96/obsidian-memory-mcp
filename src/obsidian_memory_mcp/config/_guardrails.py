@@ -4,9 +4,11 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from obsidian_memory_mcp.utils import glob_to_regex, normalize_glob
+
 from obsidian_memory_mcp.config._models import AccessPolicy, ProjectConfig
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
-from obsidian_memory_mcp.paths import normalize_vault_path
+from obsidian_memory_mcp.utils import normalize_vault_path
 
 
 class GuardrailEvaluator:
@@ -98,7 +100,7 @@ class _CompiledPolicy:
 
 
 def _compile_rule(pattern: str) -> _CompiledRule:
-    normalized = pattern.replace("\\", "/").lstrip("/")
+    normalized = normalize_glob(pattern)
     if normalized.endswith("/"):
         directory = re.escape(normalized.rstrip("/"))
         return _CompiledRule(pattern, re.compile(rf"{directory}(/.*)?"))
@@ -106,30 +108,4 @@ def _compile_rule(pattern: str) -> _CompiledRule:
     if not any(character in normalized for character in "*?[]"):
         return _CompiledRule(pattern, re.compile(re.escape(normalized)))
 
-    return _CompiledRule(pattern, re.compile(_glob_to_regex(normalized)))
-
-
-def _glob_to_regex(pattern: str) -> str:
-    pieces: list[str] = ["^"]
-    index = 0
-    while index < len(pattern):
-        character = pattern[index]
-        if character == "*":
-            if index + 1 < len(pattern) and pattern[index + 1] == "*":
-                if index + 2 < len(pattern) and pattern[index + 2] == "/":
-                    pieces.append("(?:.*/)?")
-                    index += 3
-                else:
-                    pieces.append(".*")
-                    index += 2
-            else:
-                pieces.append("[^/]*")
-                index += 1
-        elif character == "?":
-            pieces.append("[^/]")
-            index += 1
-        else:
-            pieces.append(re.escape(character))
-            index += 1
-    pieces.append("$")
-    return "".join(pieces)
+    return _CompiledRule(pattern, re.compile(glob_to_regex(normalized)))

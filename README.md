@@ -1,16 +1,16 @@
 # Obsidian Memory MCP
 
-Obsidian Memory MCP is a local MCP server that gives AI clients guarded access to an Obsidian-style markdown vault. It provides deterministic retrieval with SQLite FTS5, token-budgeted context packs, and a proposal-based write workflow for memory updates.
+Obsidian Memory MCP is a local MCP server that gives AI clients guarded access to an Obsidian-style markdown vault. It provides deterministic retrieval with SQLite FTS5, token-budgeted context packs, and direct atomic writes with audit logging for memory updates.
 
-Release status: MVP GitHub source release, version `0.1.0`. PyPI publication and hosted documentation are not part of this release.
+Release status: GitHub source release, version `0.2.0`. PyPI publication and hosted documentation are not part of this release.
 
 ## Features
 
 - Read full notes and individual markdown sections from configured vaults.
 - Search indexed markdown blocks with path, tag, and exclusion filters.
 - Load curated context packs with strict or soft token budgets.
-- Propose memory updates under `Memory/**` without writing immediately.
-- List, approve, and reject proposals with audit trail support.
+- Create and update memory files under `Memory/**` with guardrails and optimistic-lock hashes.
+- Inspect the append-only `write_audit` log from the CLI.
 - Run release gates, relevance benchmarks, and performance baseline checks from the repository.
 
 ## Requirements
@@ -74,13 +74,18 @@ uv run mcp-memory audit writes C:\path\to\vault --limit 50
 
 ```powershell
 uv run ruff check
-uv run mypy src
+uv run mypy --strict src
+uv run python scripts/radon_gate.py
 uv run pytest --cov=obsidian_memory_mcp --cov-report=term-missing --cov-report=xml --cov-fail-under=80 tests
 uv run pytest tests/release
 uv run mcp-memory benchmark relevance C:\path\to\fixture-vault --queries tests/benchmarks/benchmark-queries.yaml --min-accuracy 0.80
 ```
 
 The benchmark command expects the vault to have a valid `memory-mcp.yaml` and a built index. The release test suite prepares an isolated copy of the fixture vault automatically.
+
+## Python API
+
+The supported integration surface is the **MCP server** (`uv run mcp-memory serve`) and **CLI** (`uv run mcp-memory`). Importing `obsidian_memory_mcp` is possible for tests and advanced embedding, but public symbols in `obsidian_memory_mcp.__all__` are not semver-guaranteed until a future library release is documented. See [docs/python-api.md](docs/python-api.md) for module boundaries and which `_`-prefixed files are internal.
 
 ## Safety Model
 
@@ -101,6 +106,7 @@ Do not share real private vault data, credentials, or personal data in public is
 - [Error codes](docs/error-codes.md)
 - [Performance baseline](docs/performance-baseline.md)
 - [Release checklist](docs/release-checklist.md)
+- [Python API boundaries](docs/python-api.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 
