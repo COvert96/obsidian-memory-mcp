@@ -1,0 +1,8 @@
+interface:
+  display_name: Memory maintenance
+  short_description: Review and refresh stale or flagged Memory/ notes
+
+dependencies:
+  tools:
+    - type: mcp
+      description: obsidian-memory-mcp server (>= v0.2.0) with search_notes, read_note, update_memory

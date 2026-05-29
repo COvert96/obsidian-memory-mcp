@@ -76,4 +76,4 @@ Use kebab-case filenames, `.md` extension, and stay under `Memory/`. Prefer topi
 
 - [Write tools guide](../../../write-tools-guide.md) — supersession, `expected_hash`, audit log.
 - [Tool reference](../../../tool-reference.md) — `write_memory`, `update_memory`, `read_note`.
-- Phase **9b** will add `structured-note-template` for full frontmatter field reference (not yet in this library).
+- [structured-note-template](../structured-note-template/) — frontmatter, headings, and `Memory/` naming conventions.
