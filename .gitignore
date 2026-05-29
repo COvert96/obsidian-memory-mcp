@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# GitHub Actions release workflow (generated locally by scripts/extract_changelog.py)
+release-notes.md
+
 # Distribution / packaging
 .Python
 build/

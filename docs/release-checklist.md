@@ -34,15 +34,35 @@ Tag only after feature work is merged to `main` and the quality gates above pass
 | `v0.2.0-rc.1` | Pre-release on GitHub; run the full quality gates table and fixture benchmarks |
 | `v0.2.0` | Final release after RC validation |
 
-1. Confirm CI is green on `main`.
-2. Confirm `CHANGELOG.md` has release notes and known limitations.
-3. Confirm `pyproject.toml` version is the intended tag version.
-4. Create a signed or annotated tag, for example `v0.1.0`.
-5. Create a GitHub release using the changelog section as release notes.
-6. Do not publish to PyPI for the MVP.
+### Automated release (GitHub Actions)
+
+Pushing a tag matching `v*` triggers [`.github/workflows/release.yml`](../.github/workflows/release.yml):
+
+1. Runs the same [quality gates](../.github/workflows/quality-gates.yml) as CI (Ubuntu + Windows).
+2. Verifies the tag maps to `pyproject.toml` `project.version` (`scripts/verify_release_tag.py`).
+3. Copies the matching `CHANGELOG.md` section into `release-notes.md` (`scripts/extract_changelog.py`).
+4. Creates a GitHub Release (marked **pre-release** when the tag contains `-rc`).
+
+Manual steps before tagging:
+
+1. Confirm CI is green on the release branch.
+2. Add a `CHANGELOG.md` section whose heading starts with the tag version (for example `## 0.2.0-rc.1 - 2026-05-29`). The workflow uses that section as the release body.
+3. Set `pyproject.toml` `version` to the PEP 440 form of the tag (`v0.2.0-rc.1` → `0.2.0rc1`).
+4. Run `uv lock` and `uv sync` so `uv.lock` matches `pyproject.toml`.
+5. Push an annotated tag, for example `git tag -a v0.2.0-rc.1 -m "0.2.0-rc.1"` then `git push origin v0.2.0-rc.1`.
+
+Do not publish to PyPI for the MVP.
+
+### Local dry-run (optional)
+
+```powershell
+uv run python scripts/verify_release_tag.py v0.2.0-rc.1
+uv run python scripts/extract_changelog.py v0.2.0-rc.1
+Get-Content release-notes.md
+```
 
 ## Versioning Policy
 
 The project uses semantic versioning. Before `1.0.0`, minor versions may include breaking changes if release notes call them out. After `1.0.0`, breaking MCP tool signature changes or config schema changes require a major version bump.
 
-The current config schema is supported for the `0.1.x` line. Config migration tooling is out of scope until a real schema migration exists.
+The **0.2.x** config schema drops proposal-era keys; `mcp-memory migrate` applies Alembic migration 002. Upgrading from **0.1.x** indexes is documented in [migration-guide.md](migration-guide.md).
