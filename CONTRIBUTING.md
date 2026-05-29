@@ -36,6 +36,15 @@ Use a TDD approach for code changes. Add or update one focused test that capture
 - Update docs and benchmark expected results when fixture content or public behavior changes.
 - Do not include real private vault data, credentials, or personal notes.
 
+## Adding or changing an MCP tool
+
+When adding a new tool (or changing request/response shapes), update the whole contract chain:
+
+- **`src/obsidian_memory_mcp/server.py`**: register the tool and implement the adapter handler.
+- **`src/obsidian_memory_mcp/contracts/`**: update `TOOL_CONTRACTS` (description, examples, error codes).
+- **Docs**: update `docs/tool-reference.md` and any workflow guides affected.
+- **Tests**: run `uv run pytest tests` and `uv run pytest tests/release` (release tests validate that live FastMCP schemas match `TOOL_CONTRACTS`).
+
 ## Agent Instructions
 
 Repository-specific agent instructions live in [AGENTS.md](AGENTS.md). They are retained and linked here for contributors using coding agents.

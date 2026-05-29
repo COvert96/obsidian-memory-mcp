@@ -10,13 +10,13 @@ import pytest
 
 from obsidian_memory_mcp.config import ConfigLoader, ProjectConfig
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError
-from obsidian_memory_mcp.writes._audit import WriteAuditRepository
-from obsidian_memory_mcp.writes._models import WriteAuditEntry, WriteResult
-from obsidian_memory_mcp.writes._service import (
+from obsidian_memory_mcp.writes import (
     WriteService,
     is_memory_path,
     require_memory_path,
 )
+from obsidian_memory_mcp.writes._audit import WriteAuditRepository
+from obsidian_memory_mcp.writes._models import WriteAuditEntry, WriteResult
 
 _FIXED_TIME = datetime(2026, 5, 28, 10, 0, 0, tzinfo=UTC)
 

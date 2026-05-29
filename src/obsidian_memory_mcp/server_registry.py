@@ -132,6 +132,11 @@ def _load_registry_file(registry_path: Path) -> ProjectRegistry:
 
 
 def _parse_projects(raw: Any, registry_path: Path) -> dict[str, Path]:
+    """Validate and normalize the `projects:` mapping.
+
+    This is intentionally strict: we fail fast on shape errors to avoid ambiguous
+    server behavior when a registry is partially misconfigured.
+    """
     if not isinstance(raw, dict):
         raise _format_error(
             registry_path, "a top-level YAML mapping with a 'projects' key"

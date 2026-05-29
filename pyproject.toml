@@ -49,7 +49,14 @@ dev = [
 extend-select = [
 	"PLC0415",
 	"S101",
+	"TID",
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101"]
+"src/obsidian_memory_mcp/database/__init__.py" = ["TID"]
+"src/obsidian_memory_mcp/writes/__init__.py" = ["TID"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"obsidian_memory_mcp.database._tables" = { msg = "Import database tables via `obsidian_memory_mcp.database` (public API), not `database._tables`." }
+"obsidian_memory_mcp.writes._service" = { msg = "Import write helpers via `obsidian_memory_mcp.writes` (public API), not `writes._service`." }

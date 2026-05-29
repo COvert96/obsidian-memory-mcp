@@ -69,6 +69,11 @@ def _append_block(
 
 
 def _section_units(content: str) -> tuple[str, ...]:
+    """Split a section into units that preserve markdown structure.
+
+    We avoid splitting inside fenced code blocks and tables so downstream token
+    budgeting and previews remain predictable and semantically coherent.
+    """
     lines = content.split("\n")
     units: list[str] = []
     index = 0
@@ -105,6 +110,11 @@ def _expanded_units(units: tuple[str, ...]) -> tuple[str, ...]:
 
 
 def _split_oversized_unit(unit: str) -> tuple[str, ...]:
+    """Split oversized units while keeping hard token caps.
+
+    This is a last resort: we first attempt to keep units intact, then fall back
+    to line-based splitting, and finally split pathological single long lines.
+    """
     if estimate_markdown_tokens(unit) <= HARD_BLOCK_MAX_TOKENS:
         return (unit,)
 
