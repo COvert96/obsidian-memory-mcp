@@ -22,7 +22,11 @@ from obsidian_memory_mcp.parser._models import (
 )
 from obsidian_memory_mcp.parser._sections import build_sections
 from obsidian_memory_mcp.parser._tags import extract_tags
-from obsidian_memory_mcp.parser._text import estimate_markdown_tokens, normalize_newlines, sha256
+from obsidian_memory_mcp.parser._text import (
+    estimate_markdown_tokens,
+    normalize_newlines,
+    sha256,
+)
 from obsidian_memory_mcp.parser._wikilinks import extract_wikilinks
 
 __all__ = [

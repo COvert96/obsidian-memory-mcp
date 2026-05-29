@@ -93,9 +93,7 @@ def _fetch_search_rows(
         return rows
 
     return [
-        row
-        for row in rows
-        if regex_query.pattern.search(row["content"]) is not None
+        row for row in rows if regex_query.pattern.search(row["content"]) is not None
     ][:result_limit]
 
 

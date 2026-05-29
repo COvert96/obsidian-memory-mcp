@@ -60,9 +60,7 @@ def test_single_supersession_archives_and_links_both_notes(tmp_path: Path) -> No
     )
     new = _write_note(vault, "Memory/new.md", "# New\nNew truth.")
 
-    archived = _service(vault).archive(
-        ["Memory/old.md"], "Memory/new.md", _WRITTEN_AT
-    )
+    archived = _service(vault).archive(["Memory/old.md"], "Memory/new.md", _WRITTEN_AT)
 
     assert archived == ["Memory/archive/old.md"]
     assert not (vault / "Memory" / "old.md").exists()
@@ -100,9 +98,7 @@ def test_name_collision_in_archive_gets_uuid_suffix(tmp_path: Path) -> None:
     _write_note(vault, "Memory/old.md", "# Old")
     _write_note(vault, "Memory/new.md", "# New")
 
-    archived = _service(vault).archive(
-        ["Memory/old.md"], "Memory/new.md", _WRITTEN_AT
-    )
+    archived = _service(vault).archive(["Memory/old.md"], "Memory/new.md", _WRITTEN_AT)
 
     assert archived != ["Memory/archive/old.md"]
     assert len(archived) == 1
@@ -157,9 +153,7 @@ def test_duplicate_paths_are_deduplicated(tmp_path: Path) -> None:
     _write_note(vault, "Memory/old.md", "# Old")
     _write_note(vault, "Memory/new.md", "# New")
 
-    plan = _service(vault).plan(
-        ["Memory/old.md", "Memory/old.md"], "Memory/new.md"
-    )
+    plan = _service(vault).plan(["Memory/old.md", "Memory/old.md"], "Memory/new.md")
 
     assert len(plan.moves) == 1
 

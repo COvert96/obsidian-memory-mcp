@@ -5,7 +5,11 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from obsidian_memory_mcp.cli.common import SUBCOMMAND_ERRORS, SUBCOMMAND_STATUS, load_config
+from obsidian_memory_mcp.cli.common import (
+    SUBCOMMAND_ERRORS,
+    SUBCOMMAND_STATUS,
+    load_config,
+)
 from obsidian_memory_mcp.indexing import IndexMode, IndexRunResult, run_index
 from obsidian_memory_mcp.status import IndexStatus, get_index_status, list_index_errors
 

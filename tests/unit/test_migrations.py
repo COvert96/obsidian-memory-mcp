@@ -51,7 +51,9 @@ def test_alembic_config_uses_script_location_relative_to_ini_path(
     assert Path(config.get_main_option("script_location")) == migration_root / "alembic"
 
 
-def test_ensure_index_migrated_creates_full_schema_on_fresh_path(tmp_path: Path) -> None:
+def test_ensure_index_migrated_creates_full_schema_on_fresh_path(
+    tmp_path: Path,
+) -> None:
     database_path = tmp_path / "index.sqlite3"
 
     ensure_index_migrated(database_path)

@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import argparse
 
-from obsidian_memory_mcp.cli.common import SUBCOMMAND_WRITES, format_audit_entry, load_config
+from obsidian_memory_mcp.cli.common import (
+    SUBCOMMAND_WRITES,
+    format_audit_entry,
+    load_config,
+)
 from obsidian_memory_mcp.writes import WriteAuditRepository
 
 

@@ -52,7 +52,10 @@ def _resolve_handler(arguments: argparse.Namespace) -> CommandHandler | None:
         and arguments.config_command == SUBCOMMAND_VALIDATE
     ):
         return handle_config_command
-    if arguments.command == COMMAND_DEBUG and arguments.debug_command != SUBCOMMAND_SEARCH:
+    if (
+        arguments.command == COMMAND_DEBUG
+        and arguments.debug_command != SUBCOMMAND_SEARCH
+    ):
         return None
     routes: dict[str, CommandHandler] = {
         COMMAND_BENCHMARK: handle_benchmark_command,

@@ -46,15 +46,11 @@ class SupersessionPlan:
 
 
 class SupersessionService:
-    def __init__(
-        self, config: ProjectConfig, guardrails: GuardrailEvaluator
-    ) -> None:
+    def __init__(self, config: ProjectConfig, guardrails: GuardrailEvaluator) -> None:
         self._config = config
         self._guardrails = guardrails
 
-    def plan(
-        self, superseded_paths: list[str], new_path: str
-    ) -> SupersessionPlan:
+    def plan(self, superseded_paths: list[str], new_path: str) -> SupersessionPlan:
         """Validate every input and compute archive destinations.
 
         Performs no disk writes. Raises immediately on the first invalid path so
@@ -195,9 +191,7 @@ class SupersessionService:
         self, archive_dir: Path, filename: str, planned: set[str]
     ) -> Path:
         candidate = archive_dir / filename
-        candidate_relative = candidate.relative_to(
-            self._config.vault_path
-        ).as_posix()
+        candidate_relative = candidate.relative_to(self._config.vault_path).as_posix()
         if not candidate.exists() and candidate_relative not in planned:
             return candidate
 
