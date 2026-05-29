@@ -6,7 +6,7 @@ import pytest
 
 from obsidian_memory_mcp.config import ConfigLoader
 from obsidian_memory_mcp.indexing import IndexMode, run_index
-from obsidian_memory_mcp.schema import connect_index_db
+from obsidian_memory_mcp.database import connect_index_db
 from obsidian_memory_mcp.status import _count, get_index_status
 
 
@@ -73,8 +73,22 @@ def test_status_warns_when_more_than_ten_percent_of_files_have_errors(
     assert any("indexing errors" in warning for warning in status.warnings)
 
 
-def test_count_rejects_unrecognized_table_names(tmp_path: Path) -> None:
-    connection = connect_index_db(tmp_path / "index.sqlite3")
+def test_status_reports_alembic_head_revision(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "note.md").write_text("# Note\nbody", encoding="utf-8")
+    config = _config(vault)
+    run_index(config, mode=IndexMode.FULL)
+
+    status = get_index_status(config)
+
+    assert status.schema_revision == "002_remove_proposals"
+
+
+def test_count_rejects_unrecognized_table_names(
+    tmp_path: Path, migrated_index_db: Path
+) -> None:
+    connection = connect_index_db(migrated_index_db)
     try:
         with pytest.raises(ValueError, match="Invalid count table"):
             _count(connection, "files; DROP TABLE files")

@@ -21,9 +21,9 @@ Copy `docs/config-example.yaml` to the vault root as `memory-mcp.yaml`, then set
 - `index_db_location`: SQLite index path. Relative paths stay inside the vault.
 - `context_packs`: named groups of files used for curated context.
 - `write_constraints`: read/write allow and deny rules.
-- `proposal_ttl_seconds`: default proposal lifetime. Clamped by `max_proposal_ttl_hours`.
-- `max_proposal_content_bytes`: maximum UTF-8 size for stored create/update proposal content.
-- `proposal_retention_days`: retention window for applied, rejected, and expired proposal audit records.
+- `max_write_content_bytes`: maximum UTF-8 size for content written by the write tools.
+- `memory_archive_path`: relative path under `Memory/` where `update_memory`
+  archives superseded notes. Defaults to `Memory/archive` when omitted.
 
 Minimum shape:
 
@@ -40,12 +40,21 @@ write_constraints:
       - "wiki/**"
   write:
     allow:
-      - "wiki/proposals/"
-proposal_ttl_seconds: 3600
-max_proposal_ttl_hours: 24
-max_proposal_content_bytes: 1048576
-proposal_retention_days: 7
+      - "Memory/**"
+max_write_content_bytes: 1048576
+memory_archive_path: "Memory/archive"
 ```
+
+### Archive directory convention
+
+When `update_memory` is called with a `supersedes` list, each superseded note is
+moved (flattened to its filename) into `memory_archive_path` and stamped with
+`superseded: true`, `superseded_by`, and `superseded_at` frontmatter. The new note
+gains a `supersedes` frontmatter list pointing at the archived paths. Same-named
+notes from different folders are disambiguated with a short UUID suffix, so the
+archive never overwrites an existing file. The archive is an ordinary vault
+directory — search it with `search_notes`, and move a note back with `write_note`
+if you need to un-archive it.
 
 ## 3. Validate The Config
 

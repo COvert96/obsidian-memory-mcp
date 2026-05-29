@@ -7,11 +7,13 @@ framing, schema generation, and error serialisation.
 Domain exceptions (``ToolExecutionError``) raised inside tool functions
 propagate naturally to FastMCP, which converts them to
 ``CallToolResult(isError=True)`` responses.  No manual error-wrapping needed.
+
+Index schema is migrated lazily on first tool access per project via
+``ensure_index_migrated()`` in ``_project_config`` (memoized per DB path).
 """
 
 from __future__ import annotations
 
-from pathlib import PurePosixPath
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -23,13 +25,20 @@ from obsidian_memory_mcp.config import (
 )
 from obsidian_memory_mcp.context_packs import ContextPackLoader
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
-from obsidian_memory_mcp.proposals import ProposalManager
+from obsidian_memory_mcp.migrations import MigrationError, ensure_index_migrated
 from obsidian_memory_mcp.retrieval import (
     ReadNoteService,
     ReadSectionService,
     SearchService,
 )
 from obsidian_memory_mcp.server_registry import load_project_registry
+from obsidian_memory_mcp.writes import (
+    SupersessionService,
+    WriteAuditRepository,
+    WriteService,
+    is_memory_path,
+    require_memory_path,
+)
 
 mcp = FastMCP("obsidian-memory-mcp")
 
@@ -133,132 +142,167 @@ def list_context_packs(project: str) -> dict[str, Any]:
 
 
 @mcp.tool()
-def propose_memory_update(
-    project: str,
-    file_path: str,
-    operation: str,
-    content: str | None = None,
-) -> dict[str, Any]:
-    """Propose a write to a file in the `Memory/` directory.
-
-    This is step 1 of a two-step workflow: call this tool to create a
-    proposal, then call `approve_proposal` with the returned `proposal_id`
-    to apply the change to disk.  The file is not modified until approval.
+def write_memory(project: str, file_path: str, content: str) -> dict[str, Any]:
+    """Create a new file under Memory/ directly without a staging step.
 
     Use `list_context_packs` first to discover the correct `project` name.
-    Only files under `Memory/` are accepted — paths starting with anything
-    else (e.g. `wiki/`) are rejected with a guardrail error.
+    The file must not already exist — use the appropriate update tool to
+    modify an existing memory file.
 
     Args:
-        project: Project name from the server registry — use the same value
-            returned by `list_context_packs` (e.g. "occlave").
+        project: Project name from the server registry.
         file_path: Vault-relative path that must begin with `Memory/`
             (for example, `Memory/company-summary.md`).
-        operation: One of "create" (target must not exist), "update"
-            (target must already exist), or "delete".
-        content: Full file content for create/update; omit for delete.
-            Prefer focused, concise notes — very large content (> 8 KB)
-            should be split into multiple smaller Memory files.
+        content: Full file content to write.
     """
-    _require_memory_path(file_path)
+    require_memory_path(file_path, "write_memory")
     config = _project_config(project)
-    result = ProposalManager(config).create(
-        file_path=file_path,
-        operation=operation,
-        content=content,
+    result = _write_service(config, tool="write_memory", project=project).create(
+        file_path,
+        content,
     )
     return {"project": project, **result.as_response()}
 
 
 @mcp.tool()
-def list_proposals(
-    project: str,
-    status: str | None = "pending",
-    file_path: str | None = None,
-    limit: int = 50,
-) -> dict[str, Any]:
-    """List proposal metadata with status and optional file-path filters.
+def write_note(project: str, file_path: str, content: str) -> dict[str, Any]:
+    """Create a new vault note at any config-allowed path outside Memory/.
+
+    Use this tool for non-memory notes. Paths under `Memory/` are rejected —
+    use `write_memory` instead. The file must not already exist.
 
     Args:
-        project: Project name as defined in the server registry.
-        status: Optional proposal status filter. Defaults to pending.
-        file_path: Optional vault-relative proposal target path.
-        limit: Maximum number of proposals to return.
+        project: Project name from the server registry.
+        file_path: Vault-relative path outside `Memory/`
+            (for example, `wiki/concepts/new-note.md`).
+        content: Full file content to write.
     """
+    _require_non_memory_path(file_path, "write_note")
     config = _project_config(project)
-    proposals = ProposalManager(config).list(
-        status=status,
-        file_path=file_path,
-        limit=limit,
+    result = _write_service(config, tool="write_note", project=project).create(
+        file_path,
+        content,
     )
-    return {
-        "project": project,
-        "proposals": [proposal.as_response() for proposal in proposals],
-        "returned_count": len(proposals),
-    }
-
-
-@mcp.tool()
-def approve_proposal(project: str, proposal_id: str) -> dict[str, Any]:
-    """Apply a pending proposal to disk (step 2 of the write workflow).
-
-    Call this immediately after `propose_memory_update` succeeds to
-    commit the change.  The file is only written when this call returns
-    status "applied".
-
-    Args:
-        project: Project name — same value used in `propose_memory_update`.
-        proposal_id: The `proposal_id` returned by `propose_memory_update`.
-    """
-    config = _project_config(project)
-    result = ProposalManager(config).approve(proposal_id, actor="mcp")
     return {"project": project, **result.as_response()}
 
 
 @mcp.tool()
-def reject_proposal(
+def update_memory(
     project: str,
-    proposal_id: str,
-    reason: str | None = None,
-    notes: str | None = None,
+    file_path: str,
+    content: str,
+    expected_hash: str | None = None,
+    supersedes: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Discard a pending proposal without writing any file.
+    """Overwrite an existing file under Memory/ directly.
+
+    The file must already exist — use `write_memory` to create one. To guard
+    against a concurrent change, pass the `content_hash` returned by the most
+    recent `read_note` as `expected_hash`; the write is rejected with
+    `ERR_HASH_MISMATCH` if the file changed since.
+
+    Pass `supersedes` with the vault-relative paths of older Memory notes this
+    write replaces. Each is moved to the configured archive directory, stamped
+    with supersession frontmatter, and back-referenced from this note.
 
     Args:
-        project: Project name — same value used in `propose_memory_update`.
-        proposal_id: The `proposal_id` returned by `propose_memory_update`.
+        project: Project name from the server registry.
+        file_path: Vault-relative path that must begin with `Memory/`.
+        content: Full replacement file content.
+        expected_hash: Optional content_hash from read_note for conflict detection.
+        supersedes: Optional vault-relative Memory paths to archive and link.
     """
+    require_memory_path(file_path, "update_memory")
     config = _project_config(project)
-    result = ProposalManager(config).reject(
-        proposal_id,
-        reason=reason,
-        notes=notes,
-        actor="mcp",
+    service = _write_service(config, tool="update_memory", project=project)
+
+    if not supersedes:
+        result = service.update(file_path, content, expected_hash)
+        return {"project": project, **result.as_response()}
+
+    supersession = SupersessionService(config, GuardrailEvaluator(config))
+    plan = supersession.plan(supersedes, new_path=file_path)
+    result = service.update(file_path, content, expected_hash, defer_audit=True)
+    archived_paths = supersession.commit(
+        plan, new_path=file_path, written_at=result.written_at
+    )
+    service.record_supersession_audit(result, archived_paths)
+    return {"project": project, **result.as_response(), "supersedes": archived_paths}
+
+
+@mcp.tool()
+def update_note(
+    project: str,
+    file_path: str,
+    content: str,
+    expected_hash: str | None = None,
+) -> dict[str, Any]:
+    """Overwrite an existing vault note at any config-allowed path outside Memory/.
+
+    Paths under `Memory/` are rejected — use `update_memory` instead. The file
+    must already exist. Pass the `content_hash` from the most recent `read_note`
+    as `expected_hash` to reject concurrent changes with `ERR_HASH_MISMATCH`.
+
+    Args:
+        project: Project name from the server registry.
+        file_path: Vault-relative path outside `Memory/`.
+        content: Full replacement file content.
+        expected_hash: Optional content_hash from read_note for conflict detection.
+    """
+    _require_non_memory_path(file_path, "update_note")
+    config = _project_config(project)
+    result = _write_service(config, tool="update_note", project=project).update(
+        file_path,
+        content,
+        expected_hash,
     )
     return {"project": project, **result.as_response()}
 
 
 def _project_config(project: str) -> ProjectConfig:
     registry = load_project_registry()
-    return load_project_config(registry.resolve(project))
+    config = load_project_config(registry.resolve(project))
+    try:
+        ensure_index_migrated(config.index_db_location)
+    except MigrationError as exc:
+        raise ToolExecutionError(
+            build_error(
+                ErrorCode.ERR_INTERNAL,
+                message=(
+                    f"Failed to migrate index database for project '{project}': {exc}"
+                ),
+                details={
+                    "project": project,
+                    "index_db_path": str(config.index_db_location),
+                },
+            )
+        ) from exc
+    return config
 
 
-def _make_context_pack_loader(config: ProjectConfig) -> ContextPackLoader:
-    return ContextPackLoader(config)
+def _write_service(config: ProjectConfig, *, tool: str, project: str) -> WriteService:
+    return WriteService(
+        config,
+        audit=WriteAuditRepository(config),
+        tool=tool,
+        project=project,
+    )
 
 
-def _require_memory_path(file_path: str) -> None:
-    normalized_path = file_path.replace("\\", "/").strip()
-    path = PurePosixPath(normalized_path)
-    if len(path.parts) >= 2 and path.parts[0] == "Memory":
+def _require_non_memory_path(file_path: str, tool_name: str) -> None:
+    if not is_memory_path(file_path):
         return
     raise ToolExecutionError(
         build_error(
             ErrorCode.ERR_INVALID_REQUEST,
             message=(
-                "propose_memory_update only supports files under 'Memory/'. "
-                f"Received '{file_path}'."
+                f"{tool_name} does not support files under 'Memory/'. "
+                f"Received '{file_path}'. Use the matching memory tool instead."
             ),
-            details={"file_path": file_path, "required_prefix": "Memory/"},
+            details={"file_path": file_path, "forbidden_prefix": "Memory/"},
         )
     )
+
+
+def _make_context_pack_loader(config: ProjectConfig) -> ContextPackLoader:
+    return ContextPackLoader(config)

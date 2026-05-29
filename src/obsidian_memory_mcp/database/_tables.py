@@ -140,85 +140,6 @@ index_errors = Table(
     sqlite_autoincrement=True,
 )
 
-proposals = Table(
-    "proposals",
-    metadata,
-    Column("id", Text, primary_key=True),
-    Column("file_path", Text, nullable=False),
-    Column("operation", Text, nullable=False),
-    Column("content", Text, nullable=True),
-    Column("old_hash", Text, nullable=True),
-    Column("new_hash", Text, nullable=True),
-    Column("status", Text, nullable=False),
-    Column("created_at", Text, nullable=False),
-    Column("expires_at", Text, nullable=False),
-    Column("status_changed_at", Text, nullable=True),
-    Column("applied_at", Text, nullable=True),
-)
-
-proposal_events = Table(
-    "proposal_events",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column(
-        "proposal_id",
-        Text,
-        ForeignKey("proposals.id", ondelete="CASCADE"),
-        nullable=False,
-    ),
-    Column("event_type", Text, nullable=False),
-    Column("occurred_at", Text, nullable=False),
-    Column("details", Text, nullable=False),
-    sqlite_autoincrement=True,
-)
-
-proposal_changesets = Table(
-    "proposal_changesets",
-    metadata,
-    Column("id", Text, primary_key=True),
-    Column("title", Text, nullable=False),
-    Column("description", Text, nullable=True),
-    Column("status", Text, nullable=False),
-    Column("created_at", Text, nullable=False),
-    Column("expires_at", Text, nullable=False),
-    Column("status_changed_at", Text, nullable=True),
-)
-
-proposal_changeset_members = Table(
-    "proposal_changeset_members",
-    metadata,
-    Column(
-        "changeset_id",
-        Text,
-        ForeignKey("proposal_changesets.id", ondelete="CASCADE"),
-        primary_key=True,
-    ),
-    Column(
-        "proposal_id",
-        Text,
-        ForeignKey("proposals.id", ondelete="CASCADE"),
-        primary_key=True,
-    ),
-    Column("ordinal", Integer, nullable=False),
-    Column("role", Text, nullable=False, server_default=text("'member'")),
-)
-
-proposal_changeset_events = Table(
-    "proposal_changeset_events",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column(
-        "changeset_id",
-        Text,
-        ForeignKey("proposal_changesets.id", ondelete="CASCADE"),
-        nullable=False,
-    ),
-    Column("event_type", Text, nullable=False),
-    Column("occurred_at", Text, nullable=False),
-    Column("details", Text, nullable=False),
-    sqlite_autoincrement=True,
-)
-
 write_audit = Table(
     "write_audit",
     metadata,
@@ -248,33 +169,6 @@ Index("idx_wikilinks_target", wikilinks.c.target)
 Index("idx_wikilinks_file_id", wikilinks.c.file_id)
 Index("idx_index_errors_run_id", index_errors.c.run_id)
 Index("idx_index_errors_file_id", index_errors.c.file_id)
-Index("idx_proposals_status_created", proposals.c.status, proposals.c.created_at.desc())
-Index("idx_proposals_file_path", proposals.c.file_path)
-Index("idx_proposals_created", proposals.c.created_at.desc())
-Index(
-    "idx_proposal_events_proposal_id",
-    proposal_events.c.proposal_id,
-    proposal_events.c.id,
-)
-Index(
-    "idx_proposal_changesets_status_created",
-    proposal_changesets.c.status,
-    proposal_changesets.c.created_at.desc(),
-)
-Index(
-    "idx_proposal_changeset_members_changeset",
-    proposal_changeset_members.c.changeset_id,
-    proposal_changeset_members.c.ordinal,
-)
-Index(
-    "idx_proposal_changeset_members_proposal",
-    proposal_changeset_members.c.proposal_id,
-)
-Index(
-    "idx_proposal_changeset_events_changeset_id",
-    proposal_changeset_events.c.changeset_id,
-    proposal_changeset_events.c.id,
-)
 
 
 def create_fts_tables(connection: Connection) -> None:

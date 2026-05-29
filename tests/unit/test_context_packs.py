@@ -14,8 +14,9 @@ from obsidian_memory_mcp.config import (
 )
 from obsidian_memory_mcp.context_packs import ContextPackLoader
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError
-from obsidian_memory_mcp.parser import PARSER_VERSION
-from obsidian_memory_mcp.schema import bootstrap_schema, connect_index_db
+from obsidian_memory_mcp.indexing.parser import PARSER_VERSION
+from obsidian_memory_mcp.database import connect_index_db
+from obsidian_memory_mcp.migrations import ensure_index_migrated
 
 
 def _config(
@@ -298,9 +299,9 @@ def _insert_indexed_file(
     stored_mtime_ns = mtime_ns or int(
         datetime(1970, 1, 1, tzinfo=UTC).timestamp() * 1_000_000_000
     )
+    ensure_index_migrated(config.index_db_location)
     connection = connect_index_db(config.index_db_location)
     try:
-        bootstrap_schema(connection)
         connection.execute(
             """
             INSERT INTO files (
