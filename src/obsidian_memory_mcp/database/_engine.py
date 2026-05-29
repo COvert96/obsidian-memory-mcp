@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
@@ -54,3 +55,14 @@ def engine_for(path: Path | str) -> Engine:
 
 def get_connection(path: Path | str) -> Connection:
     return engine_for(path).connect()
+
+
+def connect_index_db(index_db_path: Path) -> sqlite3.Connection:
+    """Open a raw sqlite3 connection with index-DB pragmas."""
+    index_db_path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(index_db_path)
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA foreign_keys = ON")
+    if index_db_path.name != ":memory:":
+        connection.execute("PRAGMA journal_mode = WAL")
+    return connection

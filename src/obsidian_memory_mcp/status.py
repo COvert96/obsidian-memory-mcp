@@ -8,11 +8,8 @@ from dataclasses import dataclass
 from obsidian_memory_mcp.config import ProjectConfig
 from obsidian_memory_mcp.indexing import FileCandidate, discover_markdown_files
 from obsidian_memory_mcp.parser import PARSER_VERSION
-from obsidian_memory_mcp.schema import (
-    SCHEMA_VERSION,
-    bootstrap_schema,
-    connect_index_db,
-)
+from obsidian_memory_mcp.database import connect_index_db
+from obsidian_memory_mcp.migrations import current_revision, ensure_index_migrated
 
 _COUNTABLE_TABLES = frozenset({"sections", "blocks", "wikilinks"})
 
@@ -21,7 +18,7 @@ _COUNTABLE_TABLES = frozenset({"sections", "blocks", "wikilinks"})
 class IndexStatus:
     vault_path: str
     index_db_path: str
-    schema_version: int
+    schema_revision: str | None
     parser_version: str
     last_run_time: str | None
     last_run_status: str | None
@@ -53,9 +50,9 @@ def get_index_status(
     *,
     parser_version: str = PARSER_VERSION,
 ) -> IndexStatus:
+    ensure_index_migrated(config.index_db_location)
     connection = connect_index_db(config.index_db_location)
     try:
-        bootstrap_schema(connection)
         candidates = discover_markdown_files(config)
         candidate_by_path = {
             candidate.vault_path: candidate for candidate in candidates
@@ -92,7 +89,7 @@ def get_index_status(
         return IndexStatus(
             vault_path=str(config.vault_path),
             index_db_path=str(config.index_db_location),
-            schema_version=SCHEMA_VERSION,
+            schema_revision=current_revision(config.index_db_location),
             parser_version=parser_version,
             last_run_time=last_run["finished_at"] if last_run else None,
             last_run_status=last_run["status"] if last_run else None,
@@ -115,9 +112,9 @@ def get_index_status(
 def list_index_errors(
     config: ProjectConfig, *, limit: int = 50
 ) -> tuple[IndexErrorRecord, ...]:
+    ensure_index_migrated(config.index_db_location)
     connection = connect_index_db(config.index_db_location)
     try:
-        bootstrap_schema(connection)
         rows = connection.execute(
             """
             SELECT id, run_id, vault_path, error_type, message, created_at

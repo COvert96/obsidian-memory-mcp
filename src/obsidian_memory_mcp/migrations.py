@@ -6,6 +6,7 @@ import sqlite3
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from threading import Lock
 
 from alembic.config import Config
 from alembic.script import Script, ScriptDirectory
@@ -29,6 +30,41 @@ class MigrationOutcome:
 
 class MigrationError(RuntimeError):
     """Raised when Alembic migration setup or execution fails."""
+
+
+_MIGRATED_INDEX_PATHS: set[Path] = set()
+_MIGRATION_LOCK = Lock()
+
+
+def ensure_index_migrated(
+    index_db_location: Path,
+    *,
+    alembic_ini_path: Path | None = None,
+) -> None:
+    """Ensure the index database schema is migrated to Alembic head.
+
+    Idempotent and cached per resolved path so hot paths (e.g. audit append)
+    do not re-run Alembic on every connection open.
+    """
+    if index_db_location.name == ":memory:":
+        raise MigrationError(
+            "In-memory index databases cannot be migrated; use a file path."
+        )
+
+    cache_key = index_db_location.resolve(strict=False)
+    with _MIGRATION_LOCK:
+        if cache_key in _MIGRATED_INDEX_PATHS:
+            return
+        migrate_index_database(
+            index_db_location,
+            alembic_ini_path=alembic_ini_path,
+        )
+        _MIGRATED_INDEX_PATHS.add(cache_key)
+
+
+def current_revision(index_db_path: Path) -> str | None:
+    """Return the applied Alembic revision, or None if unmigrated."""
+    return _current_revision(index_db_path)
 
 
 def migrate_index_database(
