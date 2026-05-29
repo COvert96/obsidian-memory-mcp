@@ -1,0 +1,49 @@
+# Reusable quality gates for CI and release workflows.
+name: Quality gates
+
+on:
+  workflow_call:
+
+jobs:
+  checks:
+    name: Checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Run ruff
+        run: uv run ruff check
+
+      - name: Run mypy
+        run: uv run mypy --strict src
+
+      - name: Run import-linter
+        run: uv run lint-imports
+
+      - name: Run radon complexity gate
+        run: uv run python scripts/radon_gate.py
+
+      - name: Run full test suite with coverage
+        run: >
+          uv run pytest
+          --cov=obsidian_memory_mcp
+          --cov-report=term-missing
+          --cov-report=xml
+          --cov-fail-under=80
+          tests
+
+      - name: Run release gate
+        run: uv run pytest tests/release
