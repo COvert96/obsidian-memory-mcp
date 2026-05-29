@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased - 2026-05-29
+## 0.2.0-rc.1 - 2026-05-29
 
-Direct-write release replacing the proposal workflow.
+Pre-release for **v0.2.0**: direct-write MCP tools, supersession, and the published agent skills library. Git tag: `v0.2.0-rc.1`. Package version: `0.2.0rc1` (PEP 440).
 
 ### Added
 
@@ -11,12 +11,13 @@ Direct-write release replacing the proposal workflow.
 - Alembic migration `002_remove_proposals` removing legacy proposal tables.
 - Shared `glob_utils`, `markdown_fence`, and `parser/` subpackage for maintainability.
 - Radon complexity gate (`scripts/radon_gate.py`) in CI and release documentation.
+- Agent skills library under `docs/skills/` (Claude Code, Codex, and shared workflows): context-bootstrap, memory-capture, recall-before-answer, memory-maintenance, and structured-note-template.
 
 ### Changed
 
 - Documentation, fixture vault samples, and benchmarks aligned with direct writes (no proposal MCP tools).
 - CLI organized under the `cli/` package; complexity refactors in search, indexing, config validation, and status reporting.
-- Project version set to `0.2.0` (tag `v0.2.0` after merge; use `v0.2.0-rc.1` for pre-release validation).
+- Project version `0.2.0rc1` for this pre-release; final `0.2.0` after RC validation (`v0.2.0` tag).
 
 ### Removed
 
@@ -27,6 +28,13 @@ Direct-write release replacing the proposal workflow.
 1. Run `uv run mcp-memory migrate {vault}` to apply schema migration 002.
 2. Remove deprecated config keys such as `proposal_ttl_seconds` (validator warns if present).
 3. Re-index vaults after upgrading parser or schema.
+4. Upgrading from **0.1.x**: see [docs/migration-guide.md](docs/migration-guide.md).
+
+### Known Limitations
+
+- GitHub source release only; no PyPI publication.
+- No delete MCP tool for memory files (planned for a future release).
+- No hosted documentation site.
 
 ## 0.1.0 - 2026-05-28
 

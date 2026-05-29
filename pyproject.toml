@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "obsidian-memory-mcp"
-version = "0.1.0"
+version = "0.2.0rc1"
 description = "MCP SDK-based server for guarded Obsidian memory access"
 readme = "README.md"
 license = "Apache-2.0"
