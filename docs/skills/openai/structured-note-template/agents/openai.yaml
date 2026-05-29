@@ -1,0 +1,6 @@
+interface:
+  display_name: Structured note template
+  short_description: Memory/ frontmatter and heading conventions
+
+policy:
+  allow_implicit_invocation: true

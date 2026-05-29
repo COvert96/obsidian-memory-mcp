@@ -1,0 +1,8 @@
+interface:
+  display_name: Context bootstrap
+  short_description: Load obsidian-memory-mcp context pack at session start
+
+dependencies:
+  tools:
+    - type: mcp
+      description: obsidian-memory-mcp server (>= v0.2.0) with list_context_packs and get_context_pack
