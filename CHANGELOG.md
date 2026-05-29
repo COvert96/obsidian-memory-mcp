@@ -2,30 +2,52 @@
 
 ## 0.2.0-rc.1 - 2026-05-29
 
-Pre-release for **v0.2.0**: direct-write MCP tools, supersession, and the published agent skills library. Git tag: `v0.2.0-rc.1`. Package version: `0.2.0rc1` (PEP 440).
+Pre-release for **v0.2.0**: SQLAlchemy index layer, Alembic migrations, direct-write MCP tools with audit and supersession, architecture refactor, and the published agent skills library. Git tag: `v0.2.0-rc.1`. Package version: `0.2.0rc1` (PEP 440).
 
 ### Added
 
-- Direct MCP write tools: `write_memory`, `update_memory`, `write_note`, `update_note` with guardrails, optimistic-lock hashes, and append-only `write_audit` logging.
-- Supersession support on `update_memory` with archive paths and a single audit row per operation.
-- Alembic migration `002_remove_proposals` removing legacy proposal tables.
-- Shared `glob_utils`, `markdown_fence`, and `parser/` subpackage for maintainability.
+**Database and migrations**
+
+- SQLAlchemy Core `Table` metadata in `database/`; indexing repositories use Core `select`/`insert`/`update`/`delete` instead of raw SQL strings.
+- Alembic (`001_initial_schema`) as the versioned schema owner, including FTS5 virtual tables via migration DDL.
+- `mcp-memory migrate` with auto-detect for fresh installs, legacy v0.1.x indexes, and incremental upgrades; [migration guide](docs/migration-guide.md).
+
+**Direct-write MCP tools**
+
+- `write_memory` and `write_note` — atomic creates with guardrails and `ERR_FILE_EXISTS` (`WriteService.create()`).
+- `update_memory` and `update_note` — in-place updates with optional `expected_hash` optimistic locking and `ERR_HASH_MISMATCH`.
+- `read_note` returns `content_hash` for lock tokens; append-only `write_audit` table and `mcp-memory audit writes` CLI.
+- `update_memory` `supersedes` — `SupersessionService` archives outdated `Memory/` notes under `memory_archive_path` (default `Memory/archive/`) with supersession frontmatter and one audit row per operation.
+- Alembic migration `002_remove_proposals` drops legacy proposal tables.
+- Config `memory_archive_path`; `max_write_content_bytes` (with deprecated alias for the old proposal limit key).
+
+**Agent skills library**
+
+- `docs/skills/` — provider packages ([Claude Code](docs/skills/claude/), [Codex](docs/skills/openai/)) plus [shared workflows](docs/skills/shared/): **context-bootstrap**, **memory-capture**, **recall-before-answer**, **memory-maintenance**, **structured-note-template**.
+- Templates, examples, and `validate-note.py` for local frontmatter checks (memory-capture).
+
+**Tooling and CI**
+
 - Radon complexity gate (`scripts/radon_gate.py`) in CI and release documentation.
-- Agent skills library under `docs/skills/` (Claude Code, Codex, and shared workflows): context-bootstrap, memory-capture, recall-before-answer, memory-maintenance, and structured-note-template.
+- Reusable [quality-gates](.github/workflows/quality-gates.yml) workflow; [release](.github/workflows/release.yml) workflow creates GitHub Releases on `v*` tags with changelog extraction and tag/`pyproject.toml` version verification.
 
 ### Changed
 
+- Bounded-context package layout with explicit `__all__` APIs, `import-linter` contracts, `cli/` entry layout, `indexing/parser/` subpackage, and shared `markdown/` and `utils/` helpers (`glob_utils`, fence parsing).
+- `mcp-memory migrate` runs `upgrade head` for legacy databases that had a `files` table but no `alembic_version`, and repairs schemas stamped at head but missing `write_audit` or still carrying proposal tables.
+- Runtime `metadata.create_all()` bootstrap retired; Alembic is the sole schema owner for index databases.
 - Documentation, fixture vault samples, and benchmarks aligned with direct writes (no proposal MCP tools).
-- CLI organized under the `cli/` package; complexity refactors in search, indexing, config validation, and status reporting.
 - Project version `0.2.0rc1` for this pre-release; final `0.2.0` after RC validation (`v0.2.0` tag).
 
 ### Removed
 
-- Proposal MCP tools and SQLite proposal/changeset tables.
+- Proposal MCP tools (`propose_*`, `approve_*`, `reject_*`, changesets) and the `proposals/` package.
+- SQLite proposal and changeset tables (migration 002).
+- `ERR_STALE_PROPOSAL` and proposal-era CLI subcommands; deprecated config fields warn at load time.
 
 ### Upgrade Notes
 
-1. Run `uv run mcp-memory migrate {vault}` to apply schema migration 002.
+1. Run `uv run mcp-memory migrate {vault}` to apply schema migrations through head (002).
 2. Remove deprecated config keys such as `proposal_ttl_seconds` (validator warns if present).
 3. Re-index vaults after upgrading parser or schema.
 4. Upgrading from **0.1.x**: see [docs/migration-guide.md](docs/migration-guide.md).
