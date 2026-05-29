@@ -1,4 +1,10 @@
-"""Obsidian Memory MCP - an MCP server for structured, safe access to Obsidian vaults."""
+"""Obsidian Memory MCP - an MCP server for structured, safe access to Obsidian vaults.
+
+This module re-exports a convenience surface for tests and tooling. It is **not** a
+semver-stable library API until PyPI publication is announced. Prefer explicit imports
+from subpackages (``obsidian_memory_mcp.config``, ``obsidian_memory_mcp.contracts``,
+and so on) in new code.
+"""
 
 from obsidian_memory_mcp.config import (
     AccessConstraints,

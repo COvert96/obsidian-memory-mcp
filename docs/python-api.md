@@ -41,7 +41,8 @@ Import from the package root, not from `_` modules:
 
 - `obsidian_memory_mcp.indexing` — `run_index`, `discover_markdown_files`, `parse_markdown`, `ParsedNote`, …
 - `obsidian_memory_mcp.retrieval` — `ReadNoteService`, `SearchService`, …
-- `obsidian_memory_mcp.context_packs` — `ContextPackLoader`, …
+- `obsidian_memory_mcp.context_packs` — `ContextPackLoader`, `IndexQueries`, …
+  (`SqliteIndexQueries` lives in `context_packs._index_queries` for tests only)
 - `obsidian_memory_mcp.writes` — `WriteService`, `WriteAuditEntry`, …
 
 ## Shared utility packages
@@ -61,4 +62,15 @@ not semver-guaranteed imports.
 ## Top-level `__init__.py`
 
 `obsidian_memory_mcp.__all__` re-exports config, contracts, errors, registry, and
-`mcp` for convenience in tests. Prefer explicit submodule imports for new code.
+`mcp` for convenience in tests and embedding experiments. This root namespace is
+**not** semver-guaranteed until a library/PyPI release is announced.
+
+| Symbol group | Examples |
+|--------------|----------|
+| Config | `ProjectConfig`, `ConfigLoader`, `GuardrailEvaluator` |
+| Contracts / errors | `TOOL_CONTRACTS`, `ToolExecutionError` |
+| Registry | `load_project_registry`, `ProjectRegistry` |
+| Runtime | `mcp` (FastMCP app) |
+| Tokens | `estimate_tokens` |
+
+Prefer explicit submodule imports for new code.

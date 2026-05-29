@@ -20,6 +20,7 @@ from obsidian_memory_mcp.markdown._headings import (
     normalize_heading_name,
     section_end_index,
 )
+from obsidian_memory_mcp.markdown._tags import tag_values_from_field
 
 __all__ = [
     "FENCE_RE",
@@ -36,4 +37,5 @@ __all__ = [
     "normalize_heading_name",
     "parse_frontmatter",
     "section_end_index",
+    "tag_values_from_field",
 ]

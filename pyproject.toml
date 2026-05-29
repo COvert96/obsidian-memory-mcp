@@ -102,9 +102,29 @@ type = "forbidden"
 source_modules = ["obsidian_memory_mcp.indexing.parser"]
 forbidden_modules = [
 	"obsidian_memory_mcp.database",
+	"obsidian_memory_mcp.context_packs",
 	"obsidian_memory_mcp.retrieval",
 	"obsidian_memory_mcp.server",
 	"obsidian_memory_mcp.cli",
+]
+
+[[tool.importlinter.contracts]]
+name = "Retrieval stays independent of write and pack flows"
+type = "forbidden"
+source_modules = ["obsidian_memory_mcp.retrieval"]
+forbidden_modules = [
+	"obsidian_memory_mcp.writes",
+	"obsidian_memory_mcp.context_packs",
+	"obsidian_memory_mcp.indexing",
+]
+
+[[tool.importlinter.contracts]]
+name = "Writes stay independent of retrieval and packs"
+type = "forbidden"
+source_modules = ["obsidian_memory_mcp.writes"]
+forbidden_modules = [
+	"obsidian_memory_mcp.retrieval",
+	"obsidian_memory_mcp.context_packs",
 ]
 
 [[tool.importlinter.contracts]]
