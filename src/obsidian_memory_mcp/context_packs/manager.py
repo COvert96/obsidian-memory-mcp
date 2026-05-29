@@ -196,14 +196,7 @@ def _indexed_at_to_ns(value: str) -> int | None:
     if match is None:
         return None
 
-    fraction = match.group("fraction") or ""
-    zone = match.group("zone") or ""
-    normalized_zone = "+00:00" if zone == "Z" else zone
-    parse_fraction = fraction[:6].ljust(6, "0") if fraction else ""
-    parse_value = match.group("head")
-    if parse_fraction:
-        parse_value = f"{parse_value}.{parse_fraction}"
-    parse_value = f"{parse_value}{normalized_zone}"
+    parse_value = _iso_timestamp_for_parse(match)
 
     try:
         parsed = datetime.fromisoformat(parse_value)
@@ -217,5 +210,17 @@ def _indexed_at_to_ns(value: str) -> int | None:
     epoch = datetime(1970, 1, 1, tzinfo=UTC)
     delta = whole_second - epoch
     seconds = delta.days * 86_400 + delta.seconds
+    fraction = match.group("fraction") or ""
     fractional_ns = int(fraction[:9].ljust(9, "0")) if fraction else 0
     return seconds * 1_000_000_000 + fractional_ns
+
+
+def _iso_timestamp_for_parse(match: re.Match[str]) -> str:
+    fraction = match.group("fraction") or ""
+    zone = match.group("zone") or ""
+    normalized_zone = "+00:00" if zone == "Z" else zone
+    parse_fraction = fraction[:6].ljust(6, "0") if fraction else ""
+    parse_value = match.group("head")
+    if parse_fraction:
+        parse_value = f"{parse_value}.{parse_fraction}"
+    return f"{parse_value}{normalized_zone}"

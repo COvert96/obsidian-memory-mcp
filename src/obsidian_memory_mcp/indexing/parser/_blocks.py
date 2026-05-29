@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 from obsidian_memory_mcp.markdown import FENCE_RE, is_fence_line
-from obsidian_memory_mcp.parser._models import (
+from obsidian_memory_mcp.indexing.parser._models import (
     HARD_BLOCK_MAX_TOKENS,
     TARGET_BLOCK_MAX_TOKENS,
     TARGET_BLOCK_MIN_TOKENS,
     ParsedBlock,
     ParsedSection,
 )
-from obsidian_memory_mcp.parser._text import estimate_markdown_tokens, sha256
+from obsidian_memory_mcp.indexing.parser._text import estimate_markdown_tokens, sha256
 
 
 def build_blocks(section: ParsedSection) -> tuple[ParsedBlock, ...]:
@@ -78,31 +78,38 @@ def _section_units(content: str) -> tuple[str, ...]:
     units: list[str] = []
     index = 0
     while index < len(lines):
-        line = lines[index]
-        if not line.strip():
+        if not lines[index].strip():
             index += 1
             continue
-        if is_fence_line(line):
-            fenced_lines, index = _consume_fenced_code(lines, index)
-            units.append("\n".join(fenced_lines))
-            continue
-        if _is_table_line(line):
-            table_lines, index = _consume_table(lines, index)
-            units.append("\n".join(table_lines))
-            continue
-
-        unit_lines: list[str] = []
-        while index < len(lines):
-            line = lines[index]
-            if not line.strip():
-                break
-            if unit_lines and (is_fence_line(line) or _is_table_line(line)):
-                break
-            unit_lines.append(line)
-            index += 1
-        units.append("\n".join(unit_lines))
+        unit, index = _next_section_unit(lines, index)
+        units.append(unit)
 
     return tuple(units)
+
+
+def _next_section_unit(lines: list[str], index: int) -> tuple[str, int]:
+    line = lines[index]
+    if is_fence_line(line):
+        fenced_lines, next_index = _consume_fenced_code(lines, index)
+        return "\n".join(fenced_lines), next_index
+    if _is_table_line(line):
+        table_lines, next_index = _consume_table(lines, index)
+        return "\n".join(table_lines), next_index
+    return _consume_paragraph_unit(lines, index)
+
+
+def _consume_paragraph_unit(lines: list[str], start_index: int) -> tuple[str, int]:
+    unit_lines: list[str] = []
+    index = start_index
+    while index < len(lines):
+        line = lines[index]
+        if not line.strip():
+            break
+        if unit_lines and (is_fence_line(line) or _is_table_line(line)):
+            break
+        unit_lines.append(line)
+        index += 1
+    return "\n".join(unit_lines), index
 
 
 def _expanded_units(units: tuple[str, ...]) -> tuple[str, ...]:
@@ -122,25 +129,31 @@ def _split_oversized_unit(unit: str) -> tuple[str, ...]:
     current_lines: list[str] = []
     for line in unit.split("\n"):
         if estimate_markdown_tokens(line) > HARD_BLOCK_MAX_TOKENS:
-            if current_lines:
-                parts.append("\n".join(current_lines))
-                current_lines = []
+            _flush_line_buffer(parts, current_lines)
             parts.extend(_split_long_line(line))
             continue
 
-        candidate = "\n".join([*current_lines, line])
-        if (
-            current_lines
-            and estimate_markdown_tokens(candidate) > HARD_BLOCK_MAX_TOKENS
-        ):
-            parts.append("\n".join(current_lines))
+        if _line_exceeds_budget(current_lines, line):
+            _flush_line_buffer(parts, current_lines)
             current_lines = [line]
         else:
             current_lines.append(line)
 
+    _flush_line_buffer(parts, current_lines)
+    return tuple(part for part in parts if part.strip())
+
+
+def _flush_line_buffer(parts: list[str], current_lines: list[str]) -> None:
     if current_lines:
         parts.append("\n".join(current_lines))
-    return tuple(part for part in parts if part.strip())
+        current_lines.clear()
+
+
+def _line_exceeds_budget(current_lines: list[str], line: str) -> bool:
+    if not current_lines:
+        return False
+    candidate = "\n".join([*current_lines, line])
+    return estimate_markdown_tokens(candidate) > HARD_BLOCK_MAX_TOKENS
 
 
 def _split_long_line(line: str) -> tuple[str, ...]:

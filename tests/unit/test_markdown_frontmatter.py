@@ -4,7 +4,7 @@ from obsidian_memory_mcp.markdown import (
     extract_frontmatter,
     parse_frontmatter,
 )
-from obsidian_memory_mcp.parser._frontmatter import extract_frontmatter as index_extract
+from obsidian_memory_mcp.indexing.parser import _extract_frontmatter as index_extract
 
 
 def test_parse_frontmatter_matches_indexing_helper() -> None:

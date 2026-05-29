@@ -16,6 +16,7 @@ Use `uv run` for project commands. Do not call `.venv/Scripts/python.exe` or bar
 ```powershell
 uv run ruff check
 uv run mypy --strict src
+uv run lint-imports
 uv run python scripts/radon_gate.py
 uv run pytest tests
 uv run pytest tests/release

@@ -39,17 +39,17 @@ Every bounded-context package follows the same rules (see also
 
 Import from the package root, not from `_` modules:
 
-- `obsidian_memory_mcp.indexing` — `run_index`, `discover_markdown_files`, …
+- `obsidian_memory_mcp.indexing` — `run_index`, `discover_markdown_files`, `parse_markdown`, `ParsedNote`, …
 - `obsidian_memory_mcp.retrieval` — `ReadNoteService`, `SearchService`, …
 - `obsidian_memory_mcp.context_packs` — `ContextPackLoader`, …
 - `obsidian_memory_mcp.writes` — `WriteService`, `WriteAuditEntry`, …
-- `obsidian_memory_mcp.parser` — indexing-only `parse_markdown`, …
 
 ## Shared utility packages
 
 | Package | Role |
 |---------|------|
-| `obsidian_memory_mcp.markdown` | Frontmatter, fence/heading helpers for reads and indexing |
+| `obsidian_memory_mcp.markdown` | Frontmatter, fence/heading helpers for reads and context-pack slicing |
+| `obsidian_memory_mcp.indexing.parser` | Indexing-only note parse (`parse_markdown`, blocks, sections, FTS targets) |
 | `obsidian_memory_mcp.utils` | Globs, hashing, vault path guards, timing, wikilink tokenization |
 
 ## CLI / support modules (not library API)

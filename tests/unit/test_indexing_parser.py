@@ -4,7 +4,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from obsidian_memory_mcp.parser import PARSER_VERSION, parse_markdown
+from obsidian_memory_mcp.indexing.parser import PARSER_VERSION, parse_markdown
 
 
 def _parse(content: str, *, vault_path: str = "wiki/note.md"):

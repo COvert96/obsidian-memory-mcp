@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from obsidian_memory_mcp.parser._models import ParsedSection, ParsedWikilink
+from obsidian_memory_mcp.indexing.parser._models import ParsedSection, ParsedWikilink
 from obsidian_memory_mcp.utils import iter_non_embedded_wikilinks
 
 

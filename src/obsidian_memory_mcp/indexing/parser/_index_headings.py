@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 from obsidian_memory_mcp.markdown import HEADING_RE, is_fence_line, next_fence_state
-from obsidian_memory_mcp.parser._models import HeadingOccurrence
-from obsidian_memory_mcp.parser._text import clean_heading_text, section_key, slugify
+from obsidian_memory_mcp.indexing.parser._models import HeadingOccurrence
+from obsidian_memory_mcp.indexing.parser._text import (
+    clean_heading_text,
+    section_key,
+    slugify,
+)
 
 
 def find_headings(

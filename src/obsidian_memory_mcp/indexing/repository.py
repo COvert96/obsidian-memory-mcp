@@ -27,7 +27,7 @@ from obsidian_memory_mcp.indexing._models import (
 )
 
 if TYPE_CHECKING:
-    from obsidian_memory_mcp.parser import ParsedNote
+    from obsidian_memory_mcp.indexing.parser import ParsedNote
 
 
 def replace_file_index(
