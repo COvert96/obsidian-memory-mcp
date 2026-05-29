@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 - 2026-05-29
+## Unreleased - 2026-05-29
 
 Direct-write release replacing the proposal workflow.
 

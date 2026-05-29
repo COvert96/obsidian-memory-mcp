@@ -2,7 +2,7 @@
 
 Obsidian Memory MCP is a local MCP server that gives AI clients guarded access to an Obsidian-style markdown vault. It provides deterministic retrieval with SQLite FTS5, token-budgeted context packs, and direct atomic writes with audit logging for memory updates.
 
-Release status: GitHub source release, version `0.2.0`. PyPI publication and hosted documentation are not part of this release.
+Release status: Development on `main`, upcoming `0.2.0`. PyPI publication and hosted documentation are not part of this release.
 
 ## Features
 
