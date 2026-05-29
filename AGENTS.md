@@ -18,3 +18,7 @@ Prioritize test quality over quantity. A single well-designed test that clearly 
 
 - `uv` is the build backend and package manager.
 - Always use `uv run` over `.venv/Scripts/python.exe` or `python`.
+
+## Commit Rules
+- NEVER add "Co-Authored by ..." in commit messages, PR, or any tracked files.
+- Use the `devops` skill when commiting changes.
