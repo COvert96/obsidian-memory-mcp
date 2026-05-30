@@ -53,6 +53,7 @@ TOOL_CONTRACTS: dict[str, ToolContract] = {
             "heading_level": 2,
             "content": "## Definition\nCompliance controls encoded as executable rules.",
             "context_prefix": "Compliance overview.",
+            "context_suffix": "",
         },
     ),
     "search_notes": ToolContract(

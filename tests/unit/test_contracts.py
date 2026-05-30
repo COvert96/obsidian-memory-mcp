@@ -44,10 +44,11 @@ def test_tool_error_codes_matches_contract_possible_errors() -> None:
         assert TOOL_ERROR_CODES[name] == contract.possible_errors
 
 
-def test_read_section_contract_documents_context_prefix() -> None:
+def test_read_section_contract_documents_context_prefix_and_suffix() -> None:
     response = TOOL_CONTRACTS["read_section"].example_response
 
     assert "context_prefix" in response
+    assert "context_suffix" in response
     assert "context_lines" not in response
     assert str(response["content"]).startswith("## ")
 

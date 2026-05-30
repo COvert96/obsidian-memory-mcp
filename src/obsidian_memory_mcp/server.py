@@ -294,7 +294,7 @@ def _require_non_memory_path(file_path: str, tool_name: str) -> None:
         return
     raise ToolExecutionError(
         build_error(
-            ErrorCode.ERR_INVALID_REQUEST,
+            ErrorCode.ERR_GUARDRAIL_VIOLATION,
             message=(
                 f"{tool_name} does not support files under 'Memory/'. "
                 f"Received '{file_path}'. Use the matching memory tool instead."

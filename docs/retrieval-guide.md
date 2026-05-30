@@ -59,7 +59,8 @@ Example response:
   "heading": "Definition",
   "heading_level": 2,
   "content": "## Definition\nCompliance controls encoded as executable rules.",
-  "context_prefix": "Compliance overview."
+  "context_prefix": "Compliance overview.",
+  "context_suffix": ""
 }
 ```
 
@@ -67,6 +68,10 @@ Example response:
 next heading at the same or higher level. Lower-level headings remain part of
 the returned section. `context_prefix` contains up to three non-heading source
 lines immediately above the matched heading and is never included in `content`.
+`context_suffix` contains up to three non-heading source lines that appear in
+the file after the section slice and before the next heading at the section
+boundary (often an empty string when the next heading immediately follows the
+section).
 
 ## search_notes
 
@@ -154,10 +159,10 @@ For example, `wiki/**/test.md` matches both `wiki/test.md` and
 
 ## Section Context
 
-`read_section` returns `context_prefix` as source context, not parsed markdown
-structure. If a fenced code block appears immediately above a heading, those
-fence lines may be returned as context lines because they are part of the source
-near the matched heading.
+`read_section` returns `context_prefix` and `context_suffix` as source context,
+not parsed markdown structure. If a fenced code block appears immediately above
+a heading, those fence lines may be returned as context lines because they are
+part of the source near the matched heading.
 
 ## Regex Queries
 

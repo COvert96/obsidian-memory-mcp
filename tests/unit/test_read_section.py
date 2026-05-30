@@ -42,6 +42,7 @@ def test_read_section_returns_heading_body_nested_headings_and_context(
             "## Installation\nInstall the package.\n### Windows\nUse PowerShell."
         ),
         "context_prefix": "Context one.\nContext two.\nContext three.",
+        "context_suffix": "",
     }
 
 
@@ -55,6 +56,25 @@ def test_read_section_context_is_empty_when_heading_follows_frontmatter(
 
     assert result["content"] == "# Overview\nBody."
     assert result["context_prefix"] == ""
+    assert result["context_suffix"] == ""
+
+
+def test_read_section_includes_context_suffix_key(vault_root: Path) -> None:
+    note = vault_root / "wiki" / "suffix.md"
+    note.write_text(
+        "## Alpha\n"
+        "Alpha body.\n"
+        "Suffix one.\n"
+        "## Beta\n"
+        "Beta body.\n",
+        encoding="utf-8",
+    )
+
+    result = _service(vault_root).read("wiki/suffix.md", "alpha")
+
+    assert "context_suffix" in result
+    assert isinstance(result["context_suffix"], str)
+    assert "Suffix one." in result["content"]
 
 
 def test_read_section_ignores_heading_markers_inside_fenced_code(
