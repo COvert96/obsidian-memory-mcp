@@ -4,7 +4,7 @@
 
 Git tag: `v0.2.0`. Package version: `0.2.0`.
 
-Stable release of the direct-write line: SQLAlchemy index layer, Alembic migrations, guarded MCP writes with audit and supersession, architecture refactor, and the five-skill agent library under `docs/skills/`. Validated by [UAT](docs/acceptance/2026-05-30-acceptance-test-v0.2.0.md) (50/50 pass).
+Stable release of the direct-write line: SQLAlchemy index layer, Alembic migrations, guarded MCP writes with audit and supersession, architecture refactor, and the five-skill agent library under `docs/skills/`. Validated by release-gate tests (`tests/release/`) and integration regression coverage (`tests/integration/test_uat_regression.py`).
 
 ### Fixed
 
@@ -12,7 +12,7 @@ Stable release of the direct-write line: SQLAlchemy index layer, Alembic migrati
 - `write_memory`, `write_note`, and `update_note` return `ERR_GUARDRAIL_VIOLATION` for Memory/ scope violations (was `ERR_INVALID_REQUEST`).
 - `read_note` rejects empty `note_path` with `ERR_INVALID_REQUEST`.
 - [vault-setup.md](docs/vault-setup.md) documents directory-only write-allow paths.
-- `tests/integration/test_uat_regression.py` covers UAT regression cases in CI.
+- `tests/integration/test_uat_regression.py` locks read/write contract regressions in CI.
 
 ### Notes
 

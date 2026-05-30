@@ -32,7 +32,7 @@ Tag only after feature work is merged to `main` and the quality gates above pass
 | Tag | Purpose |
 |-----|---------|
 | `v0.2.0-rc.1` | Pre-release on GitHub (historical); marked pre-release automatically |
-| `v0.2.0` | Current stable GitHub release after RC validation and UAT |
+| `v0.2.0` | Current stable GitHub release after RC validation and release-gate tests |
 
 ### Automated release (GitHub Actions)
 
