@@ -54,6 +54,13 @@ def test_read_note_content_hash_is_raw_byte_hash_for_crlf_file(
     )
 
 
+def test_read_note_empty_path_raises_invalid_request(vault_root: Path) -> None:
+    with pytest.raises(ToolExecutionError) as exc_info:
+        _service(vault_root).read("")
+
+    assert exc_info.value.error.code is ErrorCode.ERR_INVALID_REQUEST
+
+
 def test_read_note_raises_missing_file(vault_root: Path) -> None:
     with pytest.raises(ToolExecutionError) as exc_info:
         _service(vault_root).read("wiki/missing.md")

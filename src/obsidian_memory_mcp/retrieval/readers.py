@@ -30,6 +30,14 @@ class ReadNoteService:
         self._guardrails = guardrails
 
     def read(self, note_path: str) -> dict[str, Any]:
+        if not note_path.strip():
+            raise ToolExecutionError(
+                build_error(
+                    ErrorCode.ERR_INVALID_REQUEST,
+                    message="note_path is required.",
+                    details={"field": "note_path"},
+                )
+            )
         resolved_path = resolve_existing_note(self._config, self._guardrails, note_path)
         raw = read_text(self._config, resolved_path)
         # content_hash is the SHA-256 of the raw bytes, not the newline-normalized
@@ -70,6 +78,7 @@ class ReadSectionService:
             "heading_level": section.heading_level,
             "content": section.content,
             "context_prefix": section.context_prefix,
+            "context_suffix": section.context_suffix,
         }
 
 
@@ -79,6 +88,7 @@ class _ExtractedSection:
     heading_level: int
     content: str
     context_prefix: str
+    context_suffix: str
 
 
 def _extract_section(content: str, heading_name: str) -> _ExtractedSection | None:
@@ -91,11 +101,13 @@ def _extract_section(content: str, heading_name: str) -> _ExtractedSection | Non
     end_index = section_end_index(headings, heading, line_count=len(lines))
     section_content = "\n".join(lines[heading.line_index : end_index]).rstrip()
     context_prefix = _context_prefix(lines, headings, heading.line_index)
+    context_suffix = _context_suffix(lines, headings, end_index)
     return _ExtractedSection(
         heading=heading.text,
         heading_level=heading.level,
         content=section_content,
         context_prefix=context_prefix,
+        context_suffix=context_suffix,
     )
 
 
@@ -118,6 +130,26 @@ def _context_prefix(
         index -= 1
 
     return "\n".join(reversed(context))
+
+
+def _context_suffix(
+    lines: list[str],
+    headings: tuple[MarkdownHeading, ...],
+    section_end_index: int,
+) -> str:
+    heading_line_indexes = {item.line_index for item in headings}
+    context: list[str] = []
+    index = section_end_index
+
+    while index < len(lines) and len(context) < 3:
+        if index in heading_line_indexes:
+            break
+        line = lines[index]
+        if line.strip():
+            context.append(line)
+        index += 1
+
+    return "\n".join(context)
 
 
 def _frontmatter_body_start(lines: list[str]) -> int:

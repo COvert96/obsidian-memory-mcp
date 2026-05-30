@@ -236,6 +236,8 @@ docs/prd/
 
 # Local MCP
 memory-mcp-server.yaml
+memory-mcp.yaml
+**/*/*uat*.md
 *.sqlite
 *.sqlite3
 *.sqlite3-journal

@@ -109,7 +109,7 @@ def test_write_memory_rejects_non_memory_path(vault: Path) -> None:
             "write_memory",
             {"project": "sample", "file_path": "wiki/note.md", "content": "content"},
         )
-    assert ErrorCode.ERR_INVALID_REQUEST.value in str(exc_info.value)
+    assert ErrorCode.ERR_GUARDRAIL_VIOLATION.value in str(exc_info.value)
     assert not (vault / "wiki" / "note.md").exists()
 
 
@@ -133,6 +133,47 @@ def test_write_memory_fails_when_file_already_exists(vault: Path) -> None:
 # ---------------------------------------------------------------------------
 # write_note
 # ---------------------------------------------------------------------------
+
+
+def test_write_note_allows_file_directly_under_concepts_directory_allow(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Directory-only allow entries (e.g. wiki/concepts/) match direct children only."""
+    root = tmp_path / "vault"
+    (root / "wiki" / "concepts").mkdir(parents=True)
+    (root / "Memory").mkdir(parents=True)
+    (root / ".mcp").mkdir(parents=True)
+    root.joinpath("memory-mcp.yaml").write_text(
+        f"""
+vault_path: "{root.as_posix()}"
+index_db_location: .mcp/memory-index.sqlite3
+context_packs:
+  - name: default
+    paths: ["**/*.md"]
+write_constraints:
+  read:
+    allow: ["**/*.md"]
+  write:
+    allow: ["Memory/**", "wiki/concepts/"]
+""",
+        encoding="utf-8",
+    )
+    registry = _write_registry(tmp_path, root)
+    monkeypatch.setenv(SERVER_REGISTRY_ENV_VAR, str(registry))
+
+    result = _call(
+        "write_note",
+        {
+            "project": "sample",
+            "file_path": "wiki/concepts/uat-direct.md",
+            "content": "# Direct\nCreated under wiki/concepts/.\n",
+        },
+    )
+
+    target = root / "wiki" / "concepts" / "uat-direct.md"
+    assert target.is_file()
+    assert result["file_path"] == "wiki/concepts/uat-direct.md"
 
 
 def test_write_note_creates_file_on_disk(vault: Path) -> None:
@@ -167,7 +208,7 @@ def test_write_note_rejects_memory_path_and_writes_nothing(vault: Path) -> None:
             },
         )
 
-    assert ErrorCode.ERR_INVALID_REQUEST.value in str(exc_info.value)
+    assert ErrorCode.ERR_GUARDRAIL_VIOLATION.value in str(exc_info.value)
     assert not (vault / "Memory" / "should-be-rejected.md").exists()
 
 
@@ -362,7 +403,7 @@ def test_update_note_rejects_memory_path(vault: Path) -> None:
             {"project": "sample", "file_path": "Memory/note.md", "content": "y"},
         )
 
-    assert ErrorCode.ERR_INVALID_REQUEST.value in str(exc_info.value)
+    assert ErrorCode.ERR_GUARDRAIL_VIOLATION.value in str(exc_info.value)
 
 
 def test_read_note_hash_round_trips_through_update_for_crlf_file(vault: Path) -> None:

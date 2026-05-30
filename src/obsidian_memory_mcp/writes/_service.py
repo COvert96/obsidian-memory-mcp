@@ -28,12 +28,12 @@ def is_memory_path(file_path: str) -> bool:
 
 
 def require_memory_path(file_path: str, tool_name: str) -> None:
-    """Raise ERR_INVALID_REQUEST if file_path is not under Memory/."""
+    """Raise ERR_GUARDRAIL_VIOLATION if file_path is not under Memory/."""
     if is_memory_path(file_path):
         return
     raise ToolExecutionError(
         build_error(
-            ErrorCode.ERR_INVALID_REQUEST,
+            ErrorCode.ERR_GUARDRAIL_VIOLATION,
             message=(
                 f"{tool_name} only supports files under 'Memory/'. "
                 f"Received '{file_path}'."

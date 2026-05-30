@@ -120,3 +120,7 @@ write_constraints:
 - `vault_path must be an existing directory`: create the vault or fix the path.
 - `index_db_location must be a path inside vault_path`: use a relative path such as `memory-index.sqlite3`.
 - `ERR_GUARDRAIL_VIOLATION`: the requested path escaped the vault or did not match the configured allow rules.
+
+Directory-only write allow entries such as `wiki/concepts/` (no `**` wildcard) match
+markdown files placed directly under that directory, not nested subfolders. Use
+`wiki/concepts/**` when writes must reach deeper paths.
