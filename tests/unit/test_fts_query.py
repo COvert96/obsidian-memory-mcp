@@ -9,7 +9,7 @@ from obsidian_memory_mcp.retrieval._fts_query import prepare_fts_match_query, qu
     ("query", "expected"),
     [
         ("databricks-scan-api", '"databricks-scan-api"'),
-        ("complex query", '"complex query"'),
+        ("complex query", '"complex" "query"'),
         ("compliance", '"compliance"'),
     ],
 )
