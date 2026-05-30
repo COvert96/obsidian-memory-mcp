@@ -228,11 +228,15 @@ __marimo__/
 # Prompts
 prompts/
 
-# Agent Outputs
+# Agents
 docs/plans/
 docs/code-review/
 docs/acceptance/
 docs/prd/
+AGENTS.md
+CLAUDE.md
+.claude/
+.agents/
 
 # Local MCP (repo root only — tests/fixtures write their own config)
 /memory-mcp-server.yaml
