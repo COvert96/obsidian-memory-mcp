@@ -237,6 +237,7 @@ AGENTS.md
 CLAUDE.md
 .claude/
 .agents/
+.github/skills/
 
 # Local MCP (repo root only — tests/fixtures write their own config)
 /memory-mcp-server.yaml
