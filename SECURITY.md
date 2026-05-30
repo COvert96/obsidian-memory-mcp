@@ -14,4 +14,4 @@ Real vault content can contain personal, business, or credential-adjacent inform
 
 ## Supported Versions
 
-Security fixes target the latest GitHub source release on the **0.2.x** line (`0.2.0-rc.1` / `v0.2.0-rc.1` and later). The **0.1.x** line is superseded by 0.2.0; upgrade using [docs/migration-guide.md](docs/migration-guide.md).
+Security fixes target the latest GitHub source release on the **0.2.x** line (`0.2.0` / `v0.2.0` and later). The **0.1.x** line is superseded by 0.2.0; upgrade using [docs/migration-guide.md](docs/migration-guide.md).

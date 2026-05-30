@@ -1,8 +1,26 @@
 # Changelog
 
+## 0.2.0 - 2026-05-30
+
+Git tag: `v0.2.0`. Package version: `0.2.0`.
+
+Stable release of the direct-write line: SQLAlchemy index layer, Alembic migrations, guarded MCP writes with audit and supersession, architecture refactor, and the five-skill agent library under `docs/skills/`. Validated by [UAT](docs/acceptance/2026-05-30-acceptance-test-v0.2.0.md) (50/50 pass).
+
+### Fixed
+
+- `read_section` optional `context_suffix` (contract and [retrieval guide](docs/retrieval-guide.md) aligned).
+- `write_memory`, `write_note`, and `update_note` return `ERR_GUARDRAIL_VIOLATION` for Memory/ scope violations (was `ERR_INVALID_REQUEST`).
+- `read_note` rejects empty `note_path` with `ERR_INVALID_REQUEST`.
+- [vault-setup.md](docs/vault-setup.md) documents directory-only write-allow paths.
+- `tests/integration/test_uat_regression.py` covers UAT regression cases in CI.
+
+### Notes
+
+The feature set below matches the [0.2.0-rc.1](#0200-rc1---2026-05-29) pre-release, plus the fixes above.
+
 ## 0.2.0-rc.1 - 2026-05-29
 
-Pre-release for **v0.2.0**: SQLAlchemy index layer, Alembic migrations, direct-write MCP tools with audit and supersession, architecture refactor, and the published agent skills library. Git tag: `v0.2.0-rc.1`. Package version: `0.2.0rc1` (PEP 440).
+Pre-release: SQLAlchemy index layer, Alembic migrations, direct-write MCP tools with audit and supersession, architecture refactor, and the published agent skills library. Git tag: `v0.2.0-rc.1`. Package version: `0.2.0rc1` (PEP 440).
 
 ### Added
 
@@ -37,7 +55,6 @@ Pre-release for **v0.2.0**: SQLAlchemy index layer, Alembic migrations, direct-w
 - `mcp-memory migrate` runs `upgrade head` for legacy databases that had a `files` table but no `alembic_version`, and repairs schemas stamped at head but missing `write_audit` or still carrying proposal tables.
 - Runtime `metadata.create_all()` bootstrap retired; Alembic is the sole schema owner for index databases.
 - Documentation, fixture vault samples, and benchmarks aligned with direct writes (no proposal MCP tools).
-- Project version `0.2.0rc1` for this pre-release; final `0.2.0` after RC validation (`v0.2.0` tag).
 
 ### Removed
 
