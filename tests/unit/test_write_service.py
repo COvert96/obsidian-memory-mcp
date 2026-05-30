@@ -88,7 +88,7 @@ def test_require_memory_path_passes_for_memory_file() -> None:
 def test_require_memory_path_raises_for_non_memory_file() -> None:
     with pytest.raises(ToolExecutionError) as exc_info:
         require_memory_path("wiki/note.md", "write_memory")
-    assert exc_info.value.error.code is ErrorCode.ERR_INVALID_REQUEST
+    assert exc_info.value.error.code is ErrorCode.ERR_GUARDRAIL_VIOLATION
     assert "write_memory" in exc_info.value.error.message
 
 

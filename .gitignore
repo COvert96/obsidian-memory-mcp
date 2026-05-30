@@ -223,7 +223,7 @@ __marimo__/
 # Claude
 .claude/settings.local.json
 .claude/worktrees/
-memory/
+/memory/
 
 # Prompts
 prompts/
@@ -234,8 +234,16 @@ docs/code-review/
 docs/acceptance/
 docs/prd/
 
-# Local MCP
-memory-mcp-server.yaml
+# Local MCP (repo root only — tests/fixtures write their own config)
+/memory-mcp-server.yaml
+/memory-mcp.yaml
+
+# Ephemeral manual UAT outputs (keep committed fixture baseline tracked)
+tests/fixtures/sample-vault/memory-mcp.yaml
+tests/fixtures/sample-vault/**/*.sqlite*
+tests/fixtures/sample-vault/Memory/**/*.md
+tests/fixtures/sample-vault/wiki/**/uat-*.md
+
 *.sqlite
 *.sqlite3
 *.sqlite3-journal
