@@ -236,6 +236,7 @@ docs/prd/
 AGENTS.md
 CLAUDE.md
 .claude/
+*.zip
 .agents/
 .github/skills/
 
