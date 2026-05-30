@@ -10,6 +10,7 @@ from typing import Any
 from obsidian_memory_mcp.config import ProjectConfig
 from obsidian_memory_mcp.database import connect_index_db
 from obsidian_memory_mcp.retrieval._preview import format_preview
+from obsidian_memory_mcp.retrieval._fts_query import prepare_fts_match_query
 from obsidian_memory_mcp.retrieval._regex import (
     RegexQuery,
     parse_regex_query,
@@ -72,7 +73,11 @@ def _fetch_search_rows(
     paths: list[str],
     exclude_paths: list[str],
 ) -> list[sqlite3.Row]:
-    fts_query = regex_query.fts_query if regex_query else normalized_query
+    fts_query = (
+        regex_query.fts_query
+        if regex_query
+        else prepare_fts_match_query(normalized_query)
+    )
     sql, params = search_sql(
         fts_query,
         limit=None if regex_query else result_limit,

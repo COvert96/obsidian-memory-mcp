@@ -12,6 +12,7 @@ from obsidian_memory_mcp.context_packs._models import (
     PackDocument,
 )
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
+from obsidian_memory_mcp.retrieval._fts_query import quote_fts_term
 from obsidian_memory_mcp.tokens import estimate_tokens
 
 NEAR_BUDGET_RATIO = 0.9
@@ -207,8 +208,4 @@ def _ranking_query(pack: ContextPackConfig) -> str:
             if piece and piece not in {"md"}:
                 normalized_terms.append(piece)
     unique_terms = tuple(dict.fromkeys(normalized_terms))
-    return " OR ".join(_quote_fts_term(term) for term in unique_terms)
-
-
-def _quote_fts_term(term: str) -> str:
-    return '"' + term.replace('"', '""') + '"'
+    return " OR ".join(quote_fts_term(term) for term in unique_terms)

@@ -14,6 +14,7 @@ import re
 from dataclasses import dataclass
 
 from obsidian_memory_mcp.errors import ErrorCode, ToolExecutionError, build_error
+from obsidian_memory_mcp.retrieval._fts_query import quote_fts_term
 
 _BOOLEAN_TERMS = frozenset({"AND", "OR", "NOT"})
 _MAX_SEARCH_LIMIT = 100
@@ -54,7 +55,7 @@ def _regex_candidate_query(pattern_text: str) -> str:
     terms = tuple(query_terms(literalish))
     if not terms:
         raise _invalid_request("regex query must contain at least one literal term")
-    return " OR ".join(_quote_fts_term(term) for term in terms)
+    return " OR ".join(quote_fts_term(term) for term in terms)
 
 
 def query_terms(query: str) -> list[str]:
@@ -63,10 +64,6 @@ def query_terms(query: str) -> list[str]:
         for term in re.findall(r"[A-Za-z0-9_/-]+", query)
         if term.upper() not in _BOOLEAN_TERMS
     ]
-
-
-def _quote_fts_term(term: str) -> str:
-    return '"' + term.replace('"', '""') + '"'
 
 
 def _invalid_request(message: str) -> ToolExecutionError:
