@@ -9,6 +9,7 @@ from dataclasses import asdict, dataclass
 from obsidian_memory_mcp.config import ProjectConfig
 from obsidian_memory_mcp.database import connect_index_db
 from obsidian_memory_mcp.migrations import ensure_index_migrated
+from obsidian_memory_mcp.retrieval._fts_query import prepare_fts_match_query
 
 
 @dataclass(frozen=True)
@@ -76,7 +77,7 @@ def _query_sql(
     tag: str | None,
 ) -> tuple[str, tuple[object, ...]]:
     where = ["blocks_fts MATCH ?", "files.deleted_at IS NULL"]
-    params: list[object] = [query]
+    params: list[object] = [prepare_fts_match_query(query)]
     if path:
         normalized_path = path.replace("\\", "/").lstrip("/")
         where.append("blocks.vault_path LIKE ? ESCAPE '\\'")

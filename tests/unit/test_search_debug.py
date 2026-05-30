@@ -87,6 +87,23 @@ def test_debug_search_orders_lowest_bm25_first_as_most_relevant(tmp_path: Path) 
     assert results[0].bm25_score < results[1].bm25_score
 
 
+def test_debug_search_finds_hyphenated_identifier(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "api.md").write_text(
+        "# API\nThe databricks-scan-api endpoint is documented here.",
+        encoding="utf-8",
+    )
+    config = _config(vault)
+    run_index(config, mode=IndexMode.FULL)
+
+    results = debug_search(config, "databricks-scan-api", limit=10)
+
+    assert [result.vault_path for result in results] == ["api.md"]
+    assert results[0].query == "databricks-scan-api"
+    assert "databricks-scan-api" in results[0].snippet.lower()
+
+
 def test_debug_search_rejects_malformed_fts_query(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     vault.mkdir()

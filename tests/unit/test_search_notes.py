@@ -120,6 +120,19 @@ def test_search_notes_supports_multi_word_and_regex_queries(vault_root: Path) ->
     assert [item["file_path"] for item in regex["results"]] == ["wiki/exact.md"]
 
 
+def test_search_notes_finds_hyphenated_identifier(vault_root: Path) -> None:
+    (vault_root / "wiki" / "api.md").write_text(
+        "# API\nThe databricks-scan-api endpoint is documented here.",
+        encoding="utf-8",
+    )
+
+    result = _service(vault_root).search("databricks-scan-api", limit=10)
+
+    assert result["query"] == "databricks-scan-api"
+    assert [item["file_path"] for item in result["results"]] == ["wiki/api.md"]
+    assert "databricks-scan-api" in result["results"][0]["preview"].lower()
+
+
 def test_search_notes_rejects_empty_query(vault_root: Path) -> None:
     with pytest.raises(ToolExecutionError) as exc_info:
         _service(vault_root).search("   ")
