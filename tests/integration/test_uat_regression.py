@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-import shutil
+import sys
 from pathlib import Path
 from typing import Any, cast
 
@@ -17,7 +17,11 @@ from obsidian_memory_mcp.retrieval import ReadNoteService, ReadSectionService
 from obsidian_memory_mcp.server import mcp
 from obsidian_memory_mcp.server_registry import SERVER_REGISTRY_ENV_VAR
 
-FIXTURE_SOURCE = Path(__file__).parents[1] / "fixtures" / "sample-vault"
+_TESTS_ROOT = Path(__file__).resolve().parents[1]
+if str(_TESTS_ROOT) not in sys.path:
+    sys.path.insert(0, str(_TESTS_ROOT))
+
+from fixtures.sample_vault import copy_sample_vault  # noqa: E402
 
 
 def _call(tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
@@ -36,8 +40,7 @@ def _call_expect_error(tool: str, arguments: dict[str, Any]) -> ToolError:
 
 @pytest.fixture()
 def sample_vault(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    vault = tmp_path / "sample-vault"
-    shutil.copytree(FIXTURE_SOURCE, vault)
+    vault = copy_sample_vault(tmp_path / "sample-vault")
     registry = tmp_path / "memory-mcp-server.yaml"
     registry.write_text(
         f'projects:\n  sample: "{vault.as_posix()}"\n',

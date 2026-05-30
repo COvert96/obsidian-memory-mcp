@@ -2,8 +2,8 @@
 tags: [compliance, operations]
 type: note
 ---
-# Compliance Operations
-Operations runbooks for continuous compliance evidence collection.
+# Operations Runbook
+Operational dashboards and indexed notes support governance reviews.
 
-## Compliance Monitoring
-Teams track compliance posture from operational dashboards and indexed notes.
+## Monitoring
+Teams track control posture from operational dashboards and indexed notes.
